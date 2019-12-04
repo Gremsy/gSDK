@@ -263,6 +263,55 @@ write_message(mavlink_message_t message)
 }
 
 /**
+ * @brief  This function shall reboot the gimbal
+ * @param: NONE
+ * @ret: None
+ */
+void
+Gimbal_Interface::
+set_gimbal_reboot(void)
+{
+	// Prepare command for off-board mode
+	mavlink_command_long_t comm = { 0 };
+
+	comm.target_system    	= system_id;
+	comm.target_component 	= gimbal_id;
+
+	comm.command            = MAV_CMD_PREFLIGHT_REBOOT_SHUTDOWN;
+
+	comm.param1             = 0;
+    comm.param2             = 0;
+	comm.param3             = 0;
+    comm.param4             = 1;
+	comm.param5             = 0;
+    comm.param6             = 0;
+    comm.param7             = 0;
+    comm.confirmation     	= true;
+
+	// --------------------------------------------------------------------------
+	//   ENCODE
+	// --------------------------------------------------------------------------
+
+	mavlink_message_t message;
+	mavlink_msg_command_long_encode(system_id, companion_id, &message, &comm);
+
+	// --------------------------------------------------------------------------
+	//   WRITE
+	// --------------------------------------------------------------------------
+
+	// do the write
+	int len = write_message(message);
+
+	// check the write
+	if ( len <= 0 )
+		fprintf(stderr,"WARNING: could not send GIMBAL REBOOT \n");
+	else
+		// printf("%lu GIMBAL_REBOOT = [ %d] \n", write_count);
+
+	return;
+}
+
+/**
  * @brief  This function shall turn on/off motor driver
  * @param: type see control_gimbal_motor_t
  * @ret: None
@@ -280,7 +329,7 @@ set_gimbal_motor_mode(control_gimbal_motor_t type)
 
 	comm.command            = MAV_CMD_USER_1;
     comm.param7             = type;	// type 0 =>off , 1=>on
-    comm.confirmation     	= false;
+    comm.confirmation     	= true;
 
 	// --------------------------------------------------------------------------
 	//   ENCODE

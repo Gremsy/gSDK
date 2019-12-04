@@ -301,6 +301,13 @@ public:
 
     bool get_connection(void);
 
+    /**
+	 * @brief  This function shall reboot the gimbal
+	 * @param: NONE
+	 * @ret: None
+	 */
+    void set_gimbal_reboot(void);
+
 	/**
 	 * @brief  This function shall turn on/off gimbal
 	 * @param: type see control_gimbal_motor_t

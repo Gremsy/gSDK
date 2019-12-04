@@ -36,6 +36,8 @@ typedef enum _sdk_process_state
     
     STATE_MOVE_TO_ZERO,
 
+    STATE_SET_GIMBAL_REBOOT,
+
     STATE_DONE
 }sdk_process_state_t; 
 
@@ -455,14 +457,22 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                 {
                     sdk.last_time_send = get_time_usec();
                     
-                    sdk.state = STATE_IDLE;
+                    sdk.state = STATE_SET_GIMBAL_REBOOT;
                 }
             }
         }
         break;
-        case STATE_DONE:
+        case STATE_SET_GIMBAL_REBOOT:
         {
-           
+            printf("STATE_SET_GIMBAL_REBOOT!\n");
+            onboard.set_gimbal_reboot();
+
+            if((get_time_usec() - sdk.last_time_send) > 1000000)
+            {
+                sdk.last_time_send = get_time_usec();
+
+                sdk.state = STATE_IDLE;
+            }
         }
         break;
     }
