@@ -10,7 +10,7 @@ Building
 ========
 
 ```
-$ cd gSDK/
+$ cd gSDK_Linux/
 $ make
 ```
 
@@ -18,13 +18,16 @@ Hardware Setup
 =========
 
 Connect the COM2 cable to your Onboard Computer.  
-
 The hardware connection between an GIMBAL T3 and a PC or Linux machine. Note that:
+The recommended choice of USB to TTL cable is FT232 module.
 
-The recommended choice of USB to TTL cable is FT232 module
+Refer to: gSDK Documentation
 
 Execution
 =========
+
+An FTDI cable will show up on a `ttyUSB*`.
+Run the example executable on the host shell:
 
 You have to pick a port name, try searching for it with 
 ```
@@ -43,6 +46,9 @@ $ ./gSDK -d /dev/ttyUSB0
 To stop the program, use the key sequence `Ctrl-C`.
 
 Here's an example output:
+
+```
+
 $ ./gSDK -d /dev/ttyUSB1 
 OPEN PORT
 Connected to /dev/ttyUSB1 with 115200 baud, 8 data bits, no parity, 1 stop bit (8N1)
@@ -83,3 +89,4 @@ TERMINATING AT USER REQUEST
 CLOSE THREADS
 
 CLOSE PORT
+```
