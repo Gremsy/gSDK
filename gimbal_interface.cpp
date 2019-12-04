@@ -280,13 +280,13 @@ set_gimbal_reboot(void)
 	comm.command            = MAV_CMD_PREFLIGHT_REBOOT_SHUTDOWN;
 
 	comm.param1             = 0;
-    comm.param2             = 0;
+	comm.param2             = 0;
 	comm.param3             = 0;
-    comm.param4             = 1;
+	comm.param4             = 1;
 	comm.param5             = 0;
-    comm.param6             = 0;
-    comm.param7             = 0;
-    comm.confirmation     	= true;
+	comm.param6             = 0;
+	comm.param7             = 0;
+	comm.confirmation     	= true;
 
 	// --------------------------------------------------------------------------
 	//   ENCODE
