@@ -24,8 +24,10 @@ typedef enum _sdk_process_state
 {
     STATE_IDLE,
 
-    STATE_SET_CONFIG,
-    STATE_CHECK_CONFIG,
+    STATE_CHECK_FIRMWARE_VERSION,
+    STATE_SETTING_GIMBAL,
+    STATE_SETTING_MESSAGE_RATE,
+
     STATE_SET_GIMBAL_OFF,
     STATE_SET_GIMBAL_ON,
     
@@ -222,7 +224,7 @@ void gGimbal_displays(Gimbal_Interface &api)
 
     gimbal_config_axis_t setting = api.get_gimbal_config_tilt_axis();
 
-    printf("\tSETTING TILT: dir %d, stiff %d, hold: %d, speed_follow: %d speed_control: %d\n", 
+    printf("\tSETTING TILT: dir %d, speed_follow: %d, speed_control: %d\n", 
                                                             setting.dir,
                                                             setting.speed_follow,
                                                             setting.speed_control);
@@ -255,29 +257,35 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
     {
         case STATE_IDLE:
         {
-           sdk.state = STATE_SET_CONFIG;
-
-           fw_version_t fw = onboard.get_gimbal_version();
-           printf("FW Version: %d.%d.%d.%s\n", fw.x, fw.y, fw.z, fw.type);
-
-           usleep(100000);
+           sdk.state = STATE_CHECK_FIRMWARE_VERSION;
 
            sdk.last_time_send = get_time_usec();
         }
         break;
-        case STATE_SET_CONFIG:
+        case STATE_CHECK_FIRMWARE_VERSION:
         {
-            // int8_t  dir;
-            // uint8_t speed_control;
-            // uint8_t smooth_control;
 
-            // uint8_t speed_follow;
-            // uint8_t smooth_follow;
-            // uint8_t window_follow;
+           fw_version_t fw = onboard.get_gimbal_version();
+           printf("FW Version: %d.%d.%d.%s\n", fw.x, fw.y, fw.z, fw.type);
 
-            // uint8_t stiffness;
-            // uint8_t holdstrength;
 
+           // This firmware only apply for the firmware version from v7.x.x or above
+           if(fw.x >= 7 )
+           {
+                sdk.state = STATE_SETTING_GIMBAL;
+           }
+           else
+           {
+                printf("DO NOT SUPPORT. Please check the firmware version\n");
+           }
+
+           usleep(100000);
+        }
+        break;
+        case STATE_SETTING_GIMBAL:
+        {
+
+            // Setting axis for control. see the struct gimbal_config_axis_t
             gimbal_config_axis_t config = {0};
 
             config = {DIR_CCW, 50, 50, 65, 50, 0};
@@ -289,6 +297,8 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             config = {DIR_CW, 50, 70, 87, 50, 0};
             onboard.set_gimbal_config_pan_axis(config);
 
+
+            // Motor control likes: Stiffness, holdstrength, gyro filter, output filter and gain
             gimbal_motor_control_t tilt = {80, 40};
             gimbal_motor_control_t roll = {90, 40};
             gimbal_motor_control_t pan = {100, 40};
@@ -296,20 +306,25 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
 
             usleep(100000);
 
-           sdk.state = STATE_CHECK_CONFIG;
+           sdk.state = STATE_SETTING_MESSAGE_RATE;
         }
         break;
-        case STATE_CHECK_CONFIG:
+        case STATE_SETTING_MESSAGE_RATE:
         {
-            // uint8_t emit_heatbeat = 1, 
-            // uint8_t status_rate = 10, 
-            // uint8_t enc_cnt_rate = 50, 
-            // uint8_t enc_angle_rate = 50,
-            // uint8_t orien_rate = 50,
-            // uint8_t imu_rate = 10;
+            uint8_t emit_heatbeat = 1;
+            uint8_t status_rate = 10;
+            uint8_t enc_cnt_rate = 10; 
+            uint8_t enc_angle_rate = 0; // DO NOT SUPPORT this message.
+            uint8_t orien_rate = 50;
+            uint8_t imu_rate = 10;
             printf("Set msg rate!\n");
 
-            onboard.set_gimbal_config_mavlink_msg(1, 10, 0, 0, 50, 0);
+            onboard.set_gimbal_config_mavlink_msg(  emit_heatbeat, 
+                                                    status_rate, 
+                                                    enc_cnt_rate, 
+                                                    enc_angle_rate, 
+                                                    orien_rate,
+                                                    imu_rate);
             usleep(100000);
 
             sdk.state = STATE_SET_GIMBAL_OFF;
