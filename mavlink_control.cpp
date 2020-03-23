@@ -270,13 +270,16 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
 
 
            // This firmware only apply for the firmware version from v7.x.x or above
-           if(fw.x >= 7 )
+           if(fw.x >= 7 && fw.y >= 5)
            {
                 sdk.state = STATE_SETTING_GIMBAL;
            }
            else
            {
-                printf("DO NOT SUPPORT. Please check the firmware version\n");
+                printf("DO NOT SUPPORT FUNCTIONS. Please check the firmware version\n");
+                printf("1. MOTOR CONTROL\n");
+                printf("2. AXIS CONFIGURATION\n");
+                printf("3. MAVLINK MSG RATE CONFIGURATION\n");
            }
 
            usleep(100000);
@@ -317,6 +320,7 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             uint8_t enc_angle_rate = 0; // DO NOT SUPPORT this message.
             uint8_t orien_rate = 50;
             uint8_t imu_rate = 10;
+            
             printf("Set msg rate!\n");
 
             onboard.set_gimbal_config_mavlink_msg(  emit_heatbeat, 

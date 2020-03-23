@@ -215,8 +215,6 @@ read_messages()
 
 				case MAVLINK_MSG_ID_COMMAND_ACK:
 				{
-					// printf("MAVLINK_MSG_ID_RAW_IMU\n");
-
 					mavlink_command_ack_t packet;
 
 					mavlink_msg_command_ack_decode(&message, &packet);
@@ -285,22 +283,6 @@ read_messages()
 			} // end: switch msgid
 
 		} // end: if read message
-
-		// give the write thread time to use the port
-		if ( writing_status > false ) {
-			usleep(100); // look for components of batches at 10kHz
-		}
-
-		// Check for receipt of all items
-		received_all = 
-				this_timestamps.heartbeat && 
-				this_timestamps.mount_orientation &&
-				this_timestamps.sys_status;
-
-		if(received_all) 
-		{
-
-		}
 
 	} // end: while not received all
 
@@ -860,22 +842,22 @@ set_gimbal_move(int16_t tilt, int16_t roll, int16_t pan)
 	return;
 }
 
-	/**
-	 * @brief  This function set motor controls setting
-	 * @param: tilt, roll, pan - stiffness and holdstrengtg, see user_manual (https://gremsy.com/gremsy-t3-manual/)
-	 * @param: gyro_filter - The coefficent for denoising the sensor filter
-	 * @param: output_filter - The coefficent for denoising the output filter
-	 * @param: gain - Defines how fast each axis will return to commanded position. 
-	 * @ret: gimbal_motor_control_t contains setting related to tilt axis
-	 * 
-	 * 
-	 *	GYRO FILTER 	2
-	 *	OUTPUT FILTER 	3
-	 *
-	 *	HOLD STRENGTH 	TILT 	ROLL 	PAN
-	 *					40 		40 		40
-	 * 	GAIN 			120		120		120
-	 */
+/**
+ * @brief  This function set motor controls setting
+ * @param: tilt, roll, pan - stiffness and holdstrengtg, see user_manual (https://gremsy.com/gremsy-t3-manual/)
+ * @param: gyro_filter - The coefficent for denoising the sensor filter
+ * @param: output_filter - The coefficent for denoising the output filter
+ * @param: gain - Defines how fast each axis will return to commanded position. 
+ * @ret: gimbal_motor_control_t contains setting related to tilt axis
+ * 
+ * 
+ *	GYRO FILTER 	2
+ *	OUTPUT FILTER 	3
+ *
+ *	HOLD STRENGTH 	TILT 	ROLL 	PAN
+ *					40 		40 		40
+ * 	GAIN 			120		120		120
+ */
 void 
 Gimbal_Interface::
 set_gimbal_motor_control(	gimbal_motor_control_t tilt, 
@@ -896,7 +878,6 @@ set_gimbal_motor_control(	gimbal_motor_control_t tilt,
 	set_param(GMB_PARAM_GYRO_FILTER, (int16_t)gyro_filter);
 	set_param(GMB_PARAM_GAIN, (int16_t)gain);	
 }
-
 
 /**
  * @brief  This function get motor controls setting
@@ -949,7 +930,7 @@ get_gimbal_motor_control(	gimbal_motor_control_t& tilt,
 /**
  * @brief  This function shall configure on the tilt axis
  * 
- * @param: config see  gimbal_config_axis_t structure
+ * @param: config - see gimbal_config_axis_t structure
  * @note: The smooth starts with a low value of 50 
  *			Slowly increase this setting until you feel an oscillation in the tilt axis, 
  *			then reduce the setting until the oscillation subsides.
@@ -1636,6 +1617,7 @@ present()
 {
 	uint32_t timeout = get_time_usec() - _last_report_msg_us;
 
+	// Check time out
 	if (_state != GIMBAL_STATE_NOT_PRESENT && timeout > _time_lost_connection) 
 	{
 	    printf(" Not Present!\n");
