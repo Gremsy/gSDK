@@ -129,7 +129,7 @@ struct Mavlink_Messages
 	// System Status
 	mavlink_sys_status_t 		sys_status;
 
-	// Mount status
+	// Mount status contains the encoder count value. Resolution 2^16
 	mavlink_mount_status_t 		mount_status;
 
 	// Mount orientation
@@ -161,73 +161,8 @@ struct Mavlink_Messages
 	{
 		current_seq_rx.reset_seq_num();
 	}
-
 };
 
-/**
- * @brief control_motor_t
- * Command control motor is on/off
- */
-enum param_index_t
-{
-
-	GMB_PARAM_VERSION_X = 0,
-	GMB_PARAM_VERSION_Y,
-	GMB_PARAM_VERSION_Z,
-
-	GMB_PARAM_STIFFNESS_PITCH,
-	GMB_PARAM_STIFFNESS_ROLL,
-	GMB_PARAM_STIFFNESS_YAW,
-
-	GMB_PARAM_HOLDSTRENGTH_PITCH,
-	GMB_PARAM_HOLDSTRENGTH_ROLL,
-	GMB_PARAM_HOLDSTRENGTH_YAW,
-
-	GMB_PARAM_OUTPUT_FILTER,
-	GMB_PARAM_GYRO_FILTER,
-	GMB_PARAM_GAIN,
-
-	GMB_PARAM_SPEED_FOLLOW_PITCH,
-	GMB_PARAM_SPEED_FOLLOW_YAW,
-
-	GMB_PARAM_SMOOTH_FOLLOW_PITCH,
-	GMB_PARAM_SMOOTH_FOLLOW_YAW,
-
-	GMB_PARAM_WINDOW_FOLLOW_PITCH,
-	GMB_PARAM_WINDOW_FOLLOW_YAW,
-
-	GMB_PARAM_SPEED_CONTROL_PITCH,
-	GMB_PARAM_SPEED_CONTROL_ROLL,
-	GMB_PARAM_SPEED_CONTROL_YAW,
-
-	GMB_PARAM_SMOOTH_CONTROL_PITCH,
-	GMB_PARAM_SMOOTH_CONTROL_ROLL,
-	GMB_PARAM_SMOOTH_CONTROL_YAW,
-
-	GMB_PARAM_AXIS_DIR,
-
-	GMB_PARAM_HEATBEAT_EMIT,
-	GMB_PARAM_STATUS_RATE,
-	GMB_PARAM_ENCODER_CNT_RATE,
-	GMB_PARAM_ENCODER_ANGLE_RATE,
-	GMB_PARAM_ORIENTATION_RATE,
-	GMB_PARAM_RAW_IMU_RATE,
-
-   GIMBAL_NUM_TRACKED_PARAMS
-};
-
-/**
- * @brief control_motor_t
- * Command control motor is on/off
- */
-enum param_state_t
-{
-	PARAM_STATE_NOT_YET_READ 		= 0,	// parameter has yet to be initialized
-	PARAM_STATE_FETCH_AGAIN			= 1,	// parameter is being fetched
-	PARAM_STATE_ATTEMPTING_TO_SET   = 2,	// parameter is being set
-	PARAM_STATE_CONSISTENT			= 3,	// parameter is consistent
-	PARAM_STATE_NONEXISTANT			= 4		// parameter does not seem to exist
-};
 
 /**
  * @brief control_motor_t
@@ -358,7 +293,12 @@ typedef struct _gimbal_config_axis_t
 
 /**
  * @brief _gimbal_motor_control_t
- * This structure will contain the gimbal motor control
+ * stifness: Stiffness setting has a significant impact on the performance of the Gimbal. 
+ *			This setting adjusts the degrees to which the gimbal tries to correct 
+ *			for unwanted camera movement and hold the camera stable. 
+ * 			The higher you can run the setting without vibration or oscillation, the better.
+ * Holdstrength: Power level required for the corresponding axis. 
+ *				This option is only recommended for advanced users. Set 40 as defaults
  */
 typedef struct _gimbal_motor_control_t
 {
@@ -406,8 +346,6 @@ public:
 	void handle_quit( int sig );
 
 	bool get_flag_exit(void);
-
-    int gimbal_set_angle(int16_t tilt, int16_t roll, int16_t pan);
 
     bool get_connection(void);
 
@@ -512,10 +450,10 @@ public:
 	uint8_t get_command_ack_do_mount_control(void);
 
  	/**
-	 * @brief  This function shall set speed control for the tilt axis
+	 * @brief  This function get the firmware version from gimbal
 	 * 
-	 * @param: speed in rang [0:180] degree/second
-	 * @ret: None
+	 * @param: None
+	 * @ret: see fw_version_t structure
 	 */
     fw_version_t get_gimbal_version(void)
     {
@@ -602,7 +540,6 @@ public:
 	 */
 	gimbal_config_axis_t get_gimbal_config_pan_axis(void);
 
-
 	/**
 	 * @brief  This function set motor controls setting
 	 * @param: tilt, roll, pan - stiffness and holdstrengtg, see user_manual (https://gremsy.com/gremsy-t3-manual/)
@@ -644,8 +581,6 @@ public:
 									gimbal_motor_control_t& roll,
 									gimbal_motor_control_t& pan, 
 									uint8_t& gyro_filter, uint8_t& output_filter, uint8_t& gain);
-
-
 
 
 	/**
@@ -719,6 +654,73 @@ private:
 	const uint32_t	_time_lost_connection = 60000000;
 	const uint32_t 	_retry_period	= 100;  //100ms
 	const uint8_t 	_max_fetch_attempts = 5; // times
+
+	/**
+	 * @brief control_motor_t
+	 * Command control motor is on/off
+	 */
+	enum param_state_t
+	{
+		PARAM_STATE_NOT_YET_READ 		= 0,	// parameter has yet to be initialized
+		PARAM_STATE_FETCH_AGAIN			= 1,	// parameter is being fetched
+		PARAM_STATE_ATTEMPTING_TO_SET   = 2,	// parameter is being set
+		PARAM_STATE_CONSISTENT			= 3,	// parameter is consistent
+		PARAM_STATE_NONEXISTANT			= 4		// parameter does not seem to exist
+	};
+
+
+	/**
+	 * @brief param_index_t
+	 * Gimbal opens some parameters for setting. Please refer to user manual to learn more how to set 
+	 * that parameters
+	 */
+	enum param_index_t
+	{
+
+		GMB_PARAM_VERSION_X = 0,
+		GMB_PARAM_VERSION_Y,
+		GMB_PARAM_VERSION_Z,
+
+		GMB_PARAM_STIFFNESS_PITCH,
+		GMB_PARAM_STIFFNESS_ROLL,
+		GMB_PARAM_STIFFNESS_YAW,
+
+		GMB_PARAM_HOLDSTRENGTH_PITCH,
+		GMB_PARAM_HOLDSTRENGTH_ROLL,
+		GMB_PARAM_HOLDSTRENGTH_YAW,
+
+		GMB_PARAM_OUTPUT_FILTER,
+		GMB_PARAM_GYRO_FILTER,
+		GMB_PARAM_GAIN,
+
+		GMB_PARAM_SPEED_FOLLOW_PITCH,
+		GMB_PARAM_SPEED_FOLLOW_YAW,
+
+		GMB_PARAM_SMOOTH_FOLLOW_PITCH,
+		GMB_PARAM_SMOOTH_FOLLOW_YAW,
+
+		GMB_PARAM_WINDOW_FOLLOW_PITCH,
+		GMB_PARAM_WINDOW_FOLLOW_YAW,
+
+		GMB_PARAM_SPEED_CONTROL_PITCH,
+		GMB_PARAM_SPEED_CONTROL_ROLL,
+		GMB_PARAM_SPEED_CONTROL_YAW,
+
+		GMB_PARAM_SMOOTH_CONTROL_PITCH,
+		GMB_PARAM_SMOOTH_CONTROL_ROLL,
+		GMB_PARAM_SMOOTH_CONTROL_YAW,
+
+		GMB_PARAM_AXIS_DIR,
+
+		GMB_PARAM_HEATBEAT_EMIT,
+		GMB_PARAM_STATUS_RATE,
+		GMB_PARAM_ENCODER_CNT_RATE,
+		GMB_PARAM_ENCODER_ANGLE_RATE,
+		GMB_PARAM_ORIENTATION_RATE,
+		GMB_PARAM_RAW_IMU_RATE,
+
+	   GIMBAL_NUM_TRACKED_PARAMS
+	};
 
 	struct 
 	{
