@@ -319,6 +319,7 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             uint8_t imu_rate = 10;
             printf("Set msg rate!\n");
 
+            // configuration message. Note emit_heartbeat need to emit when using this gSDK. If not, the gSDK will waiting forever.
             onboard.set_gimbal_config_mavlink_msg(  emit_heatbeat, 
                                                     status_rate, 
                                                     enc_cnt_rate, 
@@ -387,7 +388,7 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
 
             pitch.input_mode    = CTRL_ANGLE_ABSOLUTE_FRAME;
             roll.input_mode     = CTRL_ANGLE_ABSOLUTE_FRAME;
-            yaw.input_mode      = CTRL_ANGULAR_RATE;
+            yaw.input_mode      = CTRL_ANGLE_BODY_FRAME;
             
             // Set gimbal axes mode
             onboard.set_gimbal_axes_mode(pitch, roll, yaw);
@@ -410,13 +411,9 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             printf("Control gimbal's yaw cw follow mode! %d\n", onboard.get_command_ack_do_mount_control());
             
             // Set gimbal move to 
-            // int16_t setpoint_pitch  = 30;
-            // int16_t setpoint_roll   = 30;
-            // int16_t setpoint_yaw    = 170;
-
-            int16_t setpoint_pitch  = 90;
-            int16_t setpoint_roll   = 0;
-            int16_t setpoint_yaw    = 50;
+            int16_t setpoint_pitch  = 30;
+            int16_t setpoint_roll   = 30;
+            int16_t setpoint_yaw    = 170;
            
             /// Set command gimbal move
             onboard.set_gimbal_move(setpoint_pitch, setpoint_roll, setpoint_yaw);
@@ -442,14 +439,10 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             printf("Control gimbal's yaw ccw follow mode! %d\n", onboard.get_command_ack_do_mount_control());
             
             // Set gimbal move to 
-            // int16_t setpoint_pitch  = -30;
-            // int16_t setpoint_roll   = -30;
-            // int16_t setpoint_yaw    = -170;
+            int16_t setpoint_pitch  = -30;
+            int16_t setpoint_roll   = -30;
+            int16_t setpoint_yaw    = -170;
 
-            int16_t setpoint_pitch  = -90;
-            int16_t setpoint_roll   = 0;
-            int16_t setpoint_yaw    = -50;
-           
             /// Set command gimbal move
             onboard.set_gimbal_move(setpoint_pitch, setpoint_roll, setpoint_yaw);
 
@@ -462,7 +455,6 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                     sdk.last_time_send = get_time_usec();
                     
                     sdk.state = STATE_SET_CTRL_GIMBAL_SPEED_MODE;
-                    // sdk.state = STATE_MOVE_GIMBAL_YAW_FOLLOW_MODE_CW;
                 }
             }
         }
@@ -473,8 +465,8 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             
             control_gimbal_axis_mode_t pitch, roll, yaw;
             
-            // pitch.input_mode    = CTRL_ANGULAR_RATE;
-            // roll.input_mode     = CTRL_ANGULAR_RATE;
+            pitch.input_mode    = CTRL_ANGULAR_RATE;
+            roll.input_mode     = CTRL_ANGULAR_RATE;
             yaw.input_mode      = CTRL_ANGULAR_RATE;
             
             onboard.set_gimbal_axes_mode(pitch, roll, yaw);
