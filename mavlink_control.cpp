@@ -50,6 +50,7 @@ typedef struct
 {
     sdk_process_state_t state;
     uint64_t            last_time_send;
+    uint64_t            timeout;
 } sdk_process_t;
 
 /* Private variable- ---------------------------------------------------------*/
@@ -133,10 +134,23 @@ gGimbal_sample (int argc, char **argv)
 
 		if(time_display%500 == 0 && gimbal_interface.present())
 		{
+
+            // Reset time 
+            sdk.timeout = get_time_usec();
+
+            // Sample control
 			gGimbal_control_sample(gimbal_interface);
 
-			 gGimbal_displays(gimbal_interface);
+            // Sample display value
+			gGimbal_displays(gimbal_interface);
 		}
+        else
+        {
+            if(get_time_usec() - sdk.timeout > 2000000)
+            {
+                sdk.state = STATE_IDLE;
+            }
+        }
 	}
 
 	// --------------------------------------------------------------------------
@@ -305,7 +319,7 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             gimbal_motor_control_t tilt = {80, 40};
             gimbal_motor_control_t roll = {90, 40};
             gimbal_motor_control_t pan = {100, 40};
-            onboard.set_gimbal_motor_control(tilt, roll, pan, 3, 4, 125);
+            onboard.set_gimbal_motor_control(tilt, roll, pan, 2, 3, 120);
 
             usleep(100000);
 
@@ -415,8 +429,8 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             printf("Control gimbal's yaw cw follow mode! %d\n", onboard.get_command_ack_do_mount_control());
             
             // Set gimbal move to 
-            int16_t setpoint_pitch  = 30;
-            int16_t setpoint_roll   = 30;
+            int16_t setpoint_pitch  = 40;
+            int16_t setpoint_roll   = 0;
             int16_t setpoint_yaw    = 170;
            
             /// Set command gimbal move
@@ -443,8 +457,8 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             printf("Control gimbal's yaw ccw follow mode! %d\n", onboard.get_command_ack_do_mount_control());
             
             // Set gimbal move to 
-            int16_t setpoint_pitch  = -30;
-            int16_t setpoint_roll   = -30;
+            int16_t setpoint_pitch  = -40;
+            int16_t setpoint_roll   = 0;
             int16_t setpoint_yaw    = -170;
 
             /// Set command gimbal move
@@ -488,10 +502,10 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
         {
             printf("Speed control gimbal in speed mode: \n");
 
-            // Moving gimbal in speed mode with speed = 20 degree/second
-            int16_t setpoint_pitch = 0;
+            // Moving gimbal in speed mode with speed = 10 degree/second
+            int16_t setpoint_pitch = 10;
             int16_t setpoint_roll  = 0;
-            int16_t setpoint_yaw   = 20;
+            int16_t setpoint_yaw   = 10;
 
             /*Get gimbal angle to check when moving in speed mode. */
             float current_pitch_angle = onboard.get_gimbal_mount_orientation().pitch;

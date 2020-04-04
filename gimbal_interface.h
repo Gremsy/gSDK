@@ -306,6 +306,73 @@ typedef struct _gimbal_motor_control_t
 	uint8_t	holdstrength;
 } gimbal_motor_control_t;
 
+
+	/**
+	 * @brief control_motor_t
+	 * Command control motor is on/off
+	 */
+	enum param_state_t
+	{
+		PARAM_STATE_NOT_YET_READ 		= 0,	// parameter has yet to be initialized
+		PARAM_STATE_FETCH_AGAIN			= 1,	// parameter is being fetched
+		PARAM_STATE_ATTEMPTING_TO_SET   = 2,	// parameter is being set
+		PARAM_STATE_CONSISTENT			= 3,	// parameter is consistent
+		PARAM_STATE_NONEXISTANT			= 4		// parameter does not seem to exist
+	};
+
+
+	/**
+	 * @brief param_index_t
+	 * Gimbal opens some parameters for setting. Please refer to user manual to learn more how to set 
+	 * that parameters
+	 */
+	enum param_index_t
+	{
+
+		GMB_PARAM_VERSION_X = 0,
+		GMB_PARAM_VERSION_Y,
+		GMB_PARAM_VERSION_Z,
+
+		GMB_PARAM_STIFFNESS_PITCH,
+		GMB_PARAM_STIFFNESS_ROLL,
+		GMB_PARAM_STIFFNESS_YAW,
+
+		GMB_PARAM_HOLDSTRENGTH_PITCH,
+		GMB_PARAM_HOLDSTRENGTH_ROLL,
+		GMB_PARAM_HOLDSTRENGTH_YAW,
+
+		GMB_PARAM_OUTPUT_FILTER,
+		GMB_PARAM_GYRO_FILTER,
+		GMB_PARAM_GAIN,
+
+		GMB_PARAM_SPEED_FOLLOW_PITCH,
+		GMB_PARAM_SPEED_FOLLOW_YAW,
+
+		GMB_PARAM_SMOOTH_FOLLOW_PITCH,
+		GMB_PARAM_SMOOTH_FOLLOW_YAW,
+
+		GMB_PARAM_WINDOW_FOLLOW_PITCH,
+		GMB_PARAM_WINDOW_FOLLOW_YAW,
+
+		GMB_PARAM_SPEED_CONTROL_PITCH,
+		GMB_PARAM_SPEED_CONTROL_ROLL,
+		GMB_PARAM_SPEED_CONTROL_YAW,
+
+		GMB_PARAM_SMOOTH_CONTROL_PITCH,
+		GMB_PARAM_SMOOTH_CONTROL_ROLL,
+		GMB_PARAM_SMOOTH_CONTROL_YAW,
+
+		GMB_PARAM_AXIS_DIR,
+
+		GMB_PARAM_HEATBEAT_EMIT,
+		GMB_PARAM_STATUS_RATE,
+		GMB_PARAM_ENCODER_CNT_RATE,
+		GMB_PARAM_ENCODER_ANGLE_RATE,
+		GMB_PARAM_ORIENTATION_RATE,
+		GMB_PARAM_RAW_IMU_RATE,
+
+	   GIMBAL_NUM_TRACKED_PARAMS
+	};
 // ----------------------------------------------------------------------------------
 //   Gimbal Interface Class
 // ----------------------------------------------------------------------------------
@@ -654,73 +721,6 @@ private:
 	const uint32_t	_time_lost_connection = 60000000;
 	const uint32_t 	_retry_period	= 100;  //100ms
 	const uint8_t 	_max_fetch_attempts = 5; // times
-
-	/**
-	 * @brief control_motor_t
-	 * Command control motor is on/off
-	 */
-	enum param_state_t
-	{
-		PARAM_STATE_NOT_YET_READ 		= 0,	// parameter has yet to be initialized
-		PARAM_STATE_FETCH_AGAIN			= 1,	// parameter is being fetched
-		PARAM_STATE_ATTEMPTING_TO_SET   = 2,	// parameter is being set
-		PARAM_STATE_CONSISTENT			= 3,	// parameter is consistent
-		PARAM_STATE_NONEXISTANT			= 4		// parameter does not seem to exist
-	};
-
-
-	/**
-	 * @brief param_index_t
-	 * Gimbal opens some parameters for setting. Please refer to user manual to learn more how to set 
-	 * that parameters
-	 */
-	enum param_index_t
-	{
-
-		GMB_PARAM_VERSION_X = 0,
-		GMB_PARAM_VERSION_Y,
-		GMB_PARAM_VERSION_Z,
-
-		GMB_PARAM_STIFFNESS_PITCH,
-		GMB_PARAM_STIFFNESS_ROLL,
-		GMB_PARAM_STIFFNESS_YAW,
-
-		GMB_PARAM_HOLDSTRENGTH_PITCH,
-		GMB_PARAM_HOLDSTRENGTH_ROLL,
-		GMB_PARAM_HOLDSTRENGTH_YAW,
-
-		GMB_PARAM_OUTPUT_FILTER,
-		GMB_PARAM_GYRO_FILTER,
-		GMB_PARAM_GAIN,
-
-		GMB_PARAM_SPEED_FOLLOW_PITCH,
-		GMB_PARAM_SPEED_FOLLOW_YAW,
-
-		GMB_PARAM_SMOOTH_FOLLOW_PITCH,
-		GMB_PARAM_SMOOTH_FOLLOW_YAW,
-
-		GMB_PARAM_WINDOW_FOLLOW_PITCH,
-		GMB_PARAM_WINDOW_FOLLOW_YAW,
-
-		GMB_PARAM_SPEED_CONTROL_PITCH,
-		GMB_PARAM_SPEED_CONTROL_ROLL,
-		GMB_PARAM_SPEED_CONTROL_YAW,
-
-		GMB_PARAM_SMOOTH_CONTROL_PITCH,
-		GMB_PARAM_SMOOTH_CONTROL_ROLL,
-		GMB_PARAM_SMOOTH_CONTROL_YAW,
-
-		GMB_PARAM_AXIS_DIR,
-
-		GMB_PARAM_HEATBEAT_EMIT,
-		GMB_PARAM_STATUS_RATE,
-		GMB_PARAM_ENCODER_CNT_RATE,
-		GMB_PARAM_ENCODER_ANGLE_RATE,
-		GMB_PARAM_ORIENTATION_RATE,
-		GMB_PARAM_RAW_IMU_RATE,
-
-	   GIMBAL_NUM_TRACKED_PARAMS
-	};
 
 	struct 
 	{
