@@ -146,6 +146,7 @@ read_messages()
 			{
 				case MAVLINK_MSG_ID_HEARTBEAT:
 				{
+					// printf("MAVLINK_MSG_ID_HEARTBEAT\n");
 					mavlink_msg_heartbeat_decode(&message, &(current_messages.heartbeat));
 					current_messages.time_stamps.heartbeat = get_time_usec();
 					this_timestamps.heartbeat = current_messages.time_stamps.heartbeat;
@@ -170,6 +171,7 @@ read_messages()
 
 				case MAVLINK_MSG_ID_SYS_STATUS:
 				{
+					// printf("MAVLINK_MSG_ID_SYS_STATUS\n");
 					mavlink_msg_sys_status_decode(&message, &(current_messages.sys_status));
 					current_messages.time_stamps.sys_status = get_time_usec();
 					this_timestamps.sys_status = current_messages.time_stamps.sys_status;
@@ -181,6 +183,8 @@ read_messages()
 
 				case MAVLINK_MSG_ID_MOUNT_STATUS:
 				{
+					// printf("MAVLINK_MSG_ID_MOUNT_STATUS\n");
+
 					mavlink_msg_mount_status_decode(&message, &(current_messages.mount_status));
 					current_messages.time_stamps.mount_status = get_time_usec();
 					this_timestamps.mount_status = current_messages.time_stamps.mount_status;
@@ -192,6 +196,7 @@ read_messages()
 
 				case MAVLINK_MSG_ID_MOUNT_ORIENTATION:
 				{
+					// printf("MAVLINK_MSG_ID_MOUNT_ORIENTATION\n");
 					mavlink_msg_mount_orientation_decode(&message, &(current_messages.mount_orientation));
 					current_messages.time_stamps.mount_orientation = get_time_usec();
 					this_timestamps.mount_orientation = current_messages.time_stamps.mount_orientation;
@@ -203,7 +208,7 @@ read_messages()
 
 				case MAVLINK_MSG_ID_RAW_IMU:
 				{
-					// printf("MAVLINK_MSG_ID_RAW_IMU\n");
+					 // printf("MAVLINK_MSG_ID_RAW_IMU\n");
 					mavlink_msg_raw_imu_decode(&message, &(current_messages.raw_imu));
 					current_messages.time_stamps.raw_imu = get_time_usec();
 					this_timestamps.raw_imu = current_messages.time_stamps.raw_imu;
@@ -215,6 +220,7 @@ read_messages()
 
 				case MAVLINK_MSG_ID_COMMAND_ACK:
 				{
+					// printf("MAVLINK_MSG_ID_COMMAND_ACK\n");
 					mavlink_command_ack_t packet;
 
 					mavlink_msg_command_ack_decode(&message, &packet);
@@ -238,7 +244,7 @@ read_messages()
 				}
 				case MAVLINK_MSG_ID_PARAM_VALUE:
 				{
-					//printf("MAVLINK_MSG_ID_PARAM_VALUE\n");
+					// printf("MAVLINK_MSG_ID_PARAM_VALUE\n");
 					mavlink_param_value_t packet;
 
 					mavlink_msg_param_value_decode(&message, &packet);
@@ -477,7 +483,7 @@ param_update()
 				_params_list[i].fetch_attempts++;
 
 				// Waing to read
-				usleep(500000);
+				// usleep(500000);
 			}
 		}
 	}

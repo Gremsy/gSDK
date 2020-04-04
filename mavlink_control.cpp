@@ -138,7 +138,7 @@ gGimbal_sample (int argc, char **argv)
             // Reset time 
             sdk.timeout = get_time_usec();
 
-            // Sample control
+             // Sample control
 			gGimbal_control_sample(gimbal_interface);
 
             // Sample display value
@@ -343,7 +343,7 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             uint8_t emit_heatbeat = 1;
             uint8_t status_rate = 10;
             uint8_t enc_value_rate = 10; 
-            uint8_t enc_type_send = 0; 
+            uint8_t enc_type_send = 0;  // Set type of encoder is angle
             uint8_t orien_rate = 50;
             uint8_t imu_rate = 10;
             
