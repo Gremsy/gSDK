@@ -1150,8 +1150,8 @@ get_gimbal_config_roll_axis(void)
  * 
  * @param: emit_heatbeat - enable the heartbeat when lost connection or not enable = 1, disable = 0
  * @param: status_rate - the time rate of the system status. Gimbal sends as default 10Hz
- * @param: enc_cnt_rate - the time rate of the encoder values. Gimbal sends as default 50Hz
- * @param: enc_angle_rate - the time rate of the encoder angle. Gimbal sends as default 50Hz [DISABLE] 
+ * @param: enc_value_rate - the time rate of the encoder values. Gimbal sends as default 50Hz
+ * @param: enc_type_send - Set the type of encoder has been sent from gimbal is angle or count (Resolution 2^16)
  * @param: orien_rate - the time rate of the mount orientation of gimbal.Gimbal sends as default 50Hz
  * @param: imu_rate - the time rate of the raw_imu value. Gimbal sends as default 10Hz
  * @NOTE The range [0 - 100Hz]. 0 will disable that message
@@ -1161,18 +1161,54 @@ void
 Gimbal_Interface::
 set_gimbal_config_mavlink_msg(uint8_t emit_heatbeat, 
 									uint8_t status_rate, 
-									uint8_t enc_cnt_rate, 
-									uint8_t enc_angle_rate,
+									uint8_t enc_value_rate, 
+									uint8_t enc_type_send,
 									uint8_t orien_rate,
 									uint8_t imu_rate)
 {
 	set_param(GMB_PARAM_HEATBEAT_EMIT, (int16_t)emit_heatbeat);
 	set_param(GMB_PARAM_STATUS_RATE, (int16_t)status_rate);
-	set_param(GMB_PARAM_ENCODER_CNT_RATE, (int16_t)enc_cnt_rate);
-	set_param(GMB_PARAM_ENCODER_ANGLE_RATE, (int16_t)enc_angle_rate);
+	set_param(GMB_PARAM_ENCODER_VALUE_RATE, (int16_t)enc_value_rate);
+	set_param(GMB_PARAM_ENCODER_TYPE, (int16_t)enc_type_send);
 	set_param(GMB_PARAM_ORIENTATION_RATE, (int16_t)orien_rate);
 	set_param(GMB_PARAM_RAW_IMU_RATE, (int16_t)imu_rate);
 }
+
+/**
+ * @brief  This function get the config of mavlink message 
+ * 
+ * @param: None
+ * @ret: config_mavlink_message_t contains setting related to the mavlink message
+ */
+config_mavlink_message_t 
+Gimbal_Interface::
+get_gimbal_config_mavlink_msg(void)
+{
+	config_mavlink_message_t config;
+
+	int16_t ret;
+
+	get_param(GMB_PARAM_HEATBEAT_EMIT, ret);
+	config.emit_heatbeat	= (uint8_t)ret;
+
+	get_param(GMB_PARAM_STATUS_RATE, ret);
+	config.status_rate		= (uint8_t)ret;
+
+	get_param(GMB_PARAM_ENCODER_VALUE_RATE, ret);
+	config.enc_value_rate	= (uint8_t)ret;
+
+	get_param(GMB_PARAM_ENCODER_TYPE, ret);
+	config.enc_type_send	= (uint8_t)ret;
+
+	get_param(GMB_PARAM_ORIENTATION_RATE, ret);
+	config.orientation_rate	= (uint8_t)ret;
+
+	get_param(GMB_PARAM_RAW_IMU_RATE, ret);
+	config.imu_rate			= (uint8_t)ret;
+
+	return config;
+}
+
 /**
  * @brief  This function get gimbal status
  * @param: None

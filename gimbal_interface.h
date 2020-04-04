@@ -292,6 +292,22 @@ typedef struct _gimbal_config_axis_t
 
 
 /**
+ * @brief config_mavlink_message_t
+ * This structure will contain the configuration related to mavlink message
+ */
+typedef struct _config_mavlink_message_t
+{
+	uint8_t emit_heatbeat;
+	uint8_t status_rate;
+	uint8_t enc_value_rate; 
+	uint8_t enc_type_send;
+	uint8_t orientation_rate;
+	uint8_t imu_rate;
+	
+} config_mavlink_message_t;
+
+
+/**
  * @brief _gimbal_motor_control_t
  * stifness: Stiffness setting has a significant impact on the performance of the Gimbal. 
  *			This setting adjusts the degrees to which the gimbal tries to correct 
@@ -366,8 +382,8 @@ typedef struct _gimbal_motor_control_t
 
 		GMB_PARAM_HEATBEAT_EMIT,
 		GMB_PARAM_STATUS_RATE,
-		GMB_PARAM_ENCODER_CNT_RATE,
-		GMB_PARAM_ENCODER_ANGLE_RATE,
+		GMB_PARAM_ENCODER_VALUE_RATE,
+		GMB_PARAM_ENCODER_TYPE,
 		GMB_PARAM_ORIENTATION_RATE,
 		GMB_PARAM_RAW_IMU_RATE,
 
@@ -650,24 +666,35 @@ public:
 									uint8_t& gyro_filter, uint8_t& output_filter, uint8_t& gain);
 
 
+
 	/**
 	 * @brief  This function set the configuration the message mavink with rate 
 	 * 
 	 * @param: emit_heatbeat - enable the heartbeat when lost connection or not enable = 1, disable = 0
 	 * @param: status_rate - the time rate of the system status. Gimbal sends as default 10Hz
-	 * @param: enc_cnt_rate - the time rate of the encoder values. Gimbal sends as default 50Hz
-	 * @param: enc_angle_rate - the time rate of the encoder angle. Gimbal sends as default 50Hz [DISABLE] 
+	 * @param: enc_value_rate - the time rate of the encoder values. Gimbal sends as default 50Hz
+	 * @param: enc_type_send - Set the type of encoder has been sent from gimbal is angle or count (Resolution 2^16)
 	 * @param: orien_rate - the time rate of the mount orientation of gimbal.Gimbal sends as default 50Hz
 	 * @param: imu_rate - the time rate of the raw_imu value. Gimbal sends as default 10Hz
 	 * @NOTE The range [0 - 100Hz]. 0 will disable that message
 	 * @ret: None
 	 */
+
 	void set_gimbal_config_mavlink_msg(uint8_t emit_heatbeat = 1, 
 										uint8_t status_rate = 10, 
-										uint8_t enc_cnt_rate = 50, 
-										uint8_t enc_angle_rate = 50,
+										uint8_t enc_value_rate = 50, 
+										uint8_t enc_type_send = 50,
 										uint8_t orien_rate = 50,
 										uint8_t imu_rate = 10);
+
+	/**
+	 * @brief  This function get the mavlink configuration message
+	 * 
+	 * @param: None
+	 * @ret: config_mavlink_message_t contains setting related to mavlink configuration message
+	 */
+	config_mavlink_message_t get_gimbal_config_mavlink_msg(void);
+
 private:
 
 	Serial_Port *serial_port;

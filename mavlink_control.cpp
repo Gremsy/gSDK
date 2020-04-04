@@ -230,10 +230,22 @@ void gGimbal_displays(Gimbal_Interface &api)
     uint64_t mnt_status_time_stamp = api.get_gimbal_time_stamps().mount_status;
 
 	printf("Got message Mount status \n");
-	printf("\tEncoder Value: time: %lu, p:%d, r:%d, y:%d (cnt)\n", (unsigned long)mnt_status_time_stamp, 
+
+    if(api.get_gimbal_config_mavlink_msg().enc_type_send)
+    {
+        printf("\tEncoder Count: time: %lu, p:%d, r:%d, y:%d (Resolution 2^16)\n", (unsigned long)mnt_status_time_stamp, 
                                                             mnt_status.pointing_a, 
                                                             mnt_status.pointing_b, 
                                                             mnt_status.pointing_c);
+    }
+    else
+    {
+        printf("\tEncoder Angle: time: %lu, p:%d, r:%d, y:%d (Degree)\n", (unsigned long)mnt_status_time_stamp, 
+                                                            mnt_status.pointing_a, 
+                                                            mnt_status.pointing_b, 
+                                                            mnt_status.pointing_c);
+    }
+
 
 
     gimbal_config_axis_t setting = api.get_gimbal_config_tilt_axis();
@@ -330,8 +342,8 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
         {
             uint8_t emit_heatbeat = 1;
             uint8_t status_rate = 10;
-            uint8_t enc_cnt_rate = 10; 
-            uint8_t enc_angle_rate = 0; // DO NOT SUPPORT this message.
+            uint8_t enc_value_rate = 10; 
+            uint8_t enc_type_send = 0; 
             uint8_t orien_rate = 50;
             uint8_t imu_rate = 10;
             
@@ -340,8 +352,8 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             // configuration message. Note emit_heartbeat need to emit when using this gSDK. If not, the gSDK will waiting forever.
             onboard.set_gimbal_config_mavlink_msg(  emit_heatbeat, 
                                                     status_rate, 
-                                                    enc_cnt_rate, 
-                                                    enc_angle_rate, 
+                                                    enc_value_rate, 
+                                                    enc_type_send, 
                                                     orien_rate,
                                                     imu_rate);
             usleep(100000);

@@ -93,7 +93,7 @@ initialize_defaults()
 	status = SERIAL_PORT_CLOSED;
 
 	uart_name = (char*)"/dev/ttyUSB0";
-	baudrate  = 57600;
+	baudrate  = 115200;
 
 	// Start mutex
 	int result = pthread_mutex_init(&lock, NULL);
