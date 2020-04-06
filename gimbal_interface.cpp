@@ -483,7 +483,7 @@ param_update()
 				_params_list[i].fetch_attempts++;
 
 				// Waing to read
-				// usleep(500000);
+				usleep(1000);
 			}
 		}
 	}
@@ -1685,7 +1685,7 @@ read_thread()
 	while ( ! time_to_exit )
 	{
 		read_messages();
-		usleep(100000); // Read batches at 10Hz
+		usleep(10000); // Read batches at 10Hz
 		// usleep(10); //! @note CPU optimization, reduce the CPU usage a lot
 	}
 
