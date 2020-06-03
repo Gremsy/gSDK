@@ -683,7 +683,7 @@ public:
 	void set_gimbal_config_mavlink_msg(uint8_t emit_heatbeat = 1, 
 										uint8_t status_rate = 10, 
 										uint8_t enc_value_rate = 50, 
-										uint8_t enc_type_send = 50,
+										uint8_t enc_type_send = 0,
 										uint8_t orien_rate = 50,
 										uint8_t imu_rate = 10);
 

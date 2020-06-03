@@ -483,7 +483,7 @@ param_update()
 				_params_list[i].fetch_attempts++;
 
 				// Waing to read
-				usleep(1000);
+				usleep(100000);
 			}
 		}
 	}
