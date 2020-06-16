@@ -808,7 +808,7 @@ set_gimbal_axes_mode(control_gimbal_axis_mode_t tilt,
  */
 void
 Gimbal_Interface::
-set_gimbal_move(int16_t tilt, int16_t roll, int16_t pan)
+set_gimbal_move(float tilt, float roll, float pan)
 {
 	// Prepare command for off-board mode
 	mavlink_command_long_t comm = { 0 };
@@ -820,9 +820,9 @@ set_gimbal_move(int16_t tilt, int16_t roll, int16_t pan)
 	comm.command            = MAV_CMD_DO_MOUNT_CONTROL;
     comm.confirmation     	= true;
 
-    comm.param1             = (float) (tilt);
-    comm.param2             = (float) roll;
-    comm.param3             = (float) (-pan);
+    comm.param1             = tilt;
+    comm.param2             = roll;
+    comm.param3             = -pan;
     comm.param7             = (float) MAV_MOUNT_MODE_MAVLINK_TARGETING;
 
 	// --------------------------------------------------------------------------

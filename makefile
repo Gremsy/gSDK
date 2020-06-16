@@ -7,4 +7,4 @@ git_submodule:
 	git submodule update --init --recursive
 
 clean:
-	 rm -rf *o mavlink_control
+	 rm -rf *o gSDK

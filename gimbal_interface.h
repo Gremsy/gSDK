@@ -470,7 +470,7 @@ public:
 	 * @param: type see control_gimbal_axis_mode_t
 	 * @ret: None
 	 */
-    void set_gimbal_move(int16_t tilt, int16_t roll, int16_t pan);
+    void set_gimbal_move(float tilt, float roll, float pan);
 
     /**
 	 * @brief  This function get gimbal status

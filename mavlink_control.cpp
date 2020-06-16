@@ -441,9 +441,9 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             printf("Control gimbal's yaw cw follow mode! %d\n", onboard.get_command_ack_do_mount_control());
             
             // Set gimbal move to 
-            int16_t setpoint_pitch  = 40;
-            int16_t setpoint_roll   = 0;
-            int16_t setpoint_yaw    = 170;
+            float setpoint_pitch  = 40.0;
+            float setpoint_roll   = 0;
+            float setpoint_yaw    = 170.0;
            
             /// Set command gimbal move
             onboard.set_gimbal_move(setpoint_pitch, setpoint_roll, setpoint_yaw);
@@ -469,9 +469,9 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             printf("Control gimbal's yaw ccw follow mode! %d\n", onboard.get_command_ack_do_mount_control());
             
             // Set gimbal move to 
-            int16_t setpoint_pitch  = -40;
-            int16_t setpoint_roll   = 0;
-            int16_t setpoint_yaw    = -170;
+            float setpoint_pitch  = -40.0;
+            float setpoint_roll   = 0;
+            float setpoint_yaw    = -170.0;
 
             /// Set command gimbal move
             onboard.set_gimbal_move(setpoint_pitch, setpoint_roll, setpoint_yaw);
@@ -515,9 +515,9 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             printf("Speed control gimbal in speed mode: \n");
 
             // Moving gimbal in speed mode with speed = 10 degree/second
-            int16_t setpoint_pitch = 10;
-            int16_t setpoint_roll  = 0;
-            int16_t setpoint_yaw   = 10;
+            float setpoint_pitch = 0.1;
+            float setpoint_roll  = 0;
+            float setpoint_yaw   = 0.1;
 
             /*Get gimbal angle to check when moving in speed mode. */
             float current_pitch_angle = onboard.get_gimbal_mount_orientation().pitch;
@@ -533,13 +533,13 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             onboard.set_gimbal_move(setpoint_pitch, setpoint_roll, setpoint_yaw);
 
 
-            //Moving gimbal in speed mode about 5 seconds
-            if((get_time_usec() - sdk.last_time_send) > 5000000)
-            {
-                sdk.last_time_send = get_time_usec();
+            // //Moving gimbal in speed mode about 5 seconds
+            // if((get_time_usec() - sdk.last_time_send) > 5000000)
+            // {
+            //     sdk.last_time_send = get_time_usec();
                 
-                sdk.state = STATE_MOVE_TO_ZERO;
-            }
+            //     sdk.state = STATE_MOVE_TO_ZERO;
+            // }
         }
         break;
         case STATE_MOVE_TO_ZERO:
@@ -564,9 +564,9 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             /* Reset time */                
             printf("move Gimbal to zero pos!\n");
 
-            int16_t setpoint_pitch  = 0;
-            int16_t setpoint_roll   = 0;
-            int16_t setpoint_yaw    = 0;
+            float setpoint_pitch  = 0;
+            float setpoint_roll   = 0;
+            float setpoint_yaw    = 0;
 
             /// Apply value
             onboard.set_gimbal_move(setpoint_pitch, setpoint_roll, setpoint_yaw);
