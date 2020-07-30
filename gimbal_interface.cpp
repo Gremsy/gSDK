@@ -290,6 +290,10 @@ read_messages()
 
 		} // end: if read message
 
+		// Give the write thread time to use the port
+		if(writing_status > false)
+			usleep(100); 
+
 	} // end: while not received all
 
 	return;
@@ -483,7 +487,7 @@ param_update()
 				_params_list[i].fetch_attempts++;
 
 				// Waing to read
-				usleep(100000);
+				// usleep(100000);
 			}
 		}
 	}
@@ -1473,9 +1477,7 @@ start()
 	// --------------------------------------------------------------------------
 	//   CHECK FOR MESSAGES
 	// --------------------------------------------------------------------------
-
-
-	while  (not get_connection())
+	do
 	{
 		if ( time_to_exit )
 		{
@@ -1483,11 +1485,9 @@ start()
 
 			return;
 		}
-		// write a message and signal writing
-		write_heartbeat();
-		
 		usleep(500000); // Check at 2Hz
-	}
+
+	} while(not get_connection());
 
 	printf("Found \n");
 
@@ -1649,7 +1649,6 @@ get_connection(void)
 		// gimbal went away
 		return false;
 	}
-
 	return true;
 }
 
@@ -1686,7 +1685,6 @@ read_thread()
 	{
 		read_messages();
 		usleep(10000); // Read batches at 10Hz
-		// usleep(10); //! @note CPU optimization, reduce the CPU usage a lot
 	}
 
 	reading_status = false;
@@ -1697,6 +1695,9 @@ read_thread()
 // ------------------------------------------------------------------------------
 //   Write Thread
 // ------------------------------------------------------------------------------
+
+uint32_t time_send_param, time_send_heartbeat;
+
 void
 Gimbal_Interface::
 write_thread(void)
@@ -1704,21 +1705,32 @@ write_thread(void)
 	// Blocking wait for new data
 	while ( !writing_status and !time_to_exit )
 	{
-		// signal startup
-		writing_status = 2;
 
-		param_process();
+		uint32_t tnow_ms = get_time_usec();
 
 		// signal startup
 		writing_status = true;
 
-		// write a message and signal writing
-		write_heartbeat();
+		if(tnow_ms - time_send_heartbeat > 1000000)
+		{
+
+			time_send_heartbeat = get_time_usec();
+			// write a message and signal writing
+			write_heartbeat();
+
+			printf("HB: %d\n", (uint32_t)(tnow_ms - time_send_heartbeat));
+		}
+		else if(tnow_ms - time_send_param > 500000)
+		{
+
+			time_send_param = get_time_usec();
+
+			// Process check param
+			param_process();
+		}
 
 		// signal end
 		writing_status = false;
-
-		usleep(500000);
 	}
 
 	return;

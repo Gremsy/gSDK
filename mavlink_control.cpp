@@ -533,13 +533,13 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             onboard.set_gimbal_move(setpoint_pitch, setpoint_roll, setpoint_yaw);
 
 
-            // //Moving gimbal in speed mode about 5 seconds
-            // if((get_time_usec() - sdk.last_time_send) > 5000000)
-            // {
-            //     sdk.last_time_send = get_time_usec();
+            //Moving gimbal in speed mode about 5 seconds
+            if((get_time_usec() - sdk.last_time_send) > 5000000)
+            {
+                sdk.last_time_send = get_time_usec();
                 
-            //     sdk.state = STATE_MOVE_TO_ZERO;
-            // }
+                sdk.state = STATE_MOVE_TO_ZERO;
+            }
         }
         break;
         case STATE_MOVE_TO_ZERO:
