@@ -26,6 +26,7 @@
  * SOFTWARE.
  *
  ******************************************************************************/
+ 
 /* Includes ------------------------------------------------------------------*/
 
 #include "gimbal_interface.h"
@@ -1783,5 +1784,4 @@ start_gimbal_interface_write_thread(void *args)
 	// done!
 	return NULL;
 }
-
-/*********** Portions COPYRIGHT 2018 Gremsy.Co., Ltd.*****END OF FILE**********/
+/************************ (C) COPYRIGHT Gremsy *****END OF FILE****************/
