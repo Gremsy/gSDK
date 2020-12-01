@@ -103,8 +103,13 @@ Gimbal_Interface(Serial_Port *serial_port_)
 	current_messages.compid = gimbal_id;
 	current_messages.sys_status.errors_count2 = 0;
 	current_messages.sys_status.errors_count1 = 0;
+	current_messages.reset_timestamps();
 
 	_state = GIMBAL_STATE_NOT_PRESENT;
+
+	is_received_ack = 0;
+	is_wait_ack = 0;
+
 
 	serial_port = serial_port_; // serial port management object
 
@@ -225,6 +230,8 @@ read_messages()
 
 					mavlink_msg_command_ack_decode(&message, &packet);
 					current_messages.time_stamps.command_ack = get_time_usec();
+
+					/*Get time command */
 					this_timestamps.command_ack = current_messages.time_stamps.command_ack;
 
 					// Decode packet and set callback
@@ -233,8 +240,29 @@ read_messages()
 						current_messages.result_cmd_ack_msg_configure = packet.result;
 					}
 					else if(packet.command == MAV_CMD_DO_MOUNT_CONTROL)
-					{
-						current_messages.result_cmd_ack_msg_control = packet.result;
+					{	
+						/*The first command it will return accepted to notify that command has been received */
+						if(packet.result == MAV_RESULT_ACCEPTED) {
+							is_wait_ack = 1;
+						}
+
+						if(packet.progress == MAV_RESULT_ACCEPTED) {
+							is_received_ack = 1;
+						}
+						
+					} 
+					else if(packet.command == MAV_CMD_USER_1) {
+
+						if(packet.result == MAV_RESULT_ACCEPTED) {
+							is_received_ack = 1;
+						}
+						
+					}
+					else if(packet.command == MAV_CMD_USER_2) {
+						if(packet.result == MAV_RESULT_ACCEPTED) {
+
+							is_received_ack = 1;
+						}
 					}
 
 					mavlink_status_t    *chan_status = mavlink_get_channel_status(MAVLINK_COMM_1);
@@ -487,7 +515,7 @@ param_update()
 				_params_list[i].fetch_attempts++;
 
 				// Waing to read
-				// usleep(100000);
+				 usleep(10000);
 			}
 		}
 	}
@@ -662,6 +690,58 @@ set_gimbal_reboot(void)
 	return;
 }
 
+
+/**
+ * @brief  This function shall reboot the gimbal
+ * @param: NONE
+ * @ret: None
+ */
+uint8_t
+Gimbal_Interface::
+set_gimbal_rc_input(void)
+{
+	// Prepare command for off-board mode
+	mavlink_command_long_t comm = { 0 };
+	uint8_t result 				= MAV_RESULT_IN_PROGRESS;
+
+	comm.target_system    	= system_id;
+	comm.target_component 	= gimbal_id;
+
+	comm.command            = MAV_CMD_DO_MOUNT_CONFIGURE;
+
+	comm.param1             = MAV_MOUNT_MODE_RC_TARGETING;
+    comm.param2             = 0;
+    comm.param3             = 0;
+    comm.param4             = 0;
+    comm.param5             = 0;
+    comm.param6             = 0;
+    comm.param7             = 0;
+
+	// --------------------------------------------------------------------------
+	//   ENCODE
+	// --------------------------------------------------------------------------
+
+	mavlink_message_t message;
+	mavlink_msg_command_long_encode(system_id, companion_id, &message, &comm);
+
+	// --------------------------------------------------------------------------
+	//   WRITE
+	// --------------------------------------------------------------------------
+
+	// do the write
+	int len = write_message(message);
+
+	// check the write
+	if ( len <= 0 )
+		fprintf(stderr,"WARNING: could not send GIMBAL REBOOT \n");
+	else
+		return MAV_RESULT_IN_PROGRESS;
+
+	result = get_command_ack_do_mount_configure();
+
+	return result ;
+}
+
 /**
  * @brief  This function shall turn on/off motor driver
  * @param: type see control_gimbal_motor_t
@@ -710,9 +790,133 @@ set_gimbal_motor_mode(control_gimbal_motor_t type)
  * @param: type see control_gimbal_motor_t
  * @ret: None
  */
-void
+gimbal_mode_t
 Gimbal_Interface::
-set_gimbal_mode(control_gimbal_mode_t mode)
+get_gimbal_mode(void)
+{
+	// Get gimbal status 
+	uint16_t errors_count1 = current_messages.sys_status.errors_count1;
+
+	/* Check gimbal's motor */
+    if(errors_count1 & STATUS1_MOTORS)
+    {
+        this->gimbal_status.state = GIMBAL_STATE_ON;
+        /* Check gimbal is follow mode*/
+        if(errors_count1 & STATUS1_MODE_FOLLOW_LOCK)
+        {
+            this->gimbal_status.mode = GIMBAL_FOLLOW_MODE;
+        }
+        else
+        {
+            this->gimbal_status.mode = GIMBAL_LOCK_MODE;
+        }
+    }
+}
+
+/**
+ * @brief  This function shall turn on/off motor driver
+ * @param: type see control_gimbal_motor_t
+ * @ret: None
+ */
+uint8_t
+Gimbal_Interface::
+set_gimbal_lock_mode_sync(void)
+{
+	// Prepare command for off-board mode
+	mavlink_command_long_t comm = { 0 };
+	uint8_t result 				= MAV_RESULT_IN_PROGRESS;
+	comm.target_system    		= system_id;
+	comm.target_component 		= gimbal_id;
+
+	comm.command            	= MAV_CMD_USER_2;
+    comm.param7             	= GIMBAL_LOCK_MODE;
+    comm.confirmation     		= false;
+
+	// --------------------------------------------------------------------------
+	//   ENCODE
+	// --------------------------------------------------------------------------
+
+	mavlink_message_t message;
+	mavlink_msg_command_long_encode(system_id, companion_id, &message, &comm);
+
+	// --------------------------------------------------------------------------
+	//   WRITE
+	// --------------------------------------------------------------------------
+
+	// do the write
+	int len = write_message(message);
+
+	// check the write
+	if ( len <= 0 )
+		fprintf(stderr,"WARNING: could not send GIMBAL MODE \n");
+	else
+		result = MAV_RESULT_FAILED;
+
+	result = get_command_ack_gimbal_mode();
+
+	return result;
+}
+
+/**
+ * @brief  This function shall turn on/off motor driver
+ * @param: type see control_gimbal_motor_t
+ * @ret: None
+ */
+uint8_t
+Gimbal_Interface::
+set_gimbal_follow_mode_sync(void)
+{
+	// Prepare command for off-board mode
+	mavlink_command_long_t comm = { 0 };
+	uint8_t result 				= MAV_RESULT_IN_PROGRESS;
+
+	comm.target_system    		= system_id;
+	comm.target_component 		= gimbal_id;
+
+	comm.command            	= MAV_CMD_USER_2;
+    comm.param7             	= GIMBAL_FOLLOW_MODE;
+    comm.confirmation     		= false;
+
+	// --------------------------------------------------------------------------
+	//   ENCODE
+	// --------------------------------------------------------------------------
+
+	mavlink_message_t message;
+	mavlink_msg_command_long_encode(system_id, companion_id, &message, &comm);
+
+	// --------------------------------------------------------------------------
+	//   WRITE
+	// --------------------------------------------------------------------------
+
+	// do the write
+	int len = write_message(message);
+
+	// check the write
+	if ( len <= 0 )
+		fprintf(stderr,"WARNING: could not send GIMBAL MODE \n");
+	else
+		// printf("%lu GIMBAL_MODE  = [ %d] \n", write_count, mode);
+
+	// check the write
+	if ( len <= 0 )
+		fprintf(stderr,"WARNING: could not send GIMBAL MODE \n");
+	else
+		result = MAV_RESULT_FAILED;
+
+	result = get_command_ack_gimbal_mode();
+
+	return result;
+}
+
+
+/**
+ * @brief  This function shall turn on/off motor driver
+ * @param: type see control_gimbal_motor_t
+ * @ret: None
+ */
+uint8_t	
+Gimbal_Interface::
+set_gimbal_mode(gimbal_mode_t mode)
 {
 	// Prepare command for off-board mode
 	mavlink_command_long_t comm = { 0 };
@@ -744,13 +948,14 @@ set_gimbal_mode(control_gimbal_mode_t mode)
 	else
 		// printf("%lu GIMBAL_MODE  = [ %d] \n", write_count, mode);
 
-	return;
+	return 1;
 }
 
 
 /**
  * @brief  This function shall turn on/off motor driver
  * @param: type see control_gimbal_motor_t
+ * @note: DEPRECATED: Replaced by gimbal motation mode used in gimbal_rotation_mode_t
  * @ret: None
  */
 void
@@ -805,29 +1010,30 @@ set_gimbal_axes_mode(control_gimbal_axis_mode_t tilt,
 	return;
 }
 
+
 /**
  * @brief  This function shall turn on/off motor driver
  * @param: type see control_gimbal_motor_t
  * @ret: None
  */
-void
+uint8_t
 Gimbal_Interface::
-set_gimbal_move(float tilt, float roll, float pan)
+set_gimbal_rotation_sync(float tilt, float roll, float pan, gimbal_rotation_mode_t rotation_mode)
 {
 	// Prepare command for off-board mode
 	mavlink_command_long_t comm = { 0 };
+	uint8_t result 				= MAV_RESULT_IN_PROGRESS;
+	comm.target_system    		= system_id;
+	comm.target_component 		= gimbal_id;
 
+	comm.command            	= MAV_CMD_DO_MOUNT_CONTROL;
+    comm.confirmation     		= true;
 
-	comm.target_system    	= system_id;
-	comm.target_component 	= gimbal_id;
-
-	comm.command            = MAV_CMD_DO_MOUNT_CONTROL;
-    comm.confirmation     	= true;
-
-    comm.param1             = tilt;
-    comm.param2             = roll;
-    comm.param3             = -pan;
-    comm.param7             = (float) MAV_MOUNT_MODE_MAVLINK_TARGETING;
+    comm.param1             	= tilt;
+    comm.param2             	= roll;
+    comm.param3             	= pan;
+    comm.param6             	= rotation_mode;
+    comm.param7             	= (float) MAV_MOUNT_MODE_MAVLINK_TARGETING;
 
 	// --------------------------------------------------------------------------
 	//   ENCODE
@@ -847,10 +1053,13 @@ set_gimbal_move(float tilt, float roll, float pan)
 	if ( len <= 0 )
 		fprintf(stderr,"WARNING: could not send GIMBAL AXES MODE \n");
 	else
-		// printf("%lu GIMBAL_AXES_MODE \n", write_count);
+		result = MAV_RESULT_FAILED;
 
-	return;
+	result = get_command_ack_do_mount_control();
+
+ 	return result;
 }
+
 
 /**
  * @brief  This function set motor controls setting
@@ -1219,6 +1428,110 @@ get_gimbal_config_mavlink_msg(void)
 	return config;
 }
 
+
+/**
+ * @brief Set limit angle for pitch axis.
+ * @details Please refer to Gremsy site <gremsy.com> for
+ * details about default limit angle of Gimbal.
+ * @param limitAngle: limit angle.
+ * @return None
+ */
+void  
+Gimbal_Interface::
+set_limit_angle_pitch(limit_angle_t limit_angle)
+{
+	set_param(GMB_PARAM_MIN_LIMIT_ANGLE_PITCH, (int16_t)limit_angle.angle_min);
+	set_param(GMB_PARAM_MAX_LIMIT_ANGLE_PITCH, (int16_t)limit_angle.angle_max);
+}
+
+/**
+ * @brief Get limit angle for pitch axis.
+ * @details Please refer to Gremsy site <gremsy.com> for
+ * details about default limit angle of Gimbal.
+ * @param limitAngle: limit angle.
+ * @return None
+ */
+void 
+Gimbal_Interface::
+get_limit_angle_pitch(limit_angle_t &limit_angle)
+{
+	int16_t ret;
+
+	get_param(GMB_PARAM_MIN_LIMIT_ANGLE_PITCH, ret);
+	limit_angle.angle_min = ret;
+	get_param(GMB_PARAM_MAX_LIMIT_ANGLE_PITCH, ret);
+	limit_angle.angle_max = ret;
+}
+
+/**
+ * @brief Set limit angle for roll axis.
+ * @details Please refer to Gremsy site <gremsy.com> for
+ * details about default limit angle of Gimbal.
+ * @param limitAngle: limit angle.
+ * @return None
+ */
+void  
+Gimbal_Interface::
+set_limit_angle_roll(limit_angle_t limit_angle)
+{
+	set_param(GMB_PARAM_MIN_LIMIT_ANGLE_ROLL, (int16_t)limit_angle.angle_min);
+	set_param(GMB_PARAM_MAX_LIMIT_ANGLE_ROLL, (int16_t)limit_angle.angle_max);
+}
+
+/**
+ * @brief Get limit angle for roll axis.
+ * @details Please refer to Gremsy site <gremsy.com> for
+ * details about default limit angle of Gimbal.
+ * @param limitAngle: limit angle.
+ * @return None
+ */
+void 
+Gimbal_Interface::
+get_limit_angle_roll(limit_angle_t &limit_angle)
+{
+	int16_t ret;
+
+	get_param(GMB_PARAM_MIN_LIMIT_ANGLE_ROLL, ret);
+	limit_angle.angle_min = ret;
+	get_param(GMB_PARAM_MAX_LIMIT_ANGLE_ROLL, ret);
+	limit_angle.angle_max = ret;
+}
+
+/**
+ * @brief Set limit angle for yaw axis.
+ * @details Please refer to Gremsy site <gremsy.com> for
+ * details about default limit angle of Gimbal.
+ * @param limitAngle: limit angle.
+ * @return None
+ */
+void  
+Gimbal_Interface::
+set_limit_angle_yaw(limit_angle_t limit_angle)
+{
+	set_param(GMB_PARAM_MIN_LIMIT_ANGLE_YAW, (int16_t)limit_angle.angle_min);
+	set_param(GMB_PARAM_MAX_LIMIT_ANGLE_YAW, (int16_t)limit_angle.angle_max);
+}
+
+/**
+ * @brief Get limit angle for yaw axis.
+ * @details Please refer to Gremsy site <gremsy.com> for
+ * details about default limit angle of Gimbal.
+ * @param limitAngle: limit angle.
+ * @return None
+ */
+void 
+Gimbal_Interface::
+get_limit_angle_yaw(limit_angle_t &limit_angle)
+{
+	int16_t ret;
+
+	get_param(GMB_PARAM_MIN_LIMIT_ANGLE_YAW, ret);
+	limit_angle.angle_min = ret;
+	get_param(GMB_PARAM_MAX_LIMIT_ANGLE_YAW, ret);
+	limit_angle.angle_max = ret;
+}
+
+
 /**
  * @brief  This function get gimbal status
  * @param: None
@@ -1382,6 +1695,8 @@ get_command_ack_do_mount_configure(void)
 	{
 		return current_messages.result_cmd_ack_msg_configure;
 	}
+
+	return MAV_RESULT_IN_PROGRESS;
 }
 
 /**
@@ -1393,11 +1708,47 @@ uint8_t
 Gimbal_Interface::
 get_command_ack_do_mount_control(void)
 {
-	/* Check gimbal command ack has changed*/
-	if(current_messages.time_stamps.command_ack)
-	{
-		return current_messages.result_cmd_ack_msg_control;
+	if(is_wait_ack) {
+		/*Check is has been received a command ack */
+		if(is_received_ack) {
+
+			/*Clear */
+			is_received_ack = 0;
+			is_wait_ack = 0;
+
+			/*Return accepted */
+			return MAV_RESULT_ACCEPTED;		
+		}
+	} 
+	else {
+		is_wait_ack = 1;
+		is_received_ack = 0;
 	}
+	
+	return MAV_RESULT_IN_PROGRESS;
+}
+
+/**
+ * @brief  This function get gimbal the command ack of MAV_CMD_DO_MOUNT_CONTROL
+ * @param: None
+ * @ret: Result of command
+ */
+uint8_t 
+Gimbal_Interface::
+get_command_ack_gimbal_mode(void)
+{
+
+	/*Check is has been received a command ack */
+	if(is_received_ack) {
+
+		/*Clear */
+		is_received_ack = 0;
+
+		/*Return accepted */
+		return MAV_RESULT_ACCEPTED;		
+	}
+
+	return MAV_RESULT_IN_PROGRESS;
 }
 // ------------------------------------------------------------------------------
 //   Write heartbeat Message
@@ -1439,7 +1790,68 @@ write_heartbeat(void)
 
 }
 
+/**
+ * @brief  This function send the attitude in the aeronautical frame (right-handed, Z-down, X-fron, Y-right)
+ * 
+ * @param attitude.time_boot_ms [ms] Timestamp (time since system boot).
+ * @param attitude.roll [rad] Roll angle (-pi..+pi)
+ * @param attitude.pitch [rad] Pitch angle (-pi..+pi)
+ * @param attitude.yaw [rad] Yaw angle (-pi..+pi)
+ * @param attitude.rollspeed [rad/s] Roll angular speed
+ * @param attitude.pitchspeed [rad/s] Pitch angular speed
+ * @param attitude.yawspeed [rad/s] Yaw angular speed
+ * @ret: None
+ */
+void 
+Gimbal_Interface::
+send_aircraft_attitude(mavlink_attitude_t attitude)
+{
+	
+	// --------------------------------------------------------------------------
+	//   ENCODE
+	// --------------------------------------------------------------------------
+	mavlink_message_t message;
 
+	mavlink_msg_attitude_encode(SYSID_ONBOARD, MAV_COMP_ID_SYSTEM_CONTROL, &message, &attitude);
+
+	// --------------------------------------------------------------------------
+	//   WRITE
+	// --------------------------------------------------------------------------
+
+	// do the write
+	int len = write_message(message);
+
+	// check the write
+	if ( len <= 0 )
+		fprintf(stderr,"WARNING: could not send ATTITUDE \n");
+
+	return;
+}
+
+
+/**
+ * @brief  This function set the enable or disable the reduce drift of the gimbal by using attitude of the aircarf
+ * 
+ * @param: flag - enable/disable the recude drift of the gimbal by combining attitude from the aircraft
+ * @ret: None
+ */
+void 
+Gimbal_Interface::
+set_gimbal_combine_attitude(bool flag)
+{
+	int16_t param;
+	get_param(GMB_PARAM_AXIS_DIR, param);
+
+
+	if(flag == true) {
+		param = param | 0x10;
+	} 
+	else {
+		param &= (~0x10);
+	}
+
+	set_param(GMB_PARAM_AXIS_DIR, param);
+}
 
 // ------------------------------------------------------------------------------
 //   STARTUP
@@ -1717,8 +2129,6 @@ write_thread(void)
 			time_send_heartbeat = get_time_usec();
 			// write a message and signal writing
 			write_heartbeat();
-
-			printf("HB: %d\n", (uint32_t)(tnow_ms - time_send_heartbeat));
 		}
 		else if(tnow_ms - time_send_param > 500000)
 		{
@@ -1727,6 +2137,8 @@ write_thread(void)
 
 			// Process check param
 			param_process();
+
+			// write_test();
 		}
 
 		// signal end

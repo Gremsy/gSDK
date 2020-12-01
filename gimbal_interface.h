@@ -38,6 +38,7 @@
 #endif
 
 #define PI2ANGLE    (180.0/PI)
+#define ANGLE2PI    (PI/180.0)
 
 // ------------------------------------------------------------------------------
 //   Prototypes
@@ -188,12 +189,26 @@ typedef enum _control_gimbal_motor_t
  * @brief control_mode_t
  * Command control gimbal mode lock/follow
  */
-typedef enum _control_gimbal_mode_t
+typedef enum gimbal_mode_t
 {
-	GIMBAL_OFF  = 0x00,
-    LOCK_MODE   = 0x01,
-    FOLLOW_MODE = 0x02,
-} control_gimbal_mode_t;
+	GIMBAL_TURN_OFF  	= 0x00,
+    GIMBAL_LOCK_MODE   	= 0x01,
+    GIMBAL_FOLLOW_MODE 	= 0x02,
+} gimbal_mode_t;
+
+
+/**
+ * @brief control_mode_t
+ * Command control gimbal mode lock/follow
+ */
+typedef enum _gimbal_rotation_mode_t
+{
+    GIMBAL_ROTATION_MODE_RELATIVE_ANGLE	= 0,
+    GIMBAL_ROTATION_MODE_ABSOLUTE_ANGLE	= 1,
+    GIMBAL_ROTATION_MODE_SPEED			= 2,		
+} gimbal_rotation_mode_t;
+
+
 
 /**
  * @brief _control_gimbal_axis_input_mode
@@ -323,72 +338,109 @@ typedef struct _gimbal_motor_control_t
 } gimbal_motor_control_t;
 
 
-	/**
-	 * @brief control_motor_t
-	 * Command control motor is on/off
-	 */
-	enum param_state_t
-	{
-		PARAM_STATE_NOT_YET_READ 		= 0,	// parameter has yet to be initialized
-		PARAM_STATE_FETCH_AGAIN			= 1,	// parameter is being fetched
-		PARAM_STATE_ATTEMPTING_TO_SET   = 2,	// parameter is being set
-		PARAM_STATE_CONSISTENT			= 3,	// parameter is consistent
-		PARAM_STATE_NONEXISTANT			= 4		// parameter does not seem to exist
-	};
+/**
+ * @brief Limit angle data structure 
+ */
+typedef struct _limit_angle
+{
+	int16_t angle_min;
+	int16_t angle_max;
+
+}limit_angle_t;
 
 
-	/**
-	 * @brief param_index_t
-	 * Gimbal opens some parameters for setting. Please refer to user manual to learn more how to set 
-	 * that parameters
-	 */
-	enum param_index_t
-	{
+/**
+ * @brief Reset mode of gimbal.
+ */
+enum gimbal_reset_mode_t {
+    /*! Only reset yaw axis of gimbal. Reset angle of yaw axis to the sum of yaw axis angle of aircraft and fine tune angle
+      of yaw axis of gimbal. */
+    GIMBAL_RESET_MODE_YAW = 1,
+    /*! Reset yaw axis and pitch axis of gimbal. Reset angle of yaw axis to sum of yaw axis angle of aircraft and fine tune 
+      angle of yaw axis of gimbal, and reset pitch axis angle to the fine tune angle. */
+    GIMBAL_RESET_MODE_PITCH_AND_YAW = 3,
+    /*! Reset yaw axis and pitch axis of gimbal. Reset angle of yaw axis to sum of yaw axis angle of aircraft and fine tune
+     * angle of yaw axis of gimbal, and reset pitch axis angle to sum of -90 degree and fine tune angle if gimbal
+      downward, sum of 90 degree and fine tune angle if upward. */
+    GIMBAL_RESET_MODE_PITCH_DOWNWARD_UPWARD_AND_YAW = 11,
+    /*! Reset pitch axis of gimbal. Reset pitch axis angle to sum of -90 degree and fine tune angle if gimbal downward,
+      sum of 90 degree and fine tune angle if upward. */
+    GIMBAL_RESET_MODE_PITCH_DOWNWARD_UPWARD = 12,
+};
 
-		GMB_PARAM_VERSION_X = 0,
-		GMB_PARAM_VERSION_Y,
-		GMB_PARAM_VERSION_Z,
+/**
+ * @brief control_motor_t
+ * Command control motor is on/off
+ */
+enum param_state_t
+{
+	PARAM_STATE_NOT_YET_READ 		= 0,	// parameter has yet to be initialized
+	PARAM_STATE_FETCH_AGAIN			= 1,	// parameter is being fetched
+	PARAM_STATE_ATTEMPTING_TO_SET   = 2,	// parameter is being set
+	PARAM_STATE_CONSISTENT			= 3,	// parameter is consistent
+	PARAM_STATE_NONEXISTANT			= 4		// parameter does not seem to exist
+};
 
-		GMB_PARAM_STIFFNESS_PITCH,
-		GMB_PARAM_STIFFNESS_ROLL,
-		GMB_PARAM_STIFFNESS_YAW,
 
-		GMB_PARAM_HOLDSTRENGTH_PITCH,
-		GMB_PARAM_HOLDSTRENGTH_ROLL,
-		GMB_PARAM_HOLDSTRENGTH_YAW,
+/**
+ * @brief param_index_t
+ * Gimbal opens some parameters for setting. Please refer to user manual to learn more how to set 
+ * that parameters
+ */
+enum param_index_t
+{
 
-		GMB_PARAM_OUTPUT_FILTER,
-		GMB_PARAM_GYRO_FILTER,
-		GMB_PARAM_GAIN,
+	GMB_PARAM_VERSION_X = 0,
+	GMB_PARAM_VERSION_Y,
+	GMB_PARAM_VERSION_Z,
 
-		GMB_PARAM_SPEED_FOLLOW_PITCH,
-		GMB_PARAM_SPEED_FOLLOW_YAW,
+	GMB_PARAM_STIFFNESS_PITCH,
+	GMB_PARAM_STIFFNESS_ROLL,
+	GMB_PARAM_STIFFNESS_YAW,
 
-		GMB_PARAM_SMOOTH_FOLLOW_PITCH,
-		GMB_PARAM_SMOOTH_FOLLOW_YAW,
+	GMB_PARAM_HOLDSTRENGTH_PITCH,
+	GMB_PARAM_HOLDSTRENGTH_ROLL,
+	GMB_PARAM_HOLDSTRENGTH_YAW,
 
-		GMB_PARAM_WINDOW_FOLLOW_PITCH,
-		GMB_PARAM_WINDOW_FOLLOW_YAW,
+	GMB_PARAM_OUTPUT_FILTER,
+	GMB_PARAM_GYRO_FILTER,
+	GMB_PARAM_GAIN,
 
-		GMB_PARAM_SPEED_CONTROL_PITCH,
-		GMB_PARAM_SPEED_CONTROL_ROLL,
-		GMB_PARAM_SPEED_CONTROL_YAW,
+	GMB_PARAM_SPEED_FOLLOW_PITCH,
+	GMB_PARAM_SPEED_FOLLOW_YAW,
 
-		GMB_PARAM_SMOOTH_CONTROL_PITCH,
-		GMB_PARAM_SMOOTH_CONTROL_ROLL,
-		GMB_PARAM_SMOOTH_CONTROL_YAW,
+	GMB_PARAM_SMOOTH_FOLLOW_PITCH,
+	GMB_PARAM_SMOOTH_FOLLOW_YAW,
 
-		GMB_PARAM_AXIS_DIR,
+	GMB_PARAM_WINDOW_FOLLOW_PITCH,
+	GMB_PARAM_WINDOW_FOLLOW_YAW,
 
-		GMB_PARAM_HEATBEAT_EMIT,
-		GMB_PARAM_STATUS_RATE,
-		GMB_PARAM_ENCODER_VALUE_RATE,
-		GMB_PARAM_ENCODER_TYPE,
-		GMB_PARAM_ORIENTATION_RATE,
-		GMB_PARAM_RAW_IMU_RATE,
+	GMB_PARAM_SPEED_CONTROL_PITCH,
+	GMB_PARAM_SPEED_CONTROL_ROLL,
+	GMB_PARAM_SPEED_CONTROL_YAW,
 
-	   GIMBAL_NUM_TRACKED_PARAMS
-	};
+	GMB_PARAM_SMOOTH_CONTROL_PITCH,
+	GMB_PARAM_SMOOTH_CONTROL_ROLL,
+	GMB_PARAM_SMOOTH_CONTROL_YAW,
+
+	GMB_PARAM_AXIS_DIR,
+
+	GMB_PARAM_HEATBEAT_EMIT,
+	GMB_PARAM_STATUS_RATE,
+	GMB_PARAM_ENCODER_VALUE_RATE,
+	GMB_PARAM_ENCODER_TYPE,
+	GMB_PARAM_ORIENTATION_RATE,
+	GMB_PARAM_RAW_IMU_RATE,
+
+	GMB_PARAM_MIN_LIMIT_ANGLE_PITCH,
+	GMB_PARAM_MAX_LIMIT_ANGLE_PITCH,
+	GMB_PARAM_MIN_LIMIT_ANGLE_ROLL,
+	GMB_PARAM_MAX_LIMIT_ANGLE_ROLL,
+	GMB_PARAM_MIN_LIMIT_ANGLE_YAW,
+	GMB_PARAM_MAX_LIMIT_ANGLE_YAW,
+	
+   GIMBAL_NUM_TRACKED_PARAMS
+};
 // ----------------------------------------------------------------------------------
 //   Gimbal Interface Class
 // ----------------------------------------------------------------------------------
@@ -440,6 +492,13 @@ public:
 	 */
     void set_gimbal_reboot(void);
 
+    /**
+	 * @brief  This function shall reboot the gimbal
+	 * @param: NONE
+	 * @ret: @HAVE_ENUM_MAV_RESULT 
+	 */
+	uint8_t set_gimbal_rc_input(void);	
+
 	/**
 	 * @brief  This function shall turn on/off gimbal
 	 * @param: type see control_gimbal_motor_t
@@ -449,15 +508,38 @@ public:
 
     /**
 	 * @brief  This function shall set gimbal mode
-	 * @param: type see control_gimbal_mode_t
-	 * @ret: None
+	 * @param: type see gimbal_mode_t
+	 * @ret: @HAVE_ENUM_MAV_RESULT 
 	 */
-    void set_gimbal_mode(control_gimbal_mode_t mode);
+    uint8_t set_gimbal_mode(gimbal_mode_t mode);
+
+ 
+ 	/**
+	 * @brief  This function shall set gimbal mode
+	 * @param: type see gimbal_mode_t
+	 * @ret: gimbal_mode_t
+	 */
+    gimbal_mode_t get_gimbal_mode(void);
+
+ 	/**
+	 * @brief  This function shall set gimbal mode
+	 * @param: type see gimbal_mode_t
+	 * @ret: * @ret: @HAVE_ENUM_MAV_RESULT 
+	 */
+    uint8_t set_gimbal_lock_mode_sync(void);
+
+    /**
+	 * @brief  This function shall set gimbal mode
+	 * @param: type see gimbal_mode_t
+	 * @ret: * @ret: @HAVE_ENUM_MAV_RESULT 
+	 */
+    uint8_t set_gimbal_follow_mode_sync(void);
 
 
      /**
 	 * @brief  This function shall set mode for each axis
 	 * @param: type see control_gimbal_axis_mode_t
+	 * @note: DEPRECATED: Replaced by gimbal motation mode used in gimbal_rotation_mode_t
 	 * @ret: None
 	 */
     void set_gimbal_axes_mode(control_gimbal_axis_mode_t tilt,
@@ -468,9 +550,9 @@ public:
 	 * @brief  This function shall set mode for each axis.
 	 * The gimbal will move following the gimbal axes mode.
 	 * @param: type see control_gimbal_axis_mode_t
-	 * @ret: None
+	 * @ret: * @ret: @HAVE_ENUM_MAV_RESULT 
 	 */
-    void set_gimbal_move(float tilt, float roll, float pan);
+    uint8_t set_gimbal_rotation_sync(float tilt, float roll, float pan, gimbal_rotation_mode_t mode);
 
     /**
 	 * @brief  This function get gimbal status
@@ -531,6 +613,14 @@ public:
 	 */
 
 	uint8_t get_command_ack_do_mount_control(void);
+
+	/**
+	 * @brief  This function get the feedback from gimbal after sending 
+	 * MAV_CMD_DO_MOUNT_CONTROL
+	 * @param: None
+	 * @ret: In-progress or Accepted. Refer to @MAV_RESULT
+	 */
+	uint8_t get_command_ack_gimbal_mode(void);
 
  	/**
 	 * @brief  This function get the firmware version from gimbal
@@ -688,12 +778,91 @@ public:
 										uint8_t imu_rate = 10);
 
 	/**
+	 * @brief  This function set the configuration the message mavink with rate 
+	 * 
+	 * @param: emit_heatbeat - enable the heartbeat when lost connection or not enable = 1, disable = 0
+	 * @param: status_rate - the time rate of the system status. Gimbal sends as default 10Hz
+	 * @param: enc_value_rate - the time rate of the encoder values. Gimbal sends as default 50Hz
+	 * @param: enc_type_send - Set the type of encoder has been sent from gimbal is angle or count (Resolution 2^16)
+	 * @param: orien_rate - the time rate of the mount orientation of gimbal.Gimbal sends as default 50Hz
+	 * @param: imu_rate - the time rate of the raw_imu value. Gimbal sends as default 10Hz
+	 * @NOTE The range [0 - 100Hz]. 0 will disable that message
+	 * @ret: None
+	 */
+	void send_aircraft_attitude(mavlink_attitude_t attitude);
+
+	/**
+	 * @brief  This function set the enable or disable the reduce drift of the gimbal by using attitude of the aircarf
+	 * 
+	 * @param: flag - enable/disable the recude drift of the gimbal by combining attitude from the aircraft
+	 * @ret: None
+	 */
+	void  set_gimbal_combine_attitude(bool flag);
+
+	/**
 	 * @brief  This function get the mavlink configuration message
 	 * 
 	 * @param: None
 	 * @ret: config_mavlink_message_t contains setting related to mavlink configuration message
 	 */
 	config_mavlink_message_t get_gimbal_config_mavlink_msg(void);
+
+
+	/**
+	 * @brief Set limit angle for pitch.
+	 * @details Please refer to Gremsy site <gremsy.com> for
+	 * details about default limit angle of Gimbal.
+	 * @param limitAngle: limit angle.
+	 * @return None
+	 */
+	void set_limit_angle_pitch(limit_angle_t limit_angle);
+
+	/**
+	 * @brief Get limit angle for pitch.
+	 * @details Please refer to Gremsy site <gremsy.com> for
+	 * details about default limit angle of Gimbal.
+	 * @param limitAngle: limit angle.
+	 * @return None
+	 */
+	void get_limit_angle_pitch(limit_angle_t &limit_angle);
+
+	/**
+	 * @brief Set limit angle for yaw.
+	 * @details Please refer to Gremsy site <gremsy.com> for
+	 * details about default limit angle of Gimbal.
+	 * @param limitAngle: limit angle.
+	 * @return None
+	 */
+	void set_limit_angle_yaw(limit_angle_t limit_angle);
+
+	/**
+	 * @brief Get limit angle for yaw.
+	 * @details Please refer to Gremsy site <gremsy.com> for
+	 * details about default limit angle of Gimbal.
+	 * @param limitAngle: limit angle.
+	 * @return None
+	 */
+	void get_limit_angle_yaw(limit_angle_t &limit_angle);
+
+
+	/**
+	 * @brief Set limit angle for roll.
+	 * @details Please refer to Gremsy site <gremsy.com> for
+	 * details about default limit angle of Gimbal.
+	 * @param limitAngle: limit angle.
+	 * @return None
+	 */
+	void set_limit_angle_roll(limit_angle_t limit_angle);
+
+	/**
+	 * @brief Get limit angle for roll.
+	 * @details Please refer to Gremsy site <gremsy.com> for
+	 * details about default limit angle of Gimbal.
+	 * @param limitAngle: limit angle.
+	 * @return None
+	 */
+	void get_limit_angle_roll(limit_angle_t &limit_angle);
+
 
 private:
 
@@ -703,6 +872,9 @@ private:
 	bool has_detected;
 	uint32_t _last_report_msg_us;
 
+	uint8_t is_received_ack;
+	uint8_t is_wait_ack;
+
 	pthread_t read_tid;
 	pthread_t write_tid;
 
@@ -711,6 +883,7 @@ private:
 
 	void write_setpoint();
 	void write_heartbeat(void);
+	void write_test(void);
 
 	Mavlink_Messages current_messages;
 
@@ -813,6 +986,13 @@ private:
 		{75, "ENC_TYPE_SEND", 0, PARAM_STATE_NOT_YET_READ, 0, false},
 		{76, "ORIEN_RATE", 0, PARAM_STATE_NOT_YET_READ, 0, false},
 		{77, "IMU_RATE", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+
+		{30, "TRAVEL_MIN_PIT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+		{31, "TRAVEL_MAX_PIT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+		{32, "TRAVEL_MIN_ROLL", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+		{33, "TRAVEL_MAX_ROLL", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+		{69, "TRAVEL_MIN_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+		{70, "TRAVEL_MAX_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false},
 
 	};
 

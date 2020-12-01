@@ -31,14 +31,21 @@ typedef enum _sdk_process_state
     STATE_SET_GIMBAL_OFF,
     STATE_SET_GIMBAL_ON,
     
-    STATE_SET_CTRL_GIMBAL_YAW_FOLLOW_MODE,
-    STATE_MOVE_GIMBAL_YAW_FOLLOW_MODE_CW,
-    STATE_MOVE_GIMBAL_YAW_FOLLOW_MODE_CCW,
-    
-    STATE_SET_CTRL_GIMBAL_SPEED_MODE,
-    STATE_MOVE_SPEED_MODE,
+    STATE_SET_GIMBAL_FOLLOW_MODE,
+
+    STATE_SET_GIMBAL_ROTATION_CW_1,
+    STATE_SET_GIMBAL_ROTATION_CCW_1,
+
+    STATE_SET_GIMBAL_LOCK_MODE,
+
+    STATE_SET_GIMBAL_ROTATION_CW_2,
+    STATE_SET_GIMBAL_ROTATION_CCW_2,
+
+    STATE_SET_GIMBAL_ROTATION_SPEED_CW,
+    STATE_SET_GIMBAL_ROTATION_SPEED_CCW,
     
     STATE_MOVE_TO_ZERO,
+    STATE_SWITCH_TO_RC,
 
     STATE_SET_GIMBAL_REBOOT,
 
@@ -132,9 +139,8 @@ gGimbal_sample (int argc, char **argv)
 	{
 		uint32_t time_display = (uint32_t) (get_time_usec()/1000);
 
-		if(time_display%500 == 0 && gimbal_interface.present())
+		if(time_display%1000 == 0 && gimbal_interface.present())
 		{
-
             // Reset time 
             sdk.timeout = get_time_usec();
 
@@ -144,12 +150,40 @@ gGimbal_sample (int argc, char **argv)
             // Sample display value
 			gGimbal_displays(gimbal_interface);
 		}
-        else
+        else if(time_display%20 == 0 && gimbal_interface.present())
         {
-            if(get_time_usec() - sdk.timeout > 2000000)
-            {
-                sdk.state = STATE_IDLE;
+            /*Test only this section will send angle got from the gimbal and send back. The led indicator will be changed to purple*/
+            mavlink_mount_orientation_t mnt_orien = gimbal_interface.get_gimbal_mount_orientation();
+
+            /*Limit angle */
+            if(mnt_orien.pitch > 180) {
+                mnt_orien.pitch -= 360;
+            } else if(mnt_orien.pitch < -180) {
+                mnt_orien.pitch += 360;
             }
+
+            if(mnt_orien.roll > 180) {
+                mnt_orien.roll -= 360;
+            } else if(mnt_orien.roll < -180) {
+                mnt_orien.roll += 360;
+            }
+
+            if(mnt_orien.yaw > 180) {
+                mnt_orien.yaw -= 360;
+            } else if(mnt_orien.yaw < -180) {
+                mnt_orien.yaw += 360;
+            }
+
+            /*Send attitude information for correcting the drift. It should be send */
+            mavlink_attitude_t attitude;
+            attitude.time_boot_ms = 0; /*< [ms] Timestamp (time since system boot).*/
+            attitude.roll = mnt_orien.roll*ANGLE2PI; /*< [rad] Roll angle (-pi..+pi)*/
+            attitude.pitch = mnt_orien.pitch*ANGLE2PI; /*< [rad] Pitch angle (-pi..+pi)*/
+            attitude.yaw = mnt_orien.yaw*ANGLE2PI; /*< [rad] Yaw angle (-pi..+pi)*/
+            attitude.rollspeed = 0; /*< [rad/s] Roll angular speed*/
+            attitude.pitchspeed = 0; /*< [rad/s] Pitch angular speed*/
+            attitude.yawspeed = 0; /*< [rad/s] Yaw angular speed*/
+            gimbal_interface.send_aircraft_attitude(attitude);
         }
 	}
 
@@ -174,7 +208,6 @@ gGimbal_sample (int argc, char **argv)
 // --------------------------------------------------------------------------
 //   Paser gimbal info
 // --------------------------------------------------------------------------
-
 
 void gGimbal_displays(Gimbal_Interface &api)
 {
@@ -261,12 +294,26 @@ void gGimbal_displays(Gimbal_Interface &api)
 
     uint8_t output_filter, gyro_filter, gain;
 
+
     api.get_gimbal_motor_control(tilt, roll, pan, gyro_filter, output_filter, gain);
     printf("\tMOTOR_CONTROL: GYRO: %d, OUT %d, GAIN %d\n", gyro_filter, output_filter, gain);
     printf("\tTILT  stiff %d, hold: %d\n" , tilt.stiffness, tilt.holdstrength);
     printf("\tROLL  stiff %d, hold: %d\n" , roll.stiffness, roll.holdstrength);
     printf("\tPAN   stiff %d, hold: %d\n" , pan.stiffness, pan.holdstrength);
 
+    /*Get gimbal limit information*/
+    limit_angle_t limit_angle_pitch;
+    limit_angle_t limit_angle_roll;
+    limit_angle_t limit_angle_yaw;
+
+    api.get_limit_angle_pitch(limit_angle_pitch);
+    api.get_limit_angle_roll(limit_angle_roll);
+    api.get_limit_angle_yaw(limit_angle_yaw);
+
+
+    printf("Limit angle [Pitch]: upper_limit %d lower_limit %d\n", limit_angle_pitch.angle_max, limit_angle_pitch.angle_min);
+    printf("Limit angle [Roll]: upper_limit %d lower_limit %d\n", limit_angle_roll.angle_max, limit_angle_roll.angle_min);
+    printf("Limit angle [Yaw]: upper_limit %d lower_limit %d\n", limit_angle_yaw.angle_max, limit_angle_yaw.angle_min);
 
 
 	printf("\n");
@@ -296,7 +343,7 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
 
 
            // This firmware only apply for the firmware version from v7.x.x or above
-           if(fw.x >= 7 && fw.y >= 5)
+           if(fw.x >= 7)
            {
                 sdk.state = STATE_SETTING_GIMBAL;
            }
@@ -317,23 +364,43 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             // Setting axis for control. see the struct gimbal_config_axis_t
             gimbal_config_axis_t config = {0};
 
-            config = {DIR_CCW, 50, 50, 65, 50, 0};
+            config = {DIR_CW, 50, 50, 65, 50, 0};
             onboard.set_gimbal_config_tilt_axis(config);
 
             config = {DIR_CW, 50, 60, 0, 0, 0};
             onboard.set_gimbal_config_roll_axis(config);
 
-            config = {DIR_CW, 50, 70, 87, 50, 0};
+            config = {DIR_CW, 50, 50, 50, 50, 0};
             onboard.set_gimbal_config_pan_axis(config);
 
+            /*Delay 1ms*/
+            usleep(1000);
 
             // Motor control likes: Stiffness, holdstrength, gyro filter, output filter and gain
-            gimbal_motor_control_t tilt = {80, 40};
-            gimbal_motor_control_t roll = {90, 40};
-            gimbal_motor_control_t pan = {100, 40};
+            gimbal_motor_control_t tilt = {40, 30};
+            gimbal_motor_control_t roll = {50, 30};
+            gimbal_motor_control_t pan = {60, 30};
             onboard.set_gimbal_motor_control(tilt, roll, pan, 2, 3, 120);
 
-            usleep(100000);
+            /*Delay 1ms*/
+            usleep(1000);
+
+            /*Set limit */
+            limit_angle_t limit_angle_pitch = {-90, 45};
+            limit_angle_t limit_angle_roll = {-45, 45};
+            limit_angle_t limit_angle_yaw = {-320, 320};
+            onboard.set_limit_angle_pitch(limit_angle_pitch);
+            onboard.set_limit_angle_roll(limit_angle_roll);
+            onboard.set_limit_angle_yaw(limit_angle_yaw);
+
+            /*Delay 1ms*/
+            usleep(1000);
+
+            /*Set enable combine attitude from the aircraft*/
+            onboard.set_gimbal_combine_attitude(true);
+
+            /*Delay 1ms*/
+            usleep(1000);
 
            sdk.state = STATE_SETTING_MESSAGE_RATE;
         }
@@ -356,7 +423,8 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                                                     enc_type_send, 
                                                     orien_rate,
                                                     imu_rate);
-            usleep(100000);
+
+            usleep(1000);
 
             sdk.state = STATE_SET_GIMBAL_OFF;
         }
@@ -392,7 +460,7 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                 // Turn on gimbal
                 onboard.set_gimbal_motor_mode(TURN_ON);
                 
-                printf("TURN_ON!\n");
+                printf("TURN_ON! %d\n", onboard.get_gimbal_status().state);
                 
                  sdk.last_time_send = get_time_usec();
             }
@@ -402,199 +470,282 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                 {
                     sdk.last_time_send = get_time_usec();
                     
-                    sdk.state = STATE_SET_CTRL_GIMBAL_YAW_FOLLOW_MODE;
+                    sdk.state = STATE_SET_GIMBAL_FOLLOW_MODE;
                 }
             }
         }
         break;
-        case STATE_SET_CTRL_GIMBAL_YAW_FOLLOW_MODE:
+        case STATE_SET_GIMBAL_FOLLOW_MODE:
         {
-            printf("Set gimbal's yaw follow mode! %d\n", onboard.get_command_ack_do_mount_configure());
-            
-            control_gimbal_axis_mode_t pitch, roll, yaw;
-            
-            // Set gimbal axes mode.
-            // NOTE: ROLL only allow controlling in ABSOLUTE_FRAME and ANGULAR_RATE.
-
-            pitch.input_mode    = CTRL_ANGLE_ABSOLUTE_FRAME;
-            roll.input_mode     = CTRL_ANGLE_ABSOLUTE_FRAME;
-            yaw.input_mode      = CTRL_ANGLE_BODY_FRAME;
-            
-            // Set gimbal axes mode
-            onboard.set_gimbal_axes_mode(pitch, roll, yaw);
-            
-            // Check gimbal feedback COMMAND_ACK when sending MAV_CMD_DO_MOUNT_CONFIGURE. 
-            if(onboard.get_command_ack_do_mount_configure() == MAV_RESULT_ACCEPTED)
+            if(onboard.set_gimbal_follow_mode_sync() == MAV_RESULT_ACCEPTED)
             {
                 //Wait a moment about 5 seconds. Just see the effect
-                if((get_time_usec() - sdk.last_time_send) > 5000000)
+                if((get_time_usec() - sdk.last_time_send) > 10000000)
                 {
                     sdk.last_time_send = get_time_usec();
                     
-                    sdk.state = STATE_MOVE_GIMBAL_YAW_FOLLOW_MODE_CW;
+                    sdk.state = STATE_SET_GIMBAL_ROTATION_CW_1;
+
+                    printf("Set gimbal yaw FOLLOW mode accepted !\n");
                 }
+            } else {
+                printf("Set gimbal yaw FOLLOW mode!\n");
             }
         }
         break;
-        case STATE_MOVE_GIMBAL_YAW_FOLLOW_MODE_CW:
+        case STATE_SET_GIMBAL_ROTATION_CW_1:
         {
-            printf("Control gimbal's yaw cw follow mode! %d\n", onboard.get_command_ack_do_mount_control());
-            
-            // Set gimbal move to 
-            float setpoint_pitch  = 40.0;
+            /*Set Pitch up 40 degrees and Pan rotates 300 degrees clockwise */
+            float setpoint_pitch  = 40;
             float setpoint_roll   = 0;
-            float setpoint_yaw    = 170.0;
-           
+            float setpoint_yaw    = 300;
+         
             /// Set command gimbal move
-            onboard.set_gimbal_move(setpoint_pitch, setpoint_roll, setpoint_yaw);
+            uint8_t res = onboard.set_gimbal_rotation_sync(setpoint_pitch, setpoint_roll, setpoint_yaw, GIMBAL_ROTATION_MODE_ABSOLUTE_ANGLE);
+
+            /* Check delta to make sure gimbal has move complete. */
+            float delta_pitch_angle = fabs(onboard.get_gimbal_mount_orientation().pitch - setpoint_pitch);
+            float delta_roll_angle  = fabs(onboard.get_gimbal_mount_orientation().roll - setpoint_roll);
+            float delta_yaw_angle   = fabs(onboard.get_gimbal_mount_orientation().yaw - setpoint_yaw);
+
+
+            printf("Moving clockwise gimbal RYP [%3.2f - %3.2f - %3.2f] [Result: %d]\n",setpoint_roll,
+                                                                                setpoint_pitch,
+                                                                                setpoint_yaw,
+                                                                                res);
 
             // Check gimbal feedback COMMAND_ACK when sending MAV_CMD_DO_MOUNT_CONTROL
-            if(onboard.get_command_ack_do_mount_control() == MAV_RESULT_ACCEPTED)
-            {
-                //Wait a moment about 5 seconds. Just see the effect
+            if(res == MAV_RESULT_ACCEPTED) {
+                //Wait a moment about some seconds. Just see the effect
                 if((get_time_usec() - sdk.last_time_send) > 5000000)
                 {
                     // Reset time for the next step
                     sdk.last_time_send = get_time_usec();
                     
                     // Switch to move gimbal in CCW
-                    sdk.state = STATE_MOVE_GIMBAL_YAW_FOLLOW_MODE_CCW;
+                    sdk.state = STATE_SET_GIMBAL_ROTATION_CCW_1;
                 }
             }
         }
         break;
 
-        case STATE_MOVE_GIMBAL_YAW_FOLLOW_MODE_CCW:
-        {
-            printf("Control gimbal's yaw ccw follow mode! %d\n", onboard.get_command_ack_do_mount_control());
-            
-            // Set gimbal move to 
-            float setpoint_pitch  = -40.0;
+        case STATE_SET_GIMBAL_ROTATION_CCW_1:
+        {            
+            /*Set Pitch down 90 degrees and Pan rotates 300 degrees counter-clockwise */
+            float setpoint_pitch  = -90;
             float setpoint_roll   = 0;
-            float setpoint_yaw    = -170.0;
+            float setpoint_yaw    = -300;
 
-            /// Set command gimbal move
-            onboard.set_gimbal_move(setpoint_pitch, setpoint_roll, setpoint_yaw);
+             /// Set command gimbal move
+            int res = onboard.set_gimbal_rotation_sync(setpoint_pitch, setpoint_roll, setpoint_yaw, GIMBAL_ROTATION_MODE_ABSOLUTE_ANGLE);
+
+            printf("Moving Counter-Clockwise gimbal RYP [%3.2f - %3.2f - %3.2f] [Result: %d]\n",setpoint_roll,
+                                                                                                setpoint_pitch,
+                                                                                                setpoint_yaw,
+                                                                                                res);
 
             // Check gimbal feedback COMMAND_ACK after sending angle
-            if(onboard.get_command_ack_do_mount_control() == MAV_RESULT_ACCEPTED)
-            {
-                //Wait a moment about 5 seconds. Just see the effect
-                if((get_time_usec() - sdk.last_time_send) > 5000000)
+            if(res == MAV_RESULT_ACCEPTED) {
+                //Wait a moment about some seconds. Just see the effect
+                if((get_time_usec() - sdk.last_time_send) > 10000000)
                 {
                     sdk.last_time_send = get_time_usec();
                     
-                    sdk.state = STATE_SET_CTRL_GIMBAL_SPEED_MODE;
+                    sdk.state = STATE_SET_GIMBAL_LOCK_MODE;
                 }
             }
         }
         break;
-        case STATE_SET_CTRL_GIMBAL_SPEED_MODE:
+        case STATE_SET_GIMBAL_LOCK_MODE:
         {
-            printf("Set move gimbal in speed mode!\n");
-            
-            control_gimbal_axis_mode_t pitch, roll, yaw;
-            
-            pitch.input_mode    = CTRL_ANGULAR_RATE;
-            roll.input_mode     = CTRL_ANGULAR_RATE;
-            yaw.input_mode      = CTRL_ANGULAR_RATE;
-            
-            onboard.set_gimbal_axes_mode(pitch, roll, yaw);
-            
-            // Check gimbal feedback COMMAND_ACK after sending angle
-            if(onboard.get_command_ack_do_mount_configure() == MAV_RESULT_ACCEPTED)
+            if(onboard.set_gimbal_lock_mode_sync() == MAV_RESULT_ACCEPTED) 
             {
-                sdk.last_time_send = get_time_usec();
-            
-                sdk.state = STATE_MOVE_SPEED_MODE;
+                //Wait a moment about 5 seconds. Just see the effect
+                if((get_time_usec() - sdk.last_time_send) > 10000000)
+                {
+                    sdk.last_time_send = get_time_usec();
+                    
+                    sdk.state = STATE_SET_GIMBAL_ROTATION_CW_2;
+
+                    printf("Set gimbal yaw LOCK mode accepted !\n");
+                }
+            } 
+            else {
+                printf("Set gimbal yaw LOCK mode!\n");
             }
         }
         break;
-        case STATE_MOVE_SPEED_MODE:
+        case STATE_SET_GIMBAL_ROTATION_CW_2:
         {
-            printf("Speed control gimbal in speed mode: \n");
+            /*Set Pitch up 40 degrees and Pan rotates 320 degrees clockwise */
+            float setpoint_pitch  = 40;
+            float setpoint_roll   = 0;
+            float setpoint_yaw    = 320;
+         
+            /// Set command gimbal move
+            int res = onboard.set_gimbal_rotation_sync(setpoint_pitch, setpoint_roll, setpoint_yaw, GIMBAL_ROTATION_MODE_ABSOLUTE_ANGLE);
 
-            // Moving gimbal in speed mode with speed = 10 degree/second
-            float setpoint_pitch = 0.1;
-            float setpoint_roll  = 0;
-            float setpoint_yaw   = 0.1;
-
-            /*Get gimbal angle to check when moving in speed mode. */
-            float current_pitch_angle = onboard.get_gimbal_mount_orientation().pitch;
-            float current_roll_angle = onboard.get_gimbal_mount_orientation().roll;
-
-            //  [deg] Yaw relative to vehicle
-            float current_yaw_angle = onboard.get_gimbal_mount_orientation().yaw;
-
-            printf("current_pitch_angle: %2.3f, current_roll_angle: %2.3f, current_yaw_angle: %2.3f\n", 
-                                    current_pitch_angle, current_roll_angle, current_yaw_angle);
-
-            /// Move gimbal in speed mode
-            onboard.set_gimbal_move(setpoint_pitch, setpoint_roll, setpoint_yaw);
+            printf("Moving Clockwise gimbal RYP [%3.2f - %3.2f - %3.2f] [Result: %d]\n",setpoint_roll,
+                                                                                        setpoint_pitch,
+                                                                                        setpoint_yaw,
+                                                                                        res);
 
 
-            //Moving gimbal in speed mode about 5 seconds
-            if((get_time_usec() - sdk.last_time_send) > 5000000)
+            // Check gimbal feedback COMMAND_ACK when sending MAV_CMD_DO_MOUNT_CONTROL
+            if(res == MAV_RESULT_ACCEPTED) {
+                //Wait a moment about 5 seconds. Just see the effect
+                if((get_time_usec() - sdk.last_time_send) > 10000000)
+                {
+                    // Reset time for the next step
+                    sdk.last_time_send = get_time_usec();
+                    
+                    // Switch to move gimbal in CCW
+                    sdk.state = STATE_SET_GIMBAL_ROTATION_CCW_2;
+                }
+            }
+        }
+        break;
+
+        case STATE_SET_GIMBAL_ROTATION_CCW_2:
+        {            
+            /*Set Pitch down 90 degrees and Pan rotates 320 degrees counter-clockwise */
+            float setpoint_pitch  = -90;
+            float setpoint_roll   = 0;
+            float setpoint_yaw    = -320;
+
+             /// Set command gimbal move
+            int res = onboard.set_gimbal_rotation_sync(setpoint_pitch, setpoint_roll, setpoint_yaw, GIMBAL_ROTATION_MODE_ABSOLUTE_ANGLE);
+
+            printf("Moving Counter-Clockwise gimbal RYP [%3.2f - %3.2f - %3.2f] [Result: %d]\n",setpoint_roll,
+                                                                                                setpoint_pitch,
+                                                                                                setpoint_yaw,
+                                                                                                res);
+
+            // Check gimbal feedback COMMAND_ACK after sending angle
+            if(res == MAV_RESULT_ACCEPTED) {
+                //Wait a moment about 5 seconds. Just see the effect
+                if((get_time_usec() - sdk.last_time_send) > 10000000)
+                {
+                    sdk.last_time_send = get_time_usec();
+                    
+                    sdk.state = STATE_SET_GIMBAL_ROTATION_SPEED_CW;
+                }
+            }
+        }
+        break;
+        case STATE_SET_GIMBAL_ROTATION_SPEED_CW:
+        {
+            float speed_pitch  = 10;
+            float speed_roll  = 0;
+            float speed_yaw    = 20;
+
+             /// Set command gimbal move
+            int res = onboard.set_gimbal_rotation_sync(speed_pitch, speed_roll, speed_yaw, GIMBAL_ROTATION_MODE_SPEED);
+
+            printf("Moving Speed Clockwise gimbal RYP [%3.2f - %3.2f - %3.2f] [Result: %d]\n",speed_roll,
+                                                                                                        speed_pitch,
+                                                                                                        speed_yaw,
+                                                                                                        res);
+
+            //Wait a moment about 5 seconds. Just see the effect
+            if((get_time_usec() - sdk.last_time_send) > 10000000)
+            {
+                sdk.last_time_send = get_time_usec();
+                
+                sdk.state = STATE_SET_GIMBAL_ROTATION_SPEED_CCW;
+            }
+        }
+        break;
+        case STATE_SET_GIMBAL_ROTATION_SPEED_CCW:
+        {
+            // Set gimbal move to 
+            float speed_pitch  = -10;
+            float speed_roll  = 0;
+            float speed_yaw    = -20;
+
+             /// Set command gimbal move
+            int res = onboard.set_gimbal_rotation_sync(speed_pitch, speed_roll, speed_yaw, GIMBAL_ROTATION_MODE_SPEED);
+
+            printf("Moving Speed Counter-Clockwise gimbal RYP [%3.2f - %3.2f - %3.2f] [Result: %d]\n",speed_roll,
+                                                                                                        speed_pitch,
+                                                                                                        speed_yaw,
+                                                                                                        res);
+
+            //Wait a moment about 5 seconds. Just see the effect
+            if((get_time_usec() - sdk.last_time_send) > 10000000)
             {
                 sdk.last_time_send = get_time_usec();
                 
                 sdk.state = STATE_MOVE_TO_ZERO;
             }
+            break;
         }
-        break;
+
         case STATE_MOVE_TO_ZERO:
         {
-            printf("Set move angle for axes mode!\n");
-            
-            control_gimbal_axis_mode_t pitch, roll, yaw;
-            
-            // Set axes mode. 
-            pitch.input_mode    = CTRL_ANGLE_ABSOLUTE_FRAME;
-            roll.input_mode     = CTRL_ANGLE_ABSOLUTE_FRAME;
-            yaw.input_mode      = CTRL_ANGLE_BODY_FRAME;
-            
-            onboard.set_gimbal_axes_mode(pitch, roll, yaw);
-            
-            // Check gimbal feedback COMMAND_ACK after sending angle
-            if(onboard.get_command_ack_do_mount_configure() != MAV_RESULT_ACCEPTED)
-            {
-                break;
-            }
-
-            /* Reset time */                
-            printf("move Gimbal to zero pos!\n");
-
+            // Set gimbal move to 
             float setpoint_pitch  = 0;
             float setpoint_roll   = 0;
             float setpoint_yaw    = 0;
+         
+            /// Set command gimbal move
+            int res = onboard.set_gimbal_rotation_sync(setpoint_pitch, setpoint_roll, setpoint_yaw, GIMBAL_ROTATION_MODE_ABSOLUTE_ANGLE);
 
-            /// Apply value
-            onboard.set_gimbal_move(setpoint_pitch, setpoint_roll, setpoint_yaw);
-            
-             // Check gimbal feedback COMMAND_ACK after sending angle
-            if(onboard.get_command_ack_do_mount_control() == MAV_RESULT_ACCEPTED)
-            {
+            /* Check delta to make sure gimbal has move complete. */
+            float delta_pitch_angle = fabs(onboard.get_gimbal_mount_orientation().pitch - setpoint_pitch);
+            float delta_roll_angle  = fabs(onboard.get_gimbal_mount_orientation().roll - setpoint_roll);
+            float delta_yaw_angle   = fabs(onboard.get_gimbal_mount_orientation().yaw - setpoint_yaw);
+
+
+            printf("Moving zero gimbal RYP [%3.2f - %3.2f - %3.2f] [Result: %d]\n",delta_pitch_angle,
+                                                                                        delta_roll_angle,
+                                                                                        delta_yaw_angle,
+                                                                                        res);
+
+            // Check gimbal feedback COMMAND_ACK when sending MAV_CMD_DO_MOUNT_CONTROL
+            if(res == MAV_RESULT_ACCEPTED) {
                 //Wait a moment about 5 seconds. Just see the effect
-                if((get_time_usec() - sdk.last_time_send) > 5000000)
+                if((get_time_usec() - sdk.last_time_send) > 10000000)
                 {
+                    // Reset time for the next step
                     sdk.last_time_send = get_time_usec();
                     
-                    sdk.state = STATE_SET_GIMBAL_REBOOT;
+                    // Switch to move gimbal in CCW
+                    // sdk.state = STATE_SET_GIMBAL_REBOOT;
+                    sdk.state = STATE_SWITCH_TO_RC;
                 }
             }
         }
         break;
+        case STATE_SWITCH_TO_RC: 
+        {
+            static uint8_t res = MAV_RESULT_IN_PROGRESS;
+
+            if(res != MAV_RESULT_ACCEPTED)
+            {
+                res = onboard.set_gimbal_rc_input();
+            
+                printf("Set to RC input %d \n", res);
+            } 
+            else 
+            {
+                sdk.state = STATE_SET_GIMBAL_REBOOT;
+            }
+
+
+            break;
+        }
         case STATE_SET_GIMBAL_REBOOT:
         {
-            printf("STATE_SET_GIMBAL_REBOOT!\n");
-            onboard.set_gimbal_reboot();
+            // printf("STATE_SET_GIMBAL_REBOOT!\n");
+            // onboard.set_gimbal_reboot();
 
-            if((get_time_usec() - sdk.last_time_send) > 1000000)
-            {
-                sdk.last_time_send = get_time_usec();
+            // if((get_time_usec() - sdk.last_time_send) > 1000000)
+            // {
+            //     sdk.last_time_send = get_time_usec();
 
-                sdk.state = STATE_IDLE;
-            }
+            //     sdk.state = STATE_IDLE;
+            // }
         }
         break;
     }

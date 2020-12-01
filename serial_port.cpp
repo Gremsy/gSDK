@@ -53,7 +53,7 @@
 // ------------------------------------------------------------------------------
 
 #include "serial_port.h"
-
+#include <sys/ioctl.h> //ioctl() call defenitions
 
 // ----------------------------------------------------------------------------------
 //   Serial Port Manager Class
@@ -212,18 +212,23 @@ void
 Serial_Port::
 open_serial()
 {
-
+	// --------------------------------------------------------------------------
+	//   CLOSE PORT
+	// --------------------------------------------------------------------------
+	
+	
 	// --------------------------------------------------------------------------
 	//   OPEN PORT
 	// --------------------------------------------------------------------------
 	printf("OPEN PORT\n");
 
 	fd = _open_port(uart_name);
-
+	
 	// Check success
 	if (fd == -1)
 	{
 		printf("failure, could not open port.\n");
+
 		throw EXIT_FAILURE;
 	}
 
@@ -252,6 +257,26 @@ open_serial()
 	printf("Connected to %s with %d baud, 8 data bits, no parity, 1 stop bit (8N1)\n", uart_name, baudrate);
 	lastStatus.packet_rx_drop_count = 0;
 
+	// --------------------------------------------------------------------------
+	//   CONTROL DTR & RTS
+	// --------------------------------------------------------------------------
+	int RTS_flag;
+	int DTR_flag;
+
+	RTS_flag = TIOCM_RTS;
+	DTR_flag = TIOCM_DTR;
+
+	ioctl(fd,TIOCMBIS,&DTR_flag);//Set DTR pin
+	ioctl(fd,TIOCMBIC,&RTS_flag);//clear RTS pin
+	//getchar();
+	usleep(1000000);
+	ioctl(fd,TIOCMBIC,&DTR_flag);//Clear DTR pin
+	
+	
+	
+	// --------------------------------------------------------------------------
+	//   FOOTER
+	// --------------------------------------------------------------------------
 	status = true;
 
 	printf("\n");

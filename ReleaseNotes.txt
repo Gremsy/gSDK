@@ -1,0 +1,33 @@
+Gremsy SDK Release Notes:
+
+------------------------------------------------------------------
+22-Nov-2020
+NOTE: This is beta version. It is only used with the firmware v800 Beta. 
+
+1) Changes
+- Add functions support send attitude from the gSDK
+	+ void send_aircraft_attitude(mavlink_attitude_t attitude). This function used for sending the attitude from the gSDK. it should be sent around [50hz:100hz]
+	+ void set_gimbal_combine_attitude(bool flag). This function used for setting enable or disable the feature commbining attitude. When this feature is enable the led indicator will be changed to pink/blinking pink.
+	+ This function used for sending attitude from the gSDK to gimbal. Meaning that, gimbal will use the attitude from the gSDK to correct the drift of pan. 
+
+- Add functions set and get angle limit for each axis. 
+
+	+ void set_limit_angle_pitch(limit_angle_t limit_angle);
+	+ void get_limit_angle_pitch(limit_angle_t &limit_angle);
+	+ void set_limit_angle_yaw(limit_angle_t limit_angle);
+	+ void get_limit_angle_yaw(limit_angle_t &limit_angle);
+	+ void set_limit_angle_roll(limit_angle_t limit_angle);
+	+ void get_limit_angle_roll(limit_angle_t &limit_angle);
+
+- Add function for setting the gimbal mode 
+
+	+ uint8_t set_gimbal_lock_mode_sync(void);
+	+ uint8_t set_gimbal_follow_mode_sync(void);
+
+- Change the function send gimbal rotate.
+
++ uint8_t set_gimbal_rotation_sync(float tilt, float roll, float pan, gimbal_rotation_mode_t mode). User can use this function for sending the angle or speed. 
+The rotation mode is specified for each command. The gimbal will return ACCEPTED or IN-PROGRESS. 
+
+
+
