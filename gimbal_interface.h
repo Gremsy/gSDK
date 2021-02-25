@@ -194,6 +194,8 @@ typedef enum gimbal_mode_t
 	GIMBAL_TURN_OFF  	= 0x00,
     GIMBAL_LOCK_MODE   	= 0x01,
     GIMBAL_FOLLOW_MODE 	= 0x02,
+
+    GIMBAL_RESET_MODE   = 0x04
 } gimbal_mode_t;
 
 
@@ -352,7 +354,7 @@ typedef struct _limit_angle
 /**
  * @brief Reset mode of gimbal.
  */
-enum gimbal_reset_mode_t {
+typedef enum  {
     /*! Only reset yaw axis of gimbal. Reset angle of yaw axis to the sum of yaw axis angle of aircraft and fine tune angle
       of yaw axis of gimbal. */
     GIMBAL_RESET_MODE_YAW = 1,
@@ -366,7 +368,7 @@ enum gimbal_reset_mode_t {
     /*! Reset pitch axis of gimbal. Reset pitch axis angle to sum of -90 degree and fine tune angle if gimbal downward,
       sum of 90 degree and fine tune angle if upward. */
     GIMBAL_RESET_MODE_PITCH_DOWNWARD_UPWARD = 12,
-};
+} gimbal_reset_mode_t;
 
 /**
  * @brief control_motor_t
@@ -463,6 +465,7 @@ public:
 	char reading_status;
 	char writing_status;
     uint64_t write_count;
+    uint64_t write_heartbeat_count;
 
     /// Id of gimbal if it has mounted
     int system_id;
@@ -520,6 +523,14 @@ public:
 	 * @ret: gimbal_mode_t
 	 */
     gimbal_mode_t get_gimbal_mode(void);
+
+	/**
+	 * @brief  This function shall reset gimbal with some mode
+	 * @param: type see gimbal_reset_mode_t
+	 * @ret: @HAVE_ENUM_MAV_RESULT 
+	 */
+    uint8_t set_gimbal_reset_mode(gimbal_reset_mode_t reset_mode);
+    
 
  	/**
 	 * @brief  This function shall set gimbal mode
@@ -864,6 +875,8 @@ public:
 	void get_limit_angle_roll(limit_angle_t &limit_angle);
 
 
+	void reset_params();
+
 private:
 
 	Serial_Port *serial_port;
@@ -897,7 +910,7 @@ private:
 	constexpr static const char* official   	= "OFFICIAL";
 
 	//Gimbal params
-	void reset_params();
+	// void reset_params();
 	bool params_initialized();
 	bool params_received_all();
 	void fetch_params();
@@ -920,7 +933,7 @@ private:
 
 	const uint32_t	_time_lost_connection = 60000000;
 	const uint32_t 	_retry_period	= 100;  //100ms
-	const uint8_t 	_max_fetch_attempts = 5; // times
+	const uint8_t 	_max_fetch_attempts = 10; // times
 
 	struct 
 	{
@@ -997,6 +1010,7 @@ private:
 	};
 
 	uint64_t _last_request_ms;
+	uint64_t _last_set_ms;
 };
 
 

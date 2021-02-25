@@ -5,7 +5,7 @@
  * are strictly prohibited without prior permission of The GremsyCo.
  *
  * @file    mavlink_control.c
- * @author  The GremsyCo
+ * @author  The GremsyCoget_flag_exit
  * @version V1.0.0
  * @date    August-021-2018
  * @brief   This file contains example how to control gimbal with API
@@ -46,6 +46,8 @@ typedef enum _sdk_process_state
     
     STATE_MOVE_TO_ZERO,
     STATE_SWITCH_TO_RC,
+
+    STATE_SET_RESET_MODE,
 
     STATE_SET_GIMBAL_REBOOT,
 
@@ -148,7 +150,7 @@ gGimbal_sample (int argc, char **argv)
 			gGimbal_control_sample(gimbal_interface);
 
             // Sample display value
-			gGimbal_displays(gimbal_interface);
+			// gGimbal_displays(gimbal_interface);
 		}
         else if(time_display%20 == 0 && gimbal_interface.present())
         {
@@ -331,7 +333,7 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
         case STATE_IDLE:
         {
            sdk.state = STATE_CHECK_FIRMWARE_VERSION;
-
+           
            sdk.last_time_send = get_time_usec();
         }
         break;
@@ -437,7 +439,7 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                 // Turn off
                 onboard.set_gimbal_motor_mode(TURN_OFF);
 
-                printf("TURN_OFF! %d \n", onboard.get_gimbal_status().mode);
+                printf("Set TURN_OFF! Current - mode %d & state: %d\n", onboard.get_gimbal_status().mode, onboard.get_gimbal_status().state);
                 
                 sdk.last_time_send = get_time_usec();
             }
@@ -460,7 +462,8 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                 // Turn on gimbal
                 onboard.set_gimbal_motor_mode(TURN_ON);
                 
-                printf("TURN_ON! %d\n", onboard.get_gimbal_status().state);
+                printf("Set TURN_ON! Current - mode %d & state: %d\n", onboard.get_gimbal_status().mode, onboard.get_gimbal_status().state);
+
                 
                  sdk.last_time_send = get_time_usec();
             }
@@ -513,9 +516,16 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                                                                                 setpoint_pitch,
                                                                                 setpoint_yaw,
                                                                                 res);
+            bool complete_command = false;
 
+            if(delta_pitch_angle < 1 &&
+               delta_roll_angle < 1  &&
+               delta_yaw_angle < 1 )
+           {
+                complete_command = true;
+           } 
             // Check gimbal feedback COMMAND_ACK when sending MAV_CMD_DO_MOUNT_CONTROL
-            if(res == MAV_RESULT_ACCEPTED) {
+            if(res == MAV_RESULT_ACCEPTED || complete_command) {
                 //Wait a moment about some seconds. Just see the effect
                 if((get_time_usec() - sdk.last_time_send) > 5000000)
                 {
@@ -544,8 +554,22 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                                                                                                 setpoint_yaw,
                                                                                                 res);
 
-            // Check gimbal feedback COMMAND_ACK after sending angle
-            if(res == MAV_RESULT_ACCEPTED) {
+
+            /* Check delta to make sure gimbal has move complete. */
+            float delta_pitch_angle = fabs(onboard.get_gimbal_mount_orientation().pitch - setpoint_pitch);
+            float delta_roll_angle  = fabs(onboard.get_gimbal_mount_orientation().roll - setpoint_roll);
+            float delta_yaw_angle   = fabs(onboard.get_gimbal_mount_orientation().yaw - setpoint_yaw);
+
+            bool complete_command = false;
+
+            if(delta_pitch_angle < 1 &&
+               delta_roll_angle < 1  &&
+               delta_yaw_angle < 1 )
+           {
+                complete_command = true;
+           } 
+            // Check gimbal feedback COMMAND_ACK when sending MAV_CMD_DO_MOUNT_CONTROL
+            if(res == MAV_RESULT_ACCEPTED || complete_command) {
                 //Wait a moment about some seconds. Just see the effect
                 if((get_time_usec() - sdk.last_time_send) > 10000000)
                 {
@@ -580,7 +604,7 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             /*Set Pitch up 40 degrees and Pan rotates 320 degrees clockwise */
             float setpoint_pitch  = 40;
             float setpoint_roll   = 0;
-            float setpoint_yaw    = 320;
+            float setpoint_yaw    = 300;
          
             /// Set command gimbal move
             int res = onboard.set_gimbal_rotation_sync(setpoint_pitch, setpoint_roll, setpoint_yaw, GIMBAL_ROTATION_MODE_ABSOLUTE_ANGLE);
@@ -590,9 +614,21 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                                                                                         setpoint_yaw,
                                                                                         res);
 
+            /* Check delta to make sure gimbal has move complete. */
+            float delta_pitch_angle = fabs(onboard.get_gimbal_mount_orientation().pitch - setpoint_pitch);
+            float delta_roll_angle  = fabs(onboard.get_gimbal_mount_orientation().roll - setpoint_roll);
+            float delta_yaw_angle   = fabs(onboard.get_gimbal_mount_orientation().yaw - setpoint_yaw);
+            
+            bool complete_command = false;
 
+            if(delta_pitch_angle < 1 &&
+               delta_roll_angle < 1  &&
+               delta_yaw_angle < 1 )
+           {
+                complete_command = true;
+           } 
             // Check gimbal feedback COMMAND_ACK when sending MAV_CMD_DO_MOUNT_CONTROL
-            if(res == MAV_RESULT_ACCEPTED) {
+            if(res == MAV_RESULT_ACCEPTED || complete_command) {
                 //Wait a moment about 5 seconds. Just see the effect
                 if((get_time_usec() - sdk.last_time_send) > 10000000)
                 {
@@ -611,7 +647,7 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             /*Set Pitch down 90 degrees and Pan rotates 320 degrees counter-clockwise */
             float setpoint_pitch  = -90;
             float setpoint_roll   = 0;
-            float setpoint_yaw    = -320;
+            float setpoint_yaw    = -300;
 
              /// Set command gimbal move
             int res = onboard.set_gimbal_rotation_sync(setpoint_pitch, setpoint_roll, setpoint_yaw, GIMBAL_ROTATION_MODE_ABSOLUTE_ANGLE);
@@ -620,24 +656,37 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                                                                                                 setpoint_pitch,
                                                                                                 setpoint_yaw,
                                                                                                 res);
+            /* Check delta to make sure gimbal has move complete. */
+            float delta_pitch_angle = fabs(onboard.get_gimbal_mount_orientation().pitch - setpoint_pitch);
+            float delta_roll_angle  = fabs(onboard.get_gimbal_mount_orientation().roll - setpoint_roll);
+            float delta_yaw_angle   = fabs(onboard.get_gimbal_mount_orientation().yaw - setpoint_yaw);
+            
+            bool complete_command = false;
 
-            // Check gimbal feedback COMMAND_ACK after sending angle
-            if(res == MAV_RESULT_ACCEPTED) {
+            if(delta_pitch_angle < 1 &&
+               delta_roll_angle < 1  &&
+               delta_yaw_angle < 1 )
+            {
+                complete_command = true;
+            } 
+            // Check gimbal feedback COMMAND_ACK when sending MAV_CMD_DO_MOUNT_CONTROL
+            if(res == MAV_RESULT_ACCEPTED || complete_command) {
                 //Wait a moment about 5 seconds. Just see the effect
                 if((get_time_usec() - sdk.last_time_send) > 10000000)
                 {
                     sdk.last_time_send = get_time_usec();
                     
-                    sdk.state = STATE_SET_GIMBAL_ROTATION_SPEED_CW;
+                    // onboard.set_gimbal_reboot();
+                     sdk.state = STATE_SET_GIMBAL_ROTATION_SPEED_CW;
                 }
             }
         }
         break;
         case STATE_SET_GIMBAL_ROTATION_SPEED_CW:
         {
-            float speed_pitch  = 10;
+            float speed_pitch  = 50;
             float speed_roll  = 0;
-            float speed_yaw    = 20;
+            float speed_yaw    = 100;
 
              /// Set command gimbal move
             int res = onboard.set_gimbal_rotation_sync(speed_pitch, speed_roll, speed_yaw, GIMBAL_ROTATION_MODE_SPEED);
@@ -659,9 +708,9 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
         case STATE_SET_GIMBAL_ROTATION_SPEED_CCW:
         {
             // Set gimbal move to 
-            float speed_pitch  = -10;
+            float speed_pitch  = -50;
             float speed_roll  = 0;
-            float speed_yaw    = -20;
+            float speed_yaw    = -100;
 
              /// Set command gimbal move
             int res = onboard.set_gimbal_rotation_sync(speed_pitch, speed_roll, speed_yaw, GIMBAL_ROTATION_MODE_SPEED);
@@ -676,7 +725,7 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             {
                 sdk.last_time_send = get_time_usec();
                 
-                sdk.state = STATE_MOVE_TO_ZERO;
+                sdk.state = STATE_SET_RESET_MODE;
             }
             break;
         }
@@ -716,6 +765,15 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                 }
             }
         }
+        case STATE_SET_RESET_MODE:
+        {
+            onboard.set_gimbal_reset_mode(GIMBAL_RESET_MODE_PITCH_AND_YAW);
+            
+            printf("Set Gimbal Reset mode yaw and Pitch\r\n");
+
+            sdk.state = STATE_SET_GIMBAL_FOLLOW_MODE;
+
+        }
         break;
         case STATE_SWITCH_TO_RC: 
         {
@@ -729,7 +787,7 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             } 
             else 
             {
-                sdk.state = STATE_SET_GIMBAL_REBOOT;
+                // sdk.state = STATE_SET_GIMBAL_REBOOT;
             }
 
 

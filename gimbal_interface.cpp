@@ -86,6 +86,7 @@ Gimbal_Interface(Serial_Port *serial_port_)
 {
 	// initialize attributes
 	write_count = 0;
+	write_heartbeat_count = 0;
 
 	reading_status = 0;      // whether the read thread is running
 	writing_status = 0;      // whether the write thread is running
@@ -165,6 +166,10 @@ read_messages()
 						
 						has_detected = true;
 					}
+
+
+					int32_t deltaTime =  (get_time_usec() - _last_report_msg_us) / 1000000;
+					// printf("Got heartbeat %d\n", deltaTime);
 
 					// Get time
 					_last_report_msg_us = get_time_usec();
@@ -282,6 +287,8 @@ read_messages()
 						// Compare the index from gimbal with the param list 
 						if(packet.param_index == _params_list[i].gmb_idx)
 						{
+							// Reset fetch attempts 
+							_params_list[i].fetch_attempts = 0;
 							_params_list[i].seen = true;
 
 							switch(_params_list[i].state)
@@ -320,7 +327,7 @@ read_messages()
 
 		// Give the write thread time to use the port
 		if(writing_status > false)
-			usleep(100); 
+			usleep(10); 
 
 	} // end: while not received all
 
@@ -425,13 +432,9 @@ void
 Gimbal_Interface::
 set_param(param_index_t param, int16_t value) 
 {
-	if((_params_list[param].state == PARAM_STATE_CONSISTENT) && (_params_list[param].value == value))
-	{
-		return;
-	}
-
-	if(_params_list[param].state == PARAM_STATE_NONEXISTANT)
-	{
+	// Check parameter state and param value 
+	if((_params_list[param].state == PARAM_STATE_CONSISTENT) && (_params_list[param].value == value) 
+		|| (_params_list[param].state == PARAM_STATE_NONEXISTANT)) {
 		return;
 	}
 
@@ -443,7 +446,7 @@ set_param(param_index_t param, int16_t value)
 
 	param_set.param_value		= value; 		/*<  Onboard parameter value*/
 	param_set.target_system		= system_id; 	/*<  System ID*/
-	param_set.target_component	= gimbal_id; 	/*<  Component ID*/
+	param_set.target_component 	= MAV_COMP_ID_GIMBAL;
 
 	mav_array_memcpy(param_set.param_id, get_param_name(param), sizeof(char)*16);
 	param_set.param_type		= MAVLINK_TYPE_UINT16_T;
@@ -485,7 +488,7 @@ param_update()
 				mavlink_param_request_read_t	request = {0};
 
 				request.target_system    	= system_id;
-				request.target_component 	= gimbal_id;
+				request.target_component 	= MAV_COMP_ID_GIMBAL;
 				request.param_index 		= _params_list[i].gmb_idx;
 
 				mav_array_memcpy(request.param_id, get_param_name((param_index_t)i), sizeof(char)*16);
@@ -515,7 +518,7 @@ param_update()
 				_params_list[i].fetch_attempts++;
 
 				// Waing to read
-				 usleep(10000);
+				 usleep(100000);
 			}
 		}
 	}
@@ -533,7 +536,7 @@ param_update()
 
 			param_set.param_value		= _params_list[i].value; /*<  Onboard parameter value*/
 			param_set.target_system		= system_id; 			/*<  System ID*/
-			param_set.target_component	= gimbal_id; /*<  Component ID*/
+			param_set.target_component 	= MAV_COMP_ID_GIMBAL;
 
 			mav_array_memcpy(param_set.param_id, get_param_name((param_index_t)i), sizeof(char)*16);
 			param_set.param_type		= MAVLINK_TYPE_UINT16_T;
@@ -556,11 +559,10 @@ param_update()
 			if ( len <= 0 )
 				fprintf(stderr,"WARNING: could not Set param \n");
 
-			if(!_params_list[i].seen)
-			{
-				// Send request read
-				_params_list[i].fetch_attempts++;
-			}
+
+			_params_list[i].state == PARAM_STATE_FETCH_AGAIN;
+			_params_list[i].seen = false;
+
 		}
 	}
 
@@ -654,7 +656,7 @@ set_gimbal_reboot(void)
 	mavlink_command_long_t comm = { 0 };
 
 	comm.target_system    	= system_id;
-	comm.target_component 	= gimbal_id;
+	comm.target_component 	= MAV_COMP_ID_GIMBAL;
 
 	comm.command            = MAV_CMD_PREFLIGHT_REBOOT_SHUTDOWN;
 
@@ -705,7 +707,7 @@ set_gimbal_rc_input(void)
 	uint8_t result 				= MAV_RESULT_IN_PROGRESS;
 
 	comm.target_system    	= system_id;
-	comm.target_component 	= gimbal_id;
+	comm.target_component 	= MAV_COMP_ID_GIMBAL;
 
 	comm.command            = MAV_CMD_DO_MOUNT_CONFIGURE;
 
@@ -756,7 +758,7 @@ set_gimbal_motor_mode(control_gimbal_motor_t type)
 
 
 	comm.target_system    	= system_id;
-	comm.target_component 	= gimbal_id;
+	comm.target_component 	= MAV_COMP_ID_GIMBAL;
 
 	comm.command            = MAV_CMD_USER_1;
     comm.param7             = type;	// type 0 =>off , 1=>on
@@ -826,7 +828,7 @@ set_gimbal_lock_mode_sync(void)
 	mavlink_command_long_t comm = { 0 };
 	uint8_t result 				= MAV_RESULT_IN_PROGRESS;
 	comm.target_system    		= system_id;
-	comm.target_component 		= gimbal_id;
+	comm.target_component 		= MAV_COMP_ID_GIMBAL;
 
 	comm.command            	= MAV_CMD_USER_2;
     comm.param7             	= GIMBAL_LOCK_MODE;
@@ -871,7 +873,7 @@ set_gimbal_follow_mode_sync(void)
 	uint8_t result 				= MAV_RESULT_IN_PROGRESS;
 
 	comm.target_system    		= system_id;
-	comm.target_component 		= gimbal_id;
+	comm.target_component 		= MAV_COMP_ID_GIMBAL;
 
 	comm.command            	= MAV_CMD_USER_2;
     comm.param7             	= GIMBAL_FOLLOW_MODE;
@@ -922,7 +924,7 @@ set_gimbal_mode(gimbal_mode_t mode)
 	mavlink_command_long_t comm = { 0 };
 
 	comm.target_system    	= system_id;
-	comm.target_component 	= gimbal_id;
+	comm.target_component 	= MAV_COMP_ID_GIMBAL;
 
 	comm.command            = MAV_CMD_USER_2;
     comm.param7             = mode;
@@ -934,6 +936,56 @@ set_gimbal_mode(gimbal_mode_t mode)
 
 	mavlink_message_t message;
 	mavlink_msg_command_long_encode(system_id, companion_id, &message, &comm);
+
+	// --------------------------------------------------------------------------
+	//   WRITE
+	// --------------------------------------------------------------------------
+
+	// do the write
+	int len = write_message(message);
+
+	// check the write
+	if ( len <= 0 )
+		fprintf(stderr,"WARNING: could not send GIMBAL MODE \n");
+	else
+		// printf("%lu GIMBAL_MODE  = [ %d] \n", write_count, mode);
+
+	return 1;
+}
+
+/**
+ * @brief This function supports for setting gimbal mode down
+ * @details Function will reset yaw axis to the home position and set pitch axis to 90 degrees
+ * @note 
+ */
+uint8_t	
+Gimbal_Interface::
+set_gimbal_reset_mode(gimbal_reset_mode_t  reset_mode)
+{
+    /*!< Check gimbal is running now*/
+    if(!get_connection()) {
+        return 0;
+    }
+    
+    mavlink_command_long_t      command_long    = {0};
+
+    command_long.command            = MAV_CMD_USER_2;
+    command_long.param1             = 0;
+    command_long.param2             = 0;
+    command_long.param3             = 0;
+    command_long.param4             = 0;
+    command_long.param5             = 0;
+    command_long.param6             = reset_mode;
+    command_long.param7             = GIMBAL_RESET_MODE;
+    command_long.target_component   = MAV_COMP_ID_GIMBAL;
+    command_long.target_system      = system_id;
+    
+// --------------------------------------------------------------------------
+	//   ENCODE
+	// --------------------------------------------------------------------------
+
+	mavlink_message_t message;
+	mavlink_msg_command_long_encode(system_id, companion_id, &message, &command_long);
 
 	// --------------------------------------------------------------------------
 	//   WRITE
@@ -969,7 +1021,7 @@ set_gimbal_axes_mode(control_gimbal_axis_mode_t tilt,
 
 
 	comm.target_system    	= system_id;
-	comm.target_component 	= gimbal_id;
+	comm.target_component 	= MAV_COMP_ID_GIMBAL;
     comm.confirmation     	= false;
 
 	/*Default all axes that stabilize mode */
@@ -1024,7 +1076,7 @@ set_gimbal_rotation_sync(float tilt, float roll, float pan, gimbal_rotation_mode
 	mavlink_command_long_t comm = { 0 };
 	uint8_t result 				= MAV_RESULT_IN_PROGRESS;
 	comm.target_system    		= system_id;
-	comm.target_component 		= gimbal_id;
+	comm.target_component 		= MAV_COMP_ID_GIMBAL;
 
 	comm.command            	= MAV_CMD_DO_MOUNT_CONTROL;
     comm.confirmation     		= true;
@@ -2054,7 +2106,7 @@ get_connection(void)
 	uint32_t timeout = get_time_usec() - _last_report_msg_us;
 
 	// Check heartbeat from gimbal
-	if(!has_detected && timeout > _time_lost_connection)
+	if(!has_detected && timeout > _time_lost_connection || !has_detected)
 	{
 		printf(" Lost Connection!\n");
 
@@ -2096,7 +2148,7 @@ read_thread()
 	while ( ! time_to_exit )
 	{
 		read_messages();
-		usleep(10000); // Read batches at 10Hz
+		usleep(1000); // Read batches at 10Hz
 	}
 
 	reading_status = false;
@@ -2119,9 +2171,10 @@ write_thread(void)
 	{
 
 		uint32_t tnow_ms = get_time_usec();
+		static uint8_t count = 0 ;
 
 		// signal startup
-		writing_status = true;
+		writing_status = 2;
 
 		if(tnow_ms - time_send_heartbeat > 1000000)
 		{
@@ -2129,16 +2182,16 @@ write_thread(void)
 			time_send_heartbeat = get_time_usec();
 			// write a message and signal writing
 			write_heartbeat();
+
+			write_heartbeat_count++;
 		}
-		else if(tnow_ms - time_send_param > 500000)
+		else if(tnow_ms - time_send_param > 500000 && write_heartbeat_count >= 5)
 		{
 
 			time_send_param = get_time_usec();
 
 			// Process check param
 			param_process();
-
-			// write_test();
 		}
 
 		// signal end
