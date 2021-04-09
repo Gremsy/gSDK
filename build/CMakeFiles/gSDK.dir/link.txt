@@ -1,0 +1,1 @@
+/usr/lib/ccache/c++     CMakeFiles/gSDK.dir/mavlink_control.cpp.o CMakeFiles/gSDK.dir/src/gimbal_interface.cpp.o CMakeFiles/gSDK.dir/src/serial_port.cpp.o  -o gSDK  -lpthread 

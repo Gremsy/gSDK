@@ -711,6 +711,25 @@ public:
 	 */
 	config_mavlink_message_t get_gimbal_config_mavlink_msg(void);
 
+	/**
+	 * @brief  This function for user to get gimbal param
+	 * 
+	 * @param: param - param name to get, follow param_index_t
+	 * @param: value - The coefficent for denoising the param value
+	 * @param: def_value - The coefficent for denoising the param def_value
+	 * @ret: None
+	 */
+	void get_param(param_index_t param, int16_t& value, int16_t def_value = 0);
+
+	/**
+	 * @brief  This function for user to set gimbal param
+	 * 
+	 * @param: param - param name to get, follow param_index_t
+	 * @param: value - value to set
+	 * @ret: None
+	 */
+	void set_param(param_index_t param, int16_t value);
+
 private:
 
 	Serial_Port *serial_port;
@@ -744,9 +763,6 @@ private:
 	bool params_initialized();
 	bool params_received_all();
 	void fetch_params();
-
-	void get_param(param_index_t param, int16_t& value, int16_t def_value = 0);
-	void set_param(param_index_t param, int16_t value);
 
 	void param_update();
     void param_process(void);

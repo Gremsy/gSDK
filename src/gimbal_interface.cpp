@@ -294,7 +294,7 @@ read_messages()
 							}
 						}
 					}	
-				};
+				}
 				default:
 				{
 					// printf("Warning, did not handle message id %i\n",message.msgid);
@@ -611,7 +611,7 @@ param_process(void)
         	}
         	else
         	{
-	        	printf("Error: %d\n", current_messages.sys_status.errors_count2);
+	        	printf("Gimbal Error with code: %d\n", current_messages.sys_status.errors_count2);
         	}
 
         break;
@@ -1728,12 +1728,11 @@ write_thread(void)
 
 		if(tnow_ms - time_send_heartbeat > 1000000)
 		{
+			// printf("HB: %d\n", (uint32_t)(tnow_ms - time_send_heartbeat));
 
 			time_send_heartbeat = get_time_usec();
 			// write a message and signal writing
 			write_heartbeat();
-
-			printf("HB: %d\n", (uint32_t)(tnow_ms - time_send_heartbeat));
 		}
 		else if(tnow_ms - time_send_param > 500000)
 		{

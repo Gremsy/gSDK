@@ -10,7 +10,9 @@ Building
 ========
 
 ```
-$ cd gSDK_Linux/
+$ cd gSDK/
+$ mkdir build && cd build
+$ cmake ..
 $ make
 ```
 
