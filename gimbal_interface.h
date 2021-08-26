@@ -24,6 +24,7 @@
 #include <signal.h>
 #include <time.h>
 #include <sys/time.h>
+#include <mutex>
 
 // #include <common/mavlink.h>
 #include <ardupilotmega/mavlink.h>
@@ -34,11 +35,11 @@
 #define SYSID_ONBOARD                       4
 
 #ifndef PI
-#define PI          3.141592654
+#define PI          3.141592654f
 #endif
 
-#define PI2ANGLE    (180.0/PI)
-#define ANGLE2PI    (PI/180.0)
+#define PI2ANGLE    (180.f/PI)
+#define ANGLE2PI    (PI/180.f)
 
 // ------------------------------------------------------------------------------
 //   Prototypes
@@ -883,7 +884,7 @@ private:
 
 	bool time_to_exit;
 	bool has_detected;
-	uint32_t _last_report_msg_us;
+	uint64_t _last_report_msg_us;
 
 	uint8_t is_received_ack;
 	uint8_t is_wait_ack;
@@ -923,7 +924,7 @@ private:
 	void handle_param_value(mavlink_message_t *msg);
 
 	const char* get_param_name(param_index_t param)
-	{
+	{	
 		return _params_list[param].gmb_id;
 	}
 	const uint8_t get_gmb_index(param_index_t param)
@@ -944,6 +945,8 @@ private:
 		param_state_t state;
 		uint8_t	fetch_attempts;
 		bool seen;
+
+		std::mutex mutex;
 
 	} _params_list[GIMBAL_NUM_TRACKED_PARAMS] = {
 

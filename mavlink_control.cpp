@@ -127,7 +127,7 @@ gGimbal_sample (int argc, char **argv)
 	 */
 	serial_port_quit        = &serial_port;
 	gimbal_interface_quit 	= &gimbal_interface;
-	signal(SIGINT,quit_handler);
+	signal(SIGINT, quit_handler);
 
 	/*
 	 * Start the port and Gimbal_interface
@@ -139,9 +139,10 @@ gGimbal_sample (int argc, char **argv)
 	/// Process data 
 	while (!gimbal_interface.get_flag_exit())
 	{
-		uint32_t time_display = (uint32_t) (get_time_usec()/1000);
+		uint64_t time_display_ms = get_time_msec();
+        uint64_t last_time_send_attitude_ms = 0;
 
-		if(time_display%1000 == 0 && gimbal_interface.present())
+		if (gimbal_interface.present())
 		{
             // Reset time 
             sdk.timeout = get_time_usec();
@@ -152,28 +153,29 @@ gGimbal_sample (int argc, char **argv)
             // Sample display value
 			// gGimbal_displays(gimbal_interface);
 		}
-        else if(time_display%20 == 0 && gimbal_interface.present())
+
+        if ((time_display_ms - last_time_send_attitude_ms > 20) && gimbal_interface.present())  // 50Hz
         {
             /*Test only this section will send angle got from the gimbal and send back. The led indicator will be changed to purple*/
             mavlink_mount_orientation_t mnt_orien = gimbal_interface.get_gimbal_mount_orientation();
 
             /*Limit angle */
-            if(mnt_orien.pitch > 180) {
-                mnt_orien.pitch -= 360;
-            } else if(mnt_orien.pitch < -180) {
-                mnt_orien.pitch += 360;
+            if(mnt_orien.pitch > 180.f) {
+                mnt_orien.pitch -= 360.f;
+            } else if(mnt_orien.pitch < -180.f) {
+                mnt_orien.pitch += 360.f;
             }
 
-            if(mnt_orien.roll > 180) {
-                mnt_orien.roll -= 360;
-            } else if(mnt_orien.roll < -180) {
-                mnt_orien.roll += 360;
+            if(mnt_orien.roll > 180.f) {
+                mnt_orien.roll -= 360.f;
+            } else if(mnt_orien.roll < -180.f) {
+                mnt_orien.roll += 360.f;
             }
 
-            if(mnt_orien.yaw > 180) {
-                mnt_orien.yaw -= 360;
-            } else if(mnt_orien.yaw < -180) {
-                mnt_orien.yaw += 360;
+            if(mnt_orien.yaw > 180.f) {
+                mnt_orien.yaw -= 360.f;
+            } else if(mnt_orien.yaw < -180.f) {
+                mnt_orien.yaw += 360.f;
             }
 
             /*Send attitude information for correcting the drift. It should be send */
@@ -182,11 +184,15 @@ gGimbal_sample (int argc, char **argv)
             attitude.roll = mnt_orien.roll*ANGLE2PI; /*< [rad] Roll angle (-pi..+pi)*/
             attitude.pitch = mnt_orien.pitch*ANGLE2PI; /*< [rad] Pitch angle (-pi..+pi)*/
             attitude.yaw = mnt_orien.yaw*ANGLE2PI; /*< [rad] Yaw angle (-pi..+pi)*/
-            attitude.rollspeed = 0; /*< [rad/s] Roll angular speed*/
-            attitude.pitchspeed = 0; /*< [rad/s] Pitch angular speed*/
-            attitude.yawspeed = 0; /*< [rad/s] Yaw angular speed*/
+            attitude.rollspeed = 0.f; /*< [rad/s] Roll angular speed*/
+            attitude.pitchspeed = 0.f; /*< [rad/s] Pitch angular speed*/
+            attitude.yawspeed = 0.f; /*< [rad/s] Yaw angular speed*/
             gimbal_interface.send_aircraft_attitude(attitude);
+
+            last_time_send_attitude_ms = get_time_msec();
         }
+
+        usleep(1000);   // 1ms
 	}
 
 	// --------------------------------------------------------------------------
@@ -356,8 +362,6 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                 printf("2. AXIS CONFIGURATION\n");
                 printf("3. MAVLINK MSG RATE CONFIGURATION\n");
            }
-
-           usleep(100000);
         }
         break;
         case STATE_SETTING_GIMBAL:
@@ -366,23 +370,23 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             // Setting axis for control. see the struct gimbal_config_axis_t
             gimbal_config_axis_t config = {0};
 
-            config = {DIR_CW, 50, 50, 65, 50, 0};
+            config = {DIR_CW, 50, 10, 50, 10, 1};
             onboard.set_gimbal_config_tilt_axis(config);
 
-            config = {DIR_CW, 50, 60, 0, 0, 0};
+            config = {DIR_CW, 50, 10, 50, 10, 1};
             onboard.set_gimbal_config_roll_axis(config);
 
-            config = {DIR_CW, 50, 50, 50, 50, 0};
+            config = {DIR_CW, 50, 10, 50, 10, 1};
             onboard.set_gimbal_config_pan_axis(config);
 
             /*Delay 1ms*/
             usleep(1000);
 
             // Motor control likes: Stiffness, holdstrength, gyro filter, output filter and gain
-            gimbal_motor_control_t tilt = {40, 30};
-            gimbal_motor_control_t roll = {50, 30};
-            gimbal_motor_control_t pan = {60, 30};
-            onboard.set_gimbal_motor_control(tilt, roll, pan, 2, 3, 120);
+            gimbal_motor_control_t tilt = {70, 40};
+            gimbal_motor_control_t roll = {80, 40};
+            gimbal_motor_control_t pan = {100, 40};
+            onboard.set_gimbal_motor_control(tilt, roll, pan, 2, 4, 120);
 
             /*Delay 1ms*/
             usleep(1000);
@@ -401,10 +405,7 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             /*Set enable combine attitude from the aircraft*/
             onboard.set_gimbal_combine_attitude(true);
 
-            /*Delay 1ms*/
-            usleep(1000);
-
-           sdk.state = STATE_SETTING_MESSAGE_RATE;
+            sdk.state = STATE_SETTING_MESSAGE_RATE;
         }
         break;
         case STATE_SETTING_MESSAGE_RATE:
@@ -425,9 +426,6 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                                                     enc_type_send, 
                                                     orien_rate,
                                                     imu_rate);
-
-            usleep(1000);
-
             sdk.state = STATE_SET_GIMBAL_OFF;
         }
         break;
