@@ -57,6 +57,54 @@ void* start_gimbal_interface_write_thread(void *args);
 //   Data Structures
 // ------------------------------------------------------------------------------
 
+/* Math struct */
+struct attitude3f_t
+{	
+	float roll;
+	float pitch;
+	float yaw;
+};
+
+struct attitude3d_t
+{
+	int16_t roll;
+	int16_t pitch;
+	int16_t yaw;
+};
+
+struct vector3d_t
+{	
+	int16_t x;
+	int16_t y;
+	int16_t z;
+};
+
+/* Pose and sensor data type */
+struct attitude3f_mutex_t
+{
+	attitude3f_t data;
+	std::mutex mutex;
+};
+
+struct attitude3d_mutex_t
+{
+	attitude3d_t data;
+	std::mutex mutex;
+};
+
+struct imu_t
+{
+	vector3d_t accel;
+	vector3d_t gyro;
+};
+
+struct imu_mutex_t
+{
+	imu_t data;
+	std::mutex mutex;
+};
+
+/* */
 enum gimbal_state_t {
     GIMBAL_STATE_NOT_PRESENT = 0,
     GIMBAL_STATE_PRESENT_INITIALIZING,
@@ -116,9 +164,7 @@ struct Sequence_Numbers
 	}
 };  
 
-
 // Struct containing information on the MAV we are currently connected to
-
 struct Mavlink_Messages 
 {
 
@@ -578,21 +624,21 @@ public:
 	 * @param: None
 	 * @ret: Gimbal status
 	 */
-    mavlink_raw_imu_t get_gimbal_raw_imu(void);
+    imu_t get_gimbal_raw_imu(void);
 
     /**
 	 * @brief  This function get gimbal mount orientation
 	 * @param: None
 	 * @ret: Gimbal status
 	 */
-    mavlink_mount_orientation_t get_gimbal_mount_orientation(void);
+    attitude3f_t get_gimbal_mount_orientation(void);
 
-        /**
+    /**
 	 * @brief  This function get gimbal mount status
 	 * @param: None
 	 * @ret: Gimbal status
 	 */
-    mavlink_mount_status_t get_gimbal_mount_status(void);
+    attitude3d_t get_gimbal_encoder(void);
 
 	/**
 	 * @brief  This function get gimbal time stamps 
@@ -726,6 +772,14 @@ public:
 	gimbal_config_axis_t get_gimbal_config_pan_axis(void);
 
 	/**
+	 * @brief  This function set the enable or disable the reduce drift of the gimbal by using attitude of the aircarf
+	 * 
+	 * @param: flag - enable/disable the recude drift of the gimbal by combining attitude from the aircraft
+	 * @ret: None
+	 */
+	void set_gimbal_combine_attitude(bool flag);
+
+	/**
 	 * @brief  This function set motor controls setting
 	 * @param: tilt, roll, pan - stiffness and holdstrengtg, see user_manual (https://gremsy.com/gremsy-t3-manual/)
 	 * @param: def_gyro_filter - The coefficent for denoising the sensor filter
@@ -788,28 +842,6 @@ public:
 										uint8_t enc_type_send = 0,
 										uint8_t orien_rate = 50,
 										uint8_t imu_rate = 10);
-
-	/**
-	 * @brief  This function set the configuration the message mavink with rate 
-	 * 
-	 * @param: emit_heatbeat - enable the heartbeat when lost connection or not enable = 1, disable = 0
-	 * @param: status_rate - the time rate of the system status. Gimbal sends as default 10Hz
-	 * @param: enc_value_rate - the time rate of the encoder values. Gimbal sends as default 50Hz
-	 * @param: enc_type_send - Set the type of encoder has been sent from gimbal is angle or count (Resolution 2^16)
-	 * @param: orien_rate - the time rate of the mount orientation of gimbal.Gimbal sends as default 50Hz
-	 * @param: imu_rate - the time rate of the raw_imu value. Gimbal sends as default 10Hz
-	 * @NOTE The range [0 - 100Hz]. 0 will disable that message
-	 * @ret: None
-	 */
-	void send_aircraft_attitude(mavlink_attitude_t attitude);
-
-	/**
-	 * @brief  This function set the enable or disable the reduce drift of the gimbal by using attitude of the aircarf
-	 * 
-	 * @param: flag - enable/disable the recude drift of the gimbal by combining attitude from the aircraft
-	 * @ret: None
-	 */
-	void  set_gimbal_combine_attitude(bool flag);
 
 	/**
 	 * @brief  This function get the mavlink configuration message
@@ -875,6 +907,14 @@ public:
 	 */
 	void get_limit_angle_roll(limit_angle_t &limit_angle);
 
+	/**
+	 * @brief Get set autopilot attitude to send to gimbal
+	 * @details This method is used to update autopilot attitude
+	 * for gimbal to reduce pan drift
+	 * @param attitude: autopilot attitude
+	 * @return None
+	 */
+	void set_autopilot_attitude(attitude3f_t &attitude);
 
 	void reset_params();
 
@@ -884,6 +924,9 @@ private:
 
 	bool time_to_exit;
 	bool has_detected;
+
+	bool reduce_pan_drift_enable;
+
 	uint64_t _last_report_msg_us;
 
 	uint8_t is_received_ack;
@@ -898,12 +941,19 @@ private:
 	void write_setpoint();
 	void write_heartbeat(void);
 	void write_test(void);
+	void send_autopilot_attitude(void);
 
 	Mavlink_Messages current_messages;
 
 	gimbal_status_t gimbal_status;
 
     gimbal_state_t _state;
+
+    attitude3f_mutex_t gimbal_attitude;
+    attitude3f_mutex_t autopilot_attitude;
+
+    imu_mutex_t gimbal_imu;
+    attitude3d_mutex_t gimbal_encoder;
 
 	constexpr static const char* alpha  		= "ALPHA";
 	constexpr static const char* beta    	 	= "BETA";

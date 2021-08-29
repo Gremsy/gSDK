@@ -92,6 +92,7 @@ Gimbal_Interface(Serial_Port *serial_port_)
 	writing_status = 0;      // whether the write thread is running
 	time_to_exit   = false;  // flag to signal thread exit
 	has_detected   = false;	// Flag to detect gimbal
+	reduce_pan_drift_enable = false;	// flag to enable reduce pan drift
 
 	read_tid  = 0; // read thread id
 	write_tid = 0; // write thread id
@@ -185,7 +186,7 @@ read_messages()
 					current_messages.time_stamps.sys_status = get_time_usec();
 					this_timestamps.sys_status = current_messages.time_stamps.sys_status;
 
-					mavlink_status_t    *chan_status = mavlink_get_channel_status(MAVLINK_COMM_1);
+					mavlink_status_t *chan_status = mavlink_get_channel_status(MAVLINK_COMM_1);
 					this_seq_num.sys_status = chan_status->current_rx_seq;
 					break;
 				}
@@ -198,7 +199,14 @@ read_messages()
 					current_messages.time_stamps.mount_status = get_time_usec();
 					this_timestamps.mount_status = current_messages.time_stamps.mount_status;
 
-					mavlink_status_t    *chan_status = mavlink_get_channel_status(MAVLINK_COMM_1);
+					{
+						std::lock_guard<std::mutex> lock(gimbal_encoder.mutex);
+						gimbal_encoder.data.roll	= current_messages.mount_status.pointing_b;
+						gimbal_encoder.data.pitch 	= current_messages.mount_status.pointing_a;
+						gimbal_encoder.data.yaw 	= current_messages.mount_status.pointing_c;
+					}
+
+					mavlink_status_t *chan_status = mavlink_get_channel_status(MAVLINK_COMM_1);
 					this_seq_num.mount_status = chan_status->current_rx_seq;
 					break;
 				}
@@ -210,7 +218,14 @@ read_messages()
 					current_messages.time_stamps.mount_orientation = get_time_usec();
 					this_timestamps.mount_orientation = current_messages.time_stamps.mount_orientation;
 
-					mavlink_status_t    *chan_status = mavlink_get_channel_status(MAVLINK_COMM_1);
+					{
+						std::lock_guard<std::mutex> lock(gimbal_attitude.mutex);
+						gimbal_attitude.data.roll 	= current_messages.mount_orientation.roll;
+						gimbal_attitude.data.pitch 	= current_messages.mount_orientation.pitch;
+						gimbal_attitude.data.yaw 	= current_messages.mount_orientation.yaw;
+					}
+
+					mavlink_status_t *chan_status = mavlink_get_channel_status(MAVLINK_COMM_1);
 					this_seq_num.mount_orientation = chan_status->current_rx_seq;
 					break;
 				}
@@ -222,7 +237,17 @@ read_messages()
 					current_messages.time_stamps.raw_imu = get_time_usec();
 					this_timestamps.raw_imu = current_messages.time_stamps.raw_imu;
 
-					mavlink_status_t    *chan_status = mavlink_get_channel_status(MAVLINK_COMM_1);
+					{
+						std::lock_guard<std::mutex> lock(gimbal_imu.mutex);
+						gimbal_imu.data.accel.x = current_messages.raw_imu.xacc;
+						gimbal_imu.data.accel.y = current_messages.raw_imu.yacc;
+						gimbal_imu.data.accel.z = current_messages.raw_imu.zacc;
+						gimbal_imu.data.gyro.x 	= current_messages.raw_imu.xgyro;
+						gimbal_imu.data.gyro.y 	= current_messages.raw_imu.ygyro;
+						gimbal_imu.data.gyro.z 	= current_messages.raw_imu.zgyro;
+					}
+
+					mavlink_status_t *chan_status = mavlink_get_channel_status(MAVLINK_COMM_1);
 					this_seq_num.raw_imu = chan_status->current_rx_seq;
 					break;
 				}
@@ -246,30 +271,35 @@ read_messages()
 					else if(packet.command == MAV_CMD_DO_MOUNT_CONTROL)
 					{	
 						/*The first command it will return accepted to notify that command has been received */
-						if(packet.result == MAV_RESULT_ACCEPTED) {
+						if(packet.result == MAV_RESULT_ACCEPTED) 
+						{
 							is_wait_ack = 1;
 						}
 
 						if(packet.progress == MAV_RESULT_ACCEPTED) {
+
 							is_received_ack = 1;
 						}
 						
 					} 
-					else if(packet.command == MAV_CMD_USER_1) {
-
-						if(packet.result == MAV_RESULT_ACCEPTED) {
+					else if(packet.command == MAV_CMD_USER_1) 
+					{
+						if(packet.result == MAV_RESULT_ACCEPTED) 
+						{
 							is_received_ack = 1;
 						}
 						
 					}
-					else if(packet.command == MAV_CMD_USER_2) {
-						if(packet.result == MAV_RESULT_ACCEPTED) {
+					else if(packet.command == MAV_CMD_USER_2) 
+					{
+						if(packet.result == MAV_RESULT_ACCEPTED) 
+						{
 
 							is_received_ack = 1;
 						}
 					}
 
-					mavlink_status_t    *chan_status = mavlink_get_channel_status(MAVLINK_COMM_1);
+					mavlink_status_t *chan_status = mavlink_get_channel_status(MAVLINK_COMM_1);
 					this_seq_num.command_ack = chan_status->current_rx_seq;
 
 					break;
@@ -1499,7 +1529,6 @@ get_gimbal_config_mavlink_msg(void)
 	return config;
 }
 
-
 /**
  * @brief Set limit angle for pitch axis.
  * @details Please refer to Gremsy site <gremsy.com> for
@@ -1687,14 +1716,21 @@ get_gimbal_status(void)
  * @param: None
  * @ret: Gimbal status
  */
-mavlink_raw_imu_t 
+imu_t 
 Gimbal_Interface::
 get_gimbal_raw_imu(void)
 {
 	/* Check gimbal status has changed*/
 	if (current_messages.time_stamps.raw_imu)
 	{
-		return current_messages.raw_imu;
+		imu_t imu;
+
+		{
+			std::lock_guard<std::mutex> lock(gimbal_imu.mutex);
+			imu = gimbal_imu.data;
+		}
+
+		return imu;
 	}
 }
 
@@ -1703,14 +1739,21 @@ get_gimbal_raw_imu(void)
  * @param: None
  * @ret: Gimbal status
  */
-mavlink_mount_orientation_t 
+attitude3f_t 
 Gimbal_Interface::
 get_gimbal_mount_orientation(void)
 {
 	/* Check gimbal status has changed*/
 	if (current_messages.time_stamps.mount_orientation)
 	{
-		return current_messages.mount_orientation;
+		attitude3f_t attitude;
+
+		{
+			std::lock_guard<std::mutex> lock(gimbal_attitude.mutex);
+			attitude = gimbal_attitude.data;
+		}
+
+		return attitude;
 	}
 }
 
@@ -1719,15 +1762,37 @@ get_gimbal_mount_orientation(void)
  * @param: None
  * @ret: mavlink_mount_status_t (a, b, c: pitch, roll, yaw)
  */
-mavlink_mount_status_t 
+attitude3d_t 
 Gimbal_Interface::
-get_gimbal_mount_status(void)
+get_gimbal_encoder(void)
 {
 	/* Check gimbal status has changed*/
 	if(current_messages.time_stamps.mount_status)
 	{
-		return current_messages.mount_status;
+		attitude3d_t encoder;
+
+		{
+			std::lock_guard<std::mutex> lock(gimbal_encoder.mutex);
+			encoder = gimbal_encoder.data;
+		}
+
+		return encoder;
 	}
+}
+
+/**
+ * @brief Get set autopilot attitude to send to gimbal
+ * @details This method is used to update autopilot attitude
+ * for gimbal to reduce pan drift
+ * @param attitude: autopilot attitude
+ * @return None
+ */
+void 
+Gimbal_Interface::
+set_autopilot_attitude(attitude3f_t &attitude)
+{
+	std::lock_guard<std::mutex> lock(autopilot_attitude.mutex);
+	autopilot_attitude.data = attitude;
 }
 
 
@@ -1875,8 +1940,17 @@ write_heartbeat(void)
  */
 void 
 Gimbal_Interface::
-send_aircraft_attitude(mavlink_attitude_t attitude)
+send_autopilot_attitude(void)
 {
+	mavlink_attitude_t attitude;
+
+	{	
+		std::lock_guard<std::mutex> lock(autopilot_attitude.mutex);
+		attitude.roll 	= autopilot_attitude.data.roll;
+		attitude.pitch 	= autopilot_attitude.data.pitch;
+		attitude.yaw 	= autopilot_attitude.data.yaw;
+	}
+
 	// --------------------------------------------------------------------------
 	//   ENCODE
 	// --------------------------------------------------------------------------
@@ -1920,6 +1994,8 @@ set_gimbal_combine_attitude(bool flag)
 	}
 
 	set_param(GMB_PARAM_AXIS_DIR, param);
+
+	reduce_pan_drift_enable = flag;
 }
 
 // ------------------------------------------------------------------------------
@@ -2174,7 +2250,7 @@ void
 Gimbal_Interface::
 write_thread(void)
 {
-	uint64_t time_send_param = 0, time_send_heartbeat = 0;
+	uint64_t time_send_param = 0, time_send_heartbeat = 0, time_send_attitude = 0;
 
 	// Blocking wait for new data
 	while ( !writing_status and !time_to_exit )
@@ -2201,6 +2277,14 @@ write_thread(void)
 
 			// Process check param
 			param_process();
+		}
+
+		if (reduce_pan_drift_enable && tnow_us - time_send_attitude > 20000)	// 50Hz
+		{
+			time_send_attitude = get_time_usec();
+
+			// Write autopilot attitude to gimbal to reduce pan drift
+			send_autopilot_attitude();
 		}
 
 		// signal end

@@ -154,42 +154,12 @@ gGimbal_sample (int argc, char **argv)
 			// gGimbal_displays(gimbal_interface);
 		}
 
-        if ((time_display_ms - last_time_send_attitude_ms > 20) && gimbal_interface.present())  // 50Hz
+        /* Update autopilot attitude for gimbal to reduce pan drift*/
+        if (time_display_ms - last_time_send_attitude_ms > 20) // 50Hz
         {
-            /*Test only this section will send angle got from the gimbal and send back. The led indicator will be changed to purple*/
-            mavlink_mount_orientation_t mnt_orien = gimbal_interface.get_gimbal_mount_orientation();
+            attitude3f_t autopilot_attitude = { 0.f, 0.f, 0.f};
 
-            /*Limit angle */
-            if(mnt_orien.pitch > 180.f) {
-                mnt_orien.pitch -= 360.f;
-            } else if(mnt_orien.pitch < -180.f) {
-                mnt_orien.pitch += 360.f;
-            }
-
-            if(mnt_orien.roll > 180.f) {
-                mnt_orien.roll -= 360.f;
-            } else if(mnt_orien.roll < -180.f) {
-                mnt_orien.roll += 360.f;
-            }
-
-            if(mnt_orien.yaw > 180.f) {
-                mnt_orien.yaw -= 360.f;
-            } else if(mnt_orien.yaw < -180.f) {
-                mnt_orien.yaw += 360.f;
-            }
-
-            /*Send attitude information for correcting the drift. It should be send */
-            mavlink_attitude_t attitude;
-            attitude.time_boot_ms = 0; /*< [ms] Timestamp (time since system boot).*/
-            attitude.roll = mnt_orien.roll*ANGLE2PI; /*< [rad] Roll angle (-pi..+pi)*/
-            attitude.pitch = mnt_orien.pitch*ANGLE2PI; /*< [rad] Pitch angle (-pi..+pi)*/
-            attitude.yaw = mnt_orien.yaw*ANGLE2PI; /*< [rad] Yaw angle (-pi..+pi)*/
-            attitude.rollspeed = 0.f; /*< [rad/s] Roll angular speed*/
-            attitude.pitchspeed = 0.f; /*< [rad/s] Pitch angular speed*/
-            attitude.yawspeed = 0.f; /*< [rad/s] Yaw angular speed*/
-            gimbal_interface.send_aircraft_attitude(attitude);
-
-            last_time_send_attitude_ms = get_time_msec();
+            gimbal_interface.set_autopilot_attitude(autopilot_attitude);
         }
 
         usleep(1000);   // 1ms
@@ -245,46 +215,45 @@ void gGimbal_displays(Gimbal_Interface &api)
         printf("Gimbal's status is error!\n");
     }
 
-    mavlink_raw_imu_t imu = api.get_gimbal_raw_imu();
-    imu.time_usec = api.get_gimbal_time_stamps().raw_imu;
+    imu_t imu;
+    imu = api.get_gimbal_raw_imu();
 
 	printf("Got message RAW IMU.\n");
-	printf("\traw imu: time: %lu, xacc:%d, yacc:%d, zacc:%d, xgyro:%d, xgyro:%d, xgyro:%d(raw)\n", 
-                                                    (unsigned long)imu.time_usec, 
-                                                    imu.xacc, 
-                                                    imu.yacc, 
-                                                    imu.zacc,
-                                                    imu.xgyro,
-                                                    imu.ygyro,
-                                                    imu.zgyro);
+	printf("\traw imu: xacc:%d, yacc:%d, zacc:%d, xgyro:%d, xgyro:%d, xgyro:%d(raw)\n", 
+                                                    imu.accel.x, 
+                                                    imu.accel.y, 
+                                                    imu.accel.z,
+                                                    imu.gyro.x,
+                                                    imu.gyro.y,
+                                                    imu.gyro.z);
 
-	mavlink_mount_orientation_t mnt_orien = api.get_gimbal_mount_orientation();
-    mnt_orien.time_boot_ms = api.get_gimbal_time_stamps().mount_orientation;
+	attitude3f_t mnt_orien;
+    mnt_orien = api.get_gimbal_mount_orientation();
 
 	printf("Got message Mount orientation.\n");
-	printf("\torientation: time: %lu, p:%f, r:%f, y:%f (degree)\n",   (unsigned long)mnt_orien.time_boot_ms, 
-                                                                        mnt_orien.pitch, 
-                                                                        mnt_orien.roll, 
-                                                                        mnt_orien.yaw);
+	printf("\torientation: pitch:%f, roll:%f, yaw:%f (degree)\n", 
+                                                        mnt_orien.pitch, 
+                                                        mnt_orien.roll, 
+                                                        mnt_orien.yaw);
 
-    mavlink_mount_status_t mnt_status = api.get_gimbal_mount_status();
-    uint64_t mnt_status_time_stamp = api.get_gimbal_time_stamps().mount_status;
+    attitude3d_t encoder;
+    encoder = api.get_gimbal_encoder();
 
 	printf("Got message Mount status \n");
 
     if(api.get_gimbal_config_mavlink_msg().enc_type_send)
     {
-        printf("\tEncoder Count: time: %lu, p:%d, r:%d, y:%d (Resolution 2^16)\n", (unsigned long)mnt_status_time_stamp, 
-                                                            mnt_status.pointing_a, 
-                                                            mnt_status.pointing_b, 
-                                                            mnt_status.pointing_c);
+        printf("\tEncoder Count: pitch:%d, roll:%d, yaw:%d (Resolution 2^16)\n",
+                                                            encoder.pitch, 
+                                                            encoder.roll, 
+                                                            encoder.yaw);
     }
     else
     {
-        printf("\tEncoder Angle: time: %lu, p:%d, r:%d, y:%d (Degree)\n", (unsigned long)mnt_status_time_stamp, 
-                                                            mnt_status.pointing_a, 
-                                                            mnt_status.pointing_b, 
-                                                            mnt_status.pointing_c);
+        printf("\tEncoder Angle: pitch:%d, roll:%d, yaw:%d (Degree)\n",
+                                                            encoder.pitch, 
+                                                            encoder.roll, 
+                                                            encoder.yaw);
     }
 
 
@@ -403,6 +372,7 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             usleep(1000);
 
             /*Set enable combine attitude from the aircraft*/
+            /* Uncomment the line below to enable gimbal reduce pan drift */
             onboard.set_gimbal_combine_attitude(true);
 
             sdk.state = STATE_SETTING_MESSAGE_RATE;
@@ -497,17 +467,17 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
         case STATE_SET_GIMBAL_ROTATION_CW_1:
         {
             /*Set Pitch up 40 degrees and Pan rotates 300 degrees clockwise */
-            float setpoint_pitch  = 40;
-            float setpoint_roll   = 0;
-            float setpoint_yaw    = 300;
+            float setpoint_pitch  = 40.f;
+            float setpoint_roll   = 0.f;
+            float setpoint_yaw    = 300.f;
          
             /// Set command gimbal move
             uint8_t res = onboard.set_gimbal_rotation_sync(setpoint_pitch, setpoint_roll, setpoint_yaw, GIMBAL_ROTATION_MODE_ABSOLUTE_ANGLE);
 
             /* Check delta to make sure gimbal has move complete. */
-            float delta_pitch_angle = fabs(onboard.get_gimbal_mount_orientation().pitch - setpoint_pitch);
-            float delta_roll_angle  = fabs(onboard.get_gimbal_mount_orientation().roll - setpoint_roll);
-            float delta_yaw_angle   = fabs(onboard.get_gimbal_mount_orientation().yaw - setpoint_yaw);
+            float delta_pitch_angle = fabsf(onboard.get_gimbal_mount_orientation().pitch - setpoint_pitch);
+            float delta_roll_angle  = fabsf(onboard.get_gimbal_mount_orientation().roll - setpoint_roll);
+            float delta_yaw_angle   = fabsf(onboard.get_gimbal_mount_orientation().yaw - setpoint_yaw);
 
 
             printf("Moving clockwise gimbal RYP [%3.2f - %3.2f - %3.2f] [Result: %d]\n",setpoint_roll,
@@ -516,9 +486,9 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                                                                                 res);
             bool complete_command = false;
 
-            if(delta_pitch_angle < 1 &&
-               delta_roll_angle < 1  &&
-               delta_yaw_angle < 1 )
+            if(delta_pitch_angle < 1.f &&
+               delta_roll_angle < 1.f  &&
+               delta_yaw_angle < 1.f )
            {
                 complete_command = true;
            } 
@@ -540,9 +510,9 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
         case STATE_SET_GIMBAL_ROTATION_CCW_1:
         {            
             /*Set Pitch down 90 degrees and Pan rotates 300 degrees counter-clockwise */
-            float setpoint_pitch  = -90;
+            float setpoint_pitch  = -90.f;
             float setpoint_roll   = 0;
-            float setpoint_yaw    = -300;
+            float setpoint_yaw    = -300.f;
 
              /// Set command gimbal move
             int res = onboard.set_gimbal_rotation_sync(setpoint_pitch, setpoint_roll, setpoint_yaw, GIMBAL_ROTATION_MODE_ABSOLUTE_ANGLE);
@@ -554,15 +524,15 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
 
 
             /* Check delta to make sure gimbal has move complete. */
-            float delta_pitch_angle = fabs(onboard.get_gimbal_mount_orientation().pitch - setpoint_pitch);
-            float delta_roll_angle  = fabs(onboard.get_gimbal_mount_orientation().roll - setpoint_roll);
-            float delta_yaw_angle   = fabs(onboard.get_gimbal_mount_orientation().yaw - setpoint_yaw);
+            float delta_pitch_angle = fabsf(onboard.get_gimbal_mount_orientation().pitch - setpoint_pitch);
+            float delta_roll_angle  = fabsf(onboard.get_gimbal_mount_orientation().roll - setpoint_roll);
+            float delta_yaw_angle   = fabsf(onboard.get_gimbal_mount_orientation().yaw - setpoint_yaw);
 
             bool complete_command = false;
 
-            if(delta_pitch_angle < 1 &&
-               delta_roll_angle < 1  &&
-               delta_yaw_angle < 1 )
+            if(delta_pitch_angle < 1.f &&
+               delta_roll_angle < 1.f  &&
+               delta_yaw_angle < 1.f )
            {
                 complete_command = true;
            } 
@@ -600,9 +570,9 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
         case STATE_SET_GIMBAL_ROTATION_CW_2:
         {
             /*Set Pitch up 40 degrees and Pan rotates 320 degrees clockwise */
-            float setpoint_pitch  = 40;
-            float setpoint_roll   = 0;
-            float setpoint_yaw    = 300;
+            float setpoint_pitch  = 40.f;
+            float setpoint_roll   = 0.f;
+            float setpoint_yaw    = 300.f;
          
             /// Set command gimbal move
             int res = onboard.set_gimbal_rotation_sync(setpoint_pitch, setpoint_roll, setpoint_yaw, GIMBAL_ROTATION_MODE_ABSOLUTE_ANGLE);
@@ -613,15 +583,15 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                                                                                         res);
 
             /* Check delta to make sure gimbal has move complete. */
-            float delta_pitch_angle = fabs(onboard.get_gimbal_mount_orientation().pitch - setpoint_pitch);
-            float delta_roll_angle  = fabs(onboard.get_gimbal_mount_orientation().roll - setpoint_roll);
-            float delta_yaw_angle   = fabs(onboard.get_gimbal_mount_orientation().yaw - setpoint_yaw);
+            float delta_pitch_angle = fabsf(onboard.get_gimbal_mount_orientation().pitch - setpoint_pitch);
+            float delta_roll_angle  = fabsf(onboard.get_gimbal_mount_orientation().roll - setpoint_roll);
+            float delta_yaw_angle   = fabsf(onboard.get_gimbal_mount_orientation().yaw - setpoint_yaw);
             
             bool complete_command = false;
 
-            if(delta_pitch_angle < 1 &&
-               delta_roll_angle < 1  &&
-               delta_yaw_angle < 1 )
+            if(delta_pitch_angle < 1.f &&
+               delta_roll_angle < 1.f  &&
+               delta_yaw_angle < 1.f )
            {
                 complete_command = true;
            } 
@@ -643,9 +613,9 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
         case STATE_SET_GIMBAL_ROTATION_CCW_2:
         {            
             /*Set Pitch down 90 degrees and Pan rotates 320 degrees counter-clockwise */
-            float setpoint_pitch  = -90;
+            float setpoint_pitch  = -90.f;
             float setpoint_roll   = 0;
-            float setpoint_yaw    = -300;
+            float setpoint_yaw    = -300.f;
 
              /// Set command gimbal move
             int res = onboard.set_gimbal_rotation_sync(setpoint_pitch, setpoint_roll, setpoint_yaw, GIMBAL_ROTATION_MODE_ABSOLUTE_ANGLE);
@@ -655,15 +625,15 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                                                                                                 setpoint_yaw,
                                                                                                 res);
             /* Check delta to make sure gimbal has move complete. */
-            float delta_pitch_angle = fabs(onboard.get_gimbal_mount_orientation().pitch - setpoint_pitch);
-            float delta_roll_angle  = fabs(onboard.get_gimbal_mount_orientation().roll - setpoint_roll);
-            float delta_yaw_angle   = fabs(onboard.get_gimbal_mount_orientation().yaw - setpoint_yaw);
+            float delta_pitch_angle = fabsf(onboard.get_gimbal_mount_orientation().pitch - setpoint_pitch);
+            float delta_roll_angle  = fabsf(onboard.get_gimbal_mount_orientation().roll - setpoint_roll);
+            float delta_yaw_angle   = fabsf(onboard.get_gimbal_mount_orientation().yaw - setpoint_yaw);
             
             bool complete_command = false;
 
-            if(delta_pitch_angle < 1 &&
-               delta_roll_angle < 1  &&
-               delta_yaw_angle < 1 )
+            if(delta_pitch_angle < 1.f &&
+               delta_roll_angle < 1.f  &&
+               delta_yaw_angle < 1.f )
             {
                 complete_command = true;
             } 
@@ -682,9 +652,9 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
         break;
         case STATE_SET_GIMBAL_ROTATION_SPEED_CW:
         {
-            float speed_pitch  = 50;
-            float speed_roll  = 0;
-            float speed_yaw    = 100;
+            float speed_pitch  = 50.f;
+            float speed_roll  = 0.f;
+            float speed_yaw    = 100.f;
 
              /// Set command gimbal move
             int res = onboard.set_gimbal_rotation_sync(speed_pitch, speed_roll, speed_yaw, GIMBAL_ROTATION_MODE_SPEED);
@@ -706,9 +676,9 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
         case STATE_SET_GIMBAL_ROTATION_SPEED_CCW:
         {
             // Set gimbal move to 
-            float speed_pitch  = -50;
-            float speed_roll  = 0;
-            float speed_yaw    = -100;
+            float speed_pitch  = -50.f;
+            float speed_roll  = 0.f;
+            float speed_yaw    = -100.f;
 
              /// Set command gimbal move
             int res = onboard.set_gimbal_rotation_sync(speed_pitch, speed_roll, speed_yaw, GIMBAL_ROTATION_MODE_SPEED);
@@ -731,17 +701,17 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
         case STATE_MOVE_TO_ZERO:
         {
             // Set gimbal move to 
-            float setpoint_pitch  = 0;
-            float setpoint_roll   = 0;
-            float setpoint_yaw    = 0;
+            float setpoint_pitch  = 0.f;
+            float setpoint_roll   = 0.f;
+            float setpoint_yaw    = 0.f;
          
             /// Set command gimbal move
             int res = onboard.set_gimbal_rotation_sync(setpoint_pitch, setpoint_roll, setpoint_yaw, GIMBAL_ROTATION_MODE_ABSOLUTE_ANGLE);
 
             /* Check delta to make sure gimbal has move complete. */
-            float delta_pitch_angle = fabs(onboard.get_gimbal_mount_orientation().pitch - setpoint_pitch);
-            float delta_roll_angle  = fabs(onboard.get_gimbal_mount_orientation().roll - setpoint_roll);
-            float delta_yaw_angle   = fabs(onboard.get_gimbal_mount_orientation().yaw - setpoint_yaw);
+            float delta_pitch_angle = fabsf(onboard.get_gimbal_mount_orientation().pitch - setpoint_pitch);
+            float delta_roll_angle  = fabsf(onboard.get_gimbal_mount_orientation().roll - setpoint_roll);
+            float delta_yaw_angle   = fabsf(onboard.get_gimbal_mount_orientation().yaw - setpoint_yaw);
 
 
             printf("Moving zero gimbal RYP [%3.2f - %3.2f - %3.2f] [Result: %d]\n",delta_pitch_angle,
