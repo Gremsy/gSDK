@@ -1323,6 +1323,7 @@ get_gimbal_raw_imu(void)
 	{
 		return current_messages.raw_imu;
 	}
+    return {};
 }
 
 /**
@@ -1339,6 +1340,7 @@ get_gimbal_mount_orientation(void)
 	{
 		return current_messages.mount_orientation;
 	}
+    return {};
 }
 
 /**
@@ -1355,6 +1357,7 @@ get_gimbal_mount_status(void)
 	{
 		return current_messages.mount_status;
 	}
+    return {};
 }
 
 
@@ -1397,6 +1400,7 @@ get_command_ack_do_mount_configure(void)
 	{
 		return current_messages.result_cmd_ack_msg_configure;
 	}
+    return {};
 }
 
 /**
@@ -1413,6 +1417,7 @@ get_command_ack_do_mount_control(void)
 	{
 		return current_messages.result_cmd_ack_msg_control;
 	}
+    return {};
 }
 // ------------------------------------------------------------------------------
 //   Write heartbeat Message
