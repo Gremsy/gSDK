@@ -1745,7 +1745,8 @@ write_thread(void)
 
 		// signal end
 		writing_status = false;
-	}
+        usleep(10);
+    }
 
 	return;
 
