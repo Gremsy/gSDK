@@ -3,18 +3,18 @@
 
 #define MAVLINK_MSG_ID_WIND_COV 231
 
-MAVPACKED(
+
 typedef struct __mavlink_wind_cov_t {
- uint64_t time_usec; /*< [us] Timestamp (UNIX Epoch time or time since system boot). The receiving end can infer timestamp format (since 1.1.1970 or since system boot) by checking for the magnitude the number.*/
+ uint64_t time_usec; /*< [us] Timestamp (UNIX Epoch time or time since system boot). The receiving end can infer timestamp format (since 1.1.1970 or since system boot) by checking for the magnitude of the number.*/
  float wind_x; /*< [m/s] Wind in X (NED) direction*/
  float wind_y; /*< [m/s] Wind in Y (NED) direction*/
  float wind_z; /*< [m/s] Wind in Z (NED) direction*/
  float var_horiz; /*< [m/s] Variability of the wind in XY. RMS of a 1 Hz lowpassed wind estimate.*/
  float var_vert; /*< [m/s] Variability of the wind in Z. RMS of a 1 Hz lowpassed wind estimate.*/
- float wind_alt; /*< [m] Altitude (AMSL) that this measurement was taken at*/
+ float wind_alt; /*< [m] Altitude (MSL) that this measurement was taken at*/
  float horiz_accuracy; /*< [m] Horizontal speed 1-STD accuracy*/
  float vert_accuracy; /*< [m] Vertical speed 1-STD accuracy*/
-}) mavlink_wind_cov_t;
+} mavlink_wind_cov_t;
 
 #define MAVLINK_MSG_ID_WIND_COV_LEN 40
 #define MAVLINK_MSG_ID_WIND_COV_MIN_LEN 40
@@ -65,13 +65,13 @@ typedef struct __mavlink_wind_cov_t {
  * @param component_id ID of this component (e.g. 200 for IMU)
  * @param msg The MAVLink message to compress the data into
  *
- * @param time_usec [us] Timestamp (UNIX Epoch time or time since system boot). The receiving end can infer timestamp format (since 1.1.1970 or since system boot) by checking for the magnitude the number.
+ * @param time_usec [us] Timestamp (UNIX Epoch time or time since system boot). The receiving end can infer timestamp format (since 1.1.1970 or since system boot) by checking for the magnitude of the number.
  * @param wind_x [m/s] Wind in X (NED) direction
  * @param wind_y [m/s] Wind in Y (NED) direction
  * @param wind_z [m/s] Wind in Z (NED) direction
  * @param var_horiz [m/s] Variability of the wind in XY. RMS of a 1 Hz lowpassed wind estimate.
  * @param var_vert [m/s] Variability of the wind in Z. RMS of a 1 Hz lowpassed wind estimate.
- * @param wind_alt [m] Altitude (AMSL) that this measurement was taken at
+ * @param wind_alt [m] Altitude (MSL) that this measurement was taken at
  * @param horiz_accuracy [m] Horizontal speed 1-STD accuracy
  * @param vert_accuracy [m] Vertical speed 1-STD accuracy
  * @return length of the message in bytes (excluding serial stream start sign)
@@ -117,13 +117,13 @@ static inline uint16_t mavlink_msg_wind_cov_pack(uint8_t system_id, uint8_t comp
  * @param component_id ID of this component (e.g. 200 for IMU)
  * @param chan The MAVLink channel this message will be sent over
  * @param msg The MAVLink message to compress the data into
- * @param time_usec [us] Timestamp (UNIX Epoch time or time since system boot). The receiving end can infer timestamp format (since 1.1.1970 or since system boot) by checking for the magnitude the number.
+ * @param time_usec [us] Timestamp (UNIX Epoch time or time since system boot). The receiving end can infer timestamp format (since 1.1.1970 or since system boot) by checking for the magnitude of the number.
  * @param wind_x [m/s] Wind in X (NED) direction
  * @param wind_y [m/s] Wind in Y (NED) direction
  * @param wind_z [m/s] Wind in Z (NED) direction
  * @param var_horiz [m/s] Variability of the wind in XY. RMS of a 1 Hz lowpassed wind estimate.
  * @param var_vert [m/s] Variability of the wind in Z. RMS of a 1 Hz lowpassed wind estimate.
- * @param wind_alt [m] Altitude (AMSL) that this measurement was taken at
+ * @param wind_alt [m] Altitude (MSL) that this measurement was taken at
  * @param horiz_accuracy [m] Horizontal speed 1-STD accuracy
  * @param vert_accuracy [m] Vertical speed 1-STD accuracy
  * @return length of the message in bytes (excluding serial stream start sign)
@@ -195,13 +195,13 @@ static inline uint16_t mavlink_msg_wind_cov_encode_chan(uint8_t system_id, uint8
  * @brief Send a wind_cov message
  * @param chan MAVLink channel to send the message
  *
- * @param time_usec [us] Timestamp (UNIX Epoch time or time since system boot). The receiving end can infer timestamp format (since 1.1.1970 or since system boot) by checking for the magnitude the number.
+ * @param time_usec [us] Timestamp (UNIX Epoch time or time since system boot). The receiving end can infer timestamp format (since 1.1.1970 or since system boot) by checking for the magnitude of the number.
  * @param wind_x [m/s] Wind in X (NED) direction
  * @param wind_y [m/s] Wind in Y (NED) direction
  * @param wind_z [m/s] Wind in Z (NED) direction
  * @param var_horiz [m/s] Variability of the wind in XY. RMS of a 1 Hz lowpassed wind estimate.
  * @param var_vert [m/s] Variability of the wind in Z. RMS of a 1 Hz lowpassed wind estimate.
- * @param wind_alt [m] Altitude (AMSL) that this measurement was taken at
+ * @param wind_alt [m] Altitude (MSL) that this measurement was taken at
  * @param horiz_accuracy [m] Horizontal speed 1-STD accuracy
  * @param vert_accuracy [m] Vertical speed 1-STD accuracy
  */
@@ -300,7 +300,7 @@ static inline void mavlink_msg_wind_cov_send_buf(mavlink_message_t *msgbuf, mavl
 /**
  * @brief Get field time_usec from wind_cov message
  *
- * @return [us] Timestamp (UNIX Epoch time or time since system boot). The receiving end can infer timestamp format (since 1.1.1970 or since system boot) by checking for the magnitude the number.
+ * @return [us] Timestamp (UNIX Epoch time or time since system boot). The receiving end can infer timestamp format (since 1.1.1970 or since system boot) by checking for the magnitude of the number.
  */
 static inline uint64_t mavlink_msg_wind_cov_get_time_usec(const mavlink_message_t* msg)
 {
@@ -360,7 +360,7 @@ static inline float mavlink_msg_wind_cov_get_var_vert(const mavlink_message_t* m
 /**
  * @brief Get field wind_alt from wind_cov message
  *
- * @return [m] Altitude (AMSL) that this measurement was taken at
+ * @return [m] Altitude (MSL) that this measurement was taken at
  */
 static inline float mavlink_msg_wind_cov_get_wind_alt(const mavlink_message_t* msg)
 {

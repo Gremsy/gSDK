@@ -1,9 +1,9 @@
 #pragma once
 // MESSAGE TEST_TYPES PACKING
 
-#define MAVLINK_MSG_ID_TEST_TYPES 0
+#define MAVLINK_MSG_ID_TEST_TYPES 17000
 
-MAVPACKED(
+
 typedef struct __mavlink_test_types_t {
  uint64_t u64; /*<  uint64_t*/
  int64_t s64; /*<  int64_t*/
@@ -27,15 +27,15 @@ typedef struct __mavlink_test_types_t {
  int8_t s8; /*<  int8_t*/
  uint8_t u8_array[3]; /*<  uint8_t_array*/
  int8_t s8_array[3]; /*<  int8_t_array*/
-}) mavlink_test_types_t;
+} mavlink_test_types_t;
 
 #define MAVLINK_MSG_ID_TEST_TYPES_LEN 179
 #define MAVLINK_MSG_ID_TEST_TYPES_MIN_LEN 179
-#define MAVLINK_MSG_ID_0_LEN 179
-#define MAVLINK_MSG_ID_0_MIN_LEN 179
+#define MAVLINK_MSG_ID_17000_LEN 179
+#define MAVLINK_MSG_ID_17000_MIN_LEN 179
 
 #define MAVLINK_MSG_ID_TEST_TYPES_CRC 103
-#define MAVLINK_MSG_ID_0_CRC 103
+#define MAVLINK_MSG_ID_17000_CRC 103
 
 #define MAVLINK_MSG_TEST_TYPES_FIELD_U64_ARRAY_LEN 3
 #define MAVLINK_MSG_TEST_TYPES_FIELD_S64_ARRAY_LEN 3
@@ -51,7 +51,7 @@ typedef struct __mavlink_test_types_t {
 
 #if MAVLINK_COMMAND_24BIT
 #define MAVLINK_MESSAGE_INFO_TEST_TYPES { \
-    0, \
+    17000, \
     "TEST_TYPES", \
     22, \
     {  { "c", NULL, MAVLINK_TYPE_CHAR, 0, 160, offsetof(mavlink_test_types_t, c) }, \

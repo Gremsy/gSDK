@@ -65,17 +65,17 @@ typedef enum
 uint64_t
 get_time_usec()
 {
-	static struct timeval _time_stamp;
-	gettimeofday(&_time_stamp, NULL);
-	return _time_stamp.tv_sec*1000000 + _time_stamp.tv_usec;
+    static struct timeval _time_stamp;
+    gettimeofday(&_time_stamp, NULL);
+    return _time_stamp.tv_sec*1000000 + _time_stamp.tv_usec;
 }
 
 uint64_t
 get_time_msec()
 {
-	static struct timeval _time_stamp;
-	gettimeofday(&_time_stamp, NULL);
-	return _time_stamp.tv_sec*1000 + _time_stamp.tv_usec/1000;
+    static struct timeval _time_stamp;
+    gettimeofday(&_time_stamp, NULL);
+    return _time_stamp.tv_sec*1000 + _time_stamp.tv_usec/1000;
 }
 
 // ------------------------------------------------------------------------------
@@ -84,35 +84,35 @@ get_time_msec()
 Gimbal_Interface::
 Gimbal_Interface(Serial_Port *serial_port_)
 {
-	// initialize attributes
-	write_count = 0;
-	write_heartbeat_count = 0;
+    // initialize attributes
+    write_count = 0;
+    write_heartbeat_count = 0;
 
-	reading_status = 0;      // whether the read thread is running
-	writing_status = 0;      // whether the write thread is running
-	time_to_exit   = false;  // flag to signal thread exit
-	has_detected   = false;	// Flag to detect gimbal
-	reduce_pan_drift_enable = false;	// flag to enable reduce pan drift
+    reading_status = 0;      // whether the read thread is running
+    writing_status = 0;      // whether the write thread is running
+    time_to_exit   = false;  // flag to signal thread exit
+    has_detected   = false;	// Flag to detect gimbal
+    reduce_pan_drift_enable = false;	// flag to enable reduce pan drift
 
-	read_tid  = 0; // read thread id
-	write_tid = 0; // write thread id
+    read_tid  = 0; // read thread id
+    write_tid = 0; // write thread id
 
-	system_id    = 0; // system id
-	gimbal_id 	 = MAV_COMP_ID_GIMBAL; // gimbal component id
-	companion_id = MAV_COMP_ID_SYSTEM_CONTROL; // companion computer component id
+    system_id    = 0; // system id
+    gimbal_id 	 = MAV_COMP_ID_GIMBAL; // gimbal component id
+    companion_id = MAV_COMP_ID_ONBOARD_COMPUTER; // companion computer component id
 
-	current_messages.sysid  = system_id;
-	current_messages.compid = gimbal_id;
-	current_messages.sys_status.errors_count2 = 0;
-	current_messages.sys_status.errors_count1 = 0;
-	current_messages.reset_timestamps();
+    current_messages.sysid  = system_id;
+    current_messages.compid = gimbal_id;
+    current_messages.sys_status.errors_count2 = 0;
+    current_messages.sys_status.errors_count1 = 0;
+    current_messages.reset_timestamps();
 
-	_state = GIMBAL_STATE_NOT_PRESENT;
+    _state = GIMBAL_STATE_NOT_PRESENT;
 
-	is_received_ack = 0;
-	is_wait_ack = 0;
+    is_received_ack = 0;
+    is_wait_ack = 0;
 
-	serial_port = serial_port_; // serial port management object
+    serial_port = serial_port_; // serial port management object
 
 }
 
@@ -128,241 +128,262 @@ void
 Gimbal_Interface::
 read_messages()
 {
-	bool success;           // receive success flag
-	Time_Stamps 			this_timestamps;
-	Sequence_Numbers 		this_seq_num;
-	bool 					received_all = false;  // receive only one message
+    bool success;           // receive success flag
+    Time_Stamps 			this_timestamps;
+    Sequence_Numbers 		this_seq_num;
+    bool 					received_all = false;  // receive only one message
 
-	// Blocking wait for new data
-	while (!time_to_exit )
-	{
-		// ----------------------------------------------------------------------
-		//   READ MESSAGE
-		// ----------------------------------------------------------------------
-		mavlink_message_t message;
-		success = serial_port->read_message(message);
+    // Blocking wait for new data
+    while (!time_to_exit )
+    {
+        // ----------------------------------------------------------------------
+        //   READ MESSAGE
+        // ----------------------------------------------------------------------
+        mavlink_message_t message;
+        success = serial_port->read_message(message);
 
-		// ----------------------------------------------------------------------
-		//   HANDLE MESSAGE
-		// ----------------------------------------------------------------------
-		if( success )
-		{
-			// Handle Message ID
-			switch (message.msgid)
-			{
-				case MAVLINK_MSG_ID_HEARTBEAT:
-				{
-					// printf("MAVLINK_MSG_ID_HEARTBEAT\n");
-					mavlink_msg_heartbeat_decode(&message, &(current_messages.heartbeat));
-					current_messages.time_stamps.heartbeat = get_time_usec();
-					this_timestamps.heartbeat = current_messages.time_stamps.heartbeat;
+        // ----------------------------------------------------------------------
+        //   HANDLE MESSAGE
+        // ----------------------------------------------------------------------
+        if( success )
+        {
+            // Handle Message ID
+            switch (message.msgid)
+            {
+                case MAVLINK_MSG_ID_HEARTBEAT:
+                {
+                    mavlink_msg_heartbeat_decode(&message, &(current_messages.heartbeat));
 
-					if (!has_detected)
-					{
-						// Store message sysid and compid.
-						// Note this doesn't handle multiple message sources.
-						current_messages.sysid  = message.sysid;
-						current_messages.compid = message.compid;
-						
-						has_detected = true;
-					}
+                    current_messages.msg_rate.heartbeat += 0.8f *
+                        (1000000.f / (get_time_usec() - current_messages.time_stamps.heartbeat) - current_messages.msg_rate.heartbeat);
+                    current_messages.time_stamps.heartbeat = get_time_usec();
+                    this_timestamps.heartbeat = current_messages.time_stamps.heartbeat;
+
+                    if (!has_detected)
+                    {
+                        // Store message sysid and compid.
+                        // Note this doesn't handle multiple message sources.
+                        current_messages.sysid  = message.sysid;
+                        current_messages.compid = message.compid;
+                        
+                        has_detected = true;
+                    }
 
 
-					int64_t deltaTime =  (get_time_usec() - _last_report_msg_us) / 1000000;
-					// printf("Got heartbeat %d\n", deltaTime);
+                    int64_t deltaTime =  (get_time_usec() - _last_report_msg_us) / 1000000;
+                    // printf("Got heartbeat %d\n", deltaTime);
 
-					// Get time
-					_last_report_msg_us = get_time_usec();
+                    // Get time
+                    _last_report_msg_us = get_time_usec();
 
-					mavlink_status_t *chan_status = mavlink_get_channel_status(MAVLINK_COMM_1);
-					this_seq_num.heartbeat = chan_status->current_rx_seq;
-					break;
-				}
+                    mavlink_status_t *chan_status = mavlink_get_channel_status(MAVLINK_COMM_1);
+                    this_seq_num.heartbeat = chan_status->current_rx_seq;
+                    break;
+                }
 
-				case MAVLINK_MSG_ID_SYS_STATUS:
-				{
-					// printf("MAVLINK_MSG_ID_SYS_STATUS\n");
-					mavlink_msg_sys_status_decode(&message, &(current_messages.sys_status));
-					current_messages.time_stamps.sys_status = get_time_usec();
-					this_timestamps.sys_status = current_messages.time_stamps.sys_status;
+                case MAVLINK_MSG_ID_SYS_STATUS:
+                {
+                    mavlink_msg_sys_status_decode(&message, &(current_messages.sys_status));
 
-					mavlink_status_t *chan_status = mavlink_get_channel_status(MAVLINK_COMM_1);
-					this_seq_num.sys_status = chan_status->current_rx_seq;
-					break;
-				}
+                    current_messages.msg_rate.sys_status += 0.9f *
+                        (1000000.f / (get_time_usec() - current_messages.time_stamps.sys_status) - current_messages.msg_rate.sys_status);
+                    current_messages.time_stamps.sys_status = get_time_usec();
+                    this_timestamps.sys_status = current_messages.time_stamps.sys_status;
 
-				case MAVLINK_MSG_ID_MOUNT_STATUS:
-				{
-					// printf("MAVLINK_MSG_ID_MOUNT_STATUS\n");
+                    mavlink_status_t *chan_status = mavlink_get_channel_status(MAVLINK_COMM_1);
+                    this_seq_num.sys_status = chan_status->current_rx_seq;
+                    break;
+                }
 
-					mavlink_msg_mount_status_decode(&message, &(current_messages.mount_status));
-					current_messages.time_stamps.mount_status = get_time_usec();
-					this_timestamps.mount_status = current_messages.time_stamps.mount_status;
+                case MAVLINK_MSG_ID_MOUNT_STATUS:
+                {
+                    mavlink_msg_mount_status_decode(&message, &(current_messages.mount_status));
 
-					{
-						std::lock_guard<std::mutex> lock(gimbal_encoder.mutex);
-						gimbal_encoder.data.roll	= current_messages.mount_status.pointing_b;
-						gimbal_encoder.data.pitch 	= current_messages.mount_status.pointing_a;
-						gimbal_encoder.data.yaw 	= current_messages.mount_status.pointing_c;
-					}
+                    current_messages.msg_rate.mount_status += 0.8f *
+                        (1000000.f / (get_time_usec() - current_messages.time_stamps.mount_status) - current_messages.msg_rate.mount_status);
+                    current_messages.time_stamps.mount_status = get_time_usec();
+                    this_timestamps.mount_status = current_messages.time_stamps.mount_status;
 
-					mavlink_status_t *chan_status = mavlink_get_channel_status(MAVLINK_COMM_1);
-					this_seq_num.mount_status = chan_status->current_rx_seq;
-					break;
-				}
+                    {
+                        std::lock_guard<std::mutex> lock(gimbal_encoder.mutex);
+                        gimbal_encoder.data.roll	= current_messages.mount_status.pointing_b;
+                        gimbal_encoder.data.pitch 	= current_messages.mount_status.pointing_a;
+                        gimbal_encoder.data.yaw 	= current_messages.mount_status.pointing_c;
+                    }
 
-				case MAVLINK_MSG_ID_MOUNT_ORIENTATION:
-				{
-					// printf("MAVLINK_MSG_ID_MOUNT_ORIENTATION\n");
-					mavlink_msg_mount_orientation_decode(&message, &(current_messages.mount_orientation));
-					current_messages.time_stamps.mount_orientation = get_time_usec();
-					this_timestamps.mount_orientation = current_messages.time_stamps.mount_orientation;
+                    mavlink_status_t *chan_status = mavlink_get_channel_status(MAVLINK_COMM_1);
+                    this_seq_num.mount_status = chan_status->current_rx_seq;
+                    break;
+                }
 
-					{
-						std::lock_guard<std::mutex> lock(gimbal_attitude.mutex);
-						gimbal_attitude.data.roll 	= current_messages.mount_orientation.roll;
-						gimbal_attitude.data.pitch 	= current_messages.mount_orientation.pitch;
-						gimbal_attitude.data.yaw 	= current_messages.mount_orientation.yaw;
-					}
+                case MAVLINK_MSG_ID_MOUNT_ORIENTATION:
+                {
+                    mavlink_msg_mount_orientation_decode(&message, &(current_messages.mount_orientation));
 
-					mavlink_status_t *chan_status = mavlink_get_channel_status(MAVLINK_COMM_1);
-					this_seq_num.mount_orientation = chan_status->current_rx_seq;
-					break;
-				}
+                    current_messages.msg_rate.mount_orientation += 0.8f *
+                        (1000000.f / (get_time_usec() - current_messages.time_stamps.mount_orientation) - current_messages.msg_rate.mount_orientation);
+                    current_messages.time_stamps.mount_orientation = get_time_usec();
+                    this_timestamps.mount_orientation = current_messages.time_stamps.mount_orientation;
 
-				case MAVLINK_MSG_ID_RAW_IMU:
-				{
-					 // printf("MAVLINK_MSG_ID_RAW_IMU\n");
-					mavlink_msg_raw_imu_decode(&message, &(current_messages.raw_imu));
-					current_messages.time_stamps.raw_imu = get_time_usec();
-					this_timestamps.raw_imu = current_messages.time_stamps.raw_imu;
+                    {
+                        std::lock_guard<std::mutex> lock(gimbal_attitude.mutex);
+                        gimbal_attitude.data.roll 	= current_messages.mount_orientation.roll;
+                        gimbal_attitude.data.pitch 	= current_messages.mount_orientation.pitch;
+                        gimbal_attitude.data.yaw 	= current_messages.mount_orientation.yaw;
+                    }
 
-					{
-						std::lock_guard<std::mutex> lock(gimbal_imu.mutex);
-						gimbal_imu.data.accel.x = current_messages.raw_imu.xacc;
-						gimbal_imu.data.accel.y = current_messages.raw_imu.yacc;
-						gimbal_imu.data.accel.z = current_messages.raw_imu.zacc;
-						gimbal_imu.data.gyro.x 	= current_messages.raw_imu.xgyro;
-						gimbal_imu.data.gyro.y 	= current_messages.raw_imu.ygyro;
-						gimbal_imu.data.gyro.z 	= current_messages.raw_imu.zgyro;
-					}
+                    mavlink_status_t *chan_status = mavlink_get_channel_status(MAVLINK_COMM_1);
+                    this_seq_num.mount_orientation = chan_status->current_rx_seq;
+                    break;
+                }
 
-					mavlink_status_t *chan_status = mavlink_get_channel_status(MAVLINK_COMM_1);
-					this_seq_num.raw_imu = chan_status->current_rx_seq;
-					break;
-				}
+                case MAVLINK_MSG_ID_RAW_IMU:
+                {
+                    mavlink_msg_raw_imu_decode(&message, &(current_messages.raw_imu));
 
-				case MAVLINK_MSG_ID_COMMAND_ACK:
-				{
-					// printf("MAVLINK_MSG_ID_COMMAND_ACK\n");
-					mavlink_command_ack_t packet;
+                    current_messages.msg_rate.raw_imu += 0.8f *
+                        (1000000.f / (get_time_usec() - current_messages.time_stamps.raw_imu) - current_messages.msg_rate.raw_imu);
+                    current_messages.time_stamps.raw_imu = get_time_usec();
+                    this_timestamps.raw_imu = current_messages.time_stamps.raw_imu;
 
-					mavlink_msg_command_ack_decode(&message, &packet);
-					current_messages.time_stamps.command_ack = get_time_usec();
+                    {
+                        std::lock_guard<std::mutex> lock(gimbal_imu.mutex);
+                        gimbal_imu.data.accel.x = current_messages.raw_imu.xacc;
+                        gimbal_imu.data.accel.y = current_messages.raw_imu.yacc;
+                        gimbal_imu.data.accel.z = current_messages.raw_imu.zacc;
+                        gimbal_imu.data.gyro.x 	= current_messages.raw_imu.xgyro;
+                        gimbal_imu.data.gyro.y 	= current_messages.raw_imu.ygyro;
+                        gimbal_imu.data.gyro.z 	= current_messages.raw_imu.zgyro;
+                    }
 
-					/*Get time command */
-					this_timestamps.command_ack = current_messages.time_stamps.command_ack;
+                    mavlink_status_t *chan_status = mavlink_get_channel_status(MAVLINK_COMM_1);
+                    this_seq_num.raw_imu = chan_status->current_rx_seq;
+                    break;
+                }
 
-					// Decode packet and set callback
-					if(packet.command == MAV_CMD_DO_MOUNT_CONFIGURE)
-					{
-						current_messages.result_cmd_ack_msg_configure = packet.result;
-					}
-					else if(packet.command == MAV_CMD_DO_MOUNT_CONTROL)
-					{	
-						/*The first command it will return accepted to notify that command has been received */
-						if(packet.result == MAV_RESULT_ACCEPTED) 
-						{
-							is_wait_ack = 1;
-						}
+                case MAVLINK_MSG_ID_COMMAND_ACK:
+                {
+                    mavlink_command_ack_t packet;
 
-						if(packet.progress == MAV_RESULT_ACCEPTED) {
+                    mavlink_msg_command_ack_decode(&message, &packet);
+                    current_messages.time_stamps.command_ack = get_time_usec();
 
-							is_received_ack = 1;
-						}
-						
-					} 
-					else if(packet.command == MAV_CMD_USER_1) 
-					{
-						if(packet.result == MAV_RESULT_ACCEPTED) 
-						{
-							is_received_ack = 1;
-						}
-						
-					}
-					else if(packet.command == MAV_CMD_USER_2) 
-					{
-						if(packet.result == MAV_RESULT_ACCEPTED) 
-						{
+                    /*Get time command */
+                    this_timestamps.command_ack = current_messages.time_stamps.command_ack;
 
-							is_received_ack = 1;
-						}
-					}
+                    // Decode packet and set callback
+                    if(packet.command == MAV_CMD_DO_MOUNT_CONFIGURE)
+                    {
+                        current_messages.result_cmd_ack_msg_configure = packet.result;
+                    }
+                    else if(packet.command == MAV_CMD_DO_MOUNT_CONTROL)
+                    {	
+                        /*The first command it will return accepted to notify that command has been received */
+                        if(packet.result == MAV_RESULT_ACCEPTED) 
+                        {
+                            is_wait_ack = 1;
+                        }
 
-					mavlink_status_t *chan_status = mavlink_get_channel_status(MAVLINK_COMM_1);
-					this_seq_num.command_ack = chan_status->current_rx_seq;
+                        if(packet.progress == MAV_RESULT_ACCEPTED) {
 
-					break;
-				}
-				case MAVLINK_MSG_ID_PARAM_VALUE:
-				{
-					// printf("MAVLINK_MSG_ID_PARAM_VALUE\n");
-					mavlink_param_value_t packet;
+                            is_received_ack = 1;
+                        }
+                        
+                    } 
+                    else if(packet.command == MAV_CMD_USER_1) 
+                    {
+                        if(packet.result == MAV_RESULT_ACCEPTED) 
+                        {
+                            is_received_ack = 1;
+                        }
+                        
+                    }
+                    else if(packet.command == MAV_CMD_USER_2) 
+                    {
+                        if(packet.result == MAV_RESULT_ACCEPTED) 
+                        {
 
-					mavlink_msg_param_value_decode(&message, &packet);
+                            is_received_ack = 1;
+                        }
+                    }
 
-					for(uint8_t i = 0; i < GIMBAL_NUM_TRACKED_PARAMS; i++)
-					{
-						// Compare the index from gimbal with the param list 
-						if(packet.param_index == _params_list[i].gmb_idx)
-						{	
-							std::lock_guard<std::mutex> lock(_params_list[i].mutex);
+                    mavlink_status_t *chan_status = mavlink_get_channel_status(MAVLINK_COMM_1);
+                    this_seq_num.command_ack = chan_status->current_rx_seq;
 
-							// Reset fetch attempts 
-							_params_list[i].fetch_attempts = 0;
-							_params_list[i].seen = true;
+                    break;
+                }
+                case MAVLINK_MSG_ID_PARAM_VALUE:
+                {
+                    mavlink_param_value_t packet;
 
-							switch(_params_list[i].state)
-							{
-								case PARAM_STATE_NONEXISTANT:
-								case PARAM_STATE_NOT_YET_READ:
-								case PARAM_STATE_FETCH_AGAIN:
-									_params_list[i].value = packet.param_value;
-				                    _params_list[i].state = PARAM_STATE_CONSISTENT;
+                    mavlink_msg_param_value_decode(&message, &packet);
 
-				                    printf("GOT [%s] %d\n", get_param_name((param_index_t)i), _params_list[i].value);
-			                    break;
-			                    case PARAM_STATE_CONSISTENT:
-			                    	_params_list[i].value = (int16_t)packet.param_value;
+                    for(uint8_t i = 0; i < GIMBAL_NUM_TRACKED_PARAMS; i++)
+                    {
+                        // Compare the index from gimbal with the param list 
+                        if(packet.param_index == _params_list[i].gmb_idx)
+                        {	
+                            std::lock_guard<std::mutex> lock(_params_list[i].mutex);
 
-		                    	break;
-		                    	case PARAM_STATE_ATTEMPTING_TO_SET:
-		                    		if (packet.param_value == _params_list[i].value)
-		                    		{
-		                    			_params_list[i].state = PARAM_STATE_CONSISTENT;
-		                    		}
-	                    		break;
-							}
-						}
-					}	
-				}
-				default:
-				{
-					// printf("Warning, did not handle message id %i\n",message.msgid);
-					break;
-				}
+                            // Reset fetch attempts 
+                            _params_list[i].fetch_attempts = 0;
+                            _params_list[i].seen = true;
 
-			} // end: switch msgid
+                            switch(_params_list[i].state)
+                            {
+                                case PARAM_STATE_NONEXISTANT:
+                                case PARAM_STATE_NOT_YET_READ:
+                                case PARAM_STATE_FETCH_AGAIN:
+                                    _params_list[i].value = packet.param_value;
+                                    _params_list[i].state = PARAM_STATE_CONSISTENT;
 
-		} // end: if read message
+                                    printf("GOT [%s] %d\n", get_param_name((param_index_t)i), _params_list[i].value);
+                                break;
+                                case PARAM_STATE_CONSISTENT:
+                                    _params_list[i].value = (int16_t)packet.param_value;
 
-		// Give the write thread time to use the port
-		if (writing_status > false)
-			usleep(10); 
+                                break;
+                                case PARAM_STATE_ATTEMPTING_TO_SET:
+                                    if (packet.param_value == _params_list[i].value)
+                                    {
+                                        _params_list[i].state = PARAM_STATE_CONSISTENT;
+                                    }
+                                break;
+                            }
+                        }
+                    }
 
-	} // end: while not received all
+                    break;	
+                }
 
-	return;
+                case MAVLINK_MSG_ID_COMPONENT_INFORMATION:
+                {
+                    mavlink_msg_component_information_decode(&message, &(current_messages.info));
+
+                    current_messages.msg_rate.info += 0.8f *
+                        (1000000.f / (get_time_usec() - current_messages.time_stamps.info) - current_messages.msg_rate.info);
+                    current_messages.time_stamps.info = get_time_usec();
+
+                    break;
+                }
+
+                default:
+                {
+                    // printf("Warning, did not handle message id %i\n",message.msgid);
+                    break;
+                }
+
+            } // end: switch msgid
+
+        } // end: if read message
+
+        // Give the write thread time to use the port
+        if (writing_status > false)
+            usleep(10); 
+
+    } // end: while not received all
+
+    return;
 }
 
 // ------------------------------------------------------------------------------
@@ -372,14 +393,14 @@ int
 Gimbal_Interface::
 write_message(mavlink_message_t message)
 {
-	// do the write
-	int len = serial_port->write_message(message);
+    // do the write
+    int len = serial_port->write_message(message);
 
-	// book keep
-	write_count++;
+    // book keep
+    write_count++;
 
-	// Done!
-	return len;
+    // Done!
+    return len;
 }
 
 // ------------------------------------------------------------------------------
@@ -389,48 +410,48 @@ void
 Gimbal_Interface::
 reset_params()
 {
-	_last_request_ms = 0;
+    _last_request_ms = 0;
 
-	for (uint8_t i = 0; i < GIMBAL_NUM_TRACKED_PARAMS; i++)
-	{
-		std::lock_guard<std::mutex> lock(_params_list[i].mutex);
-		_params_list[i].value = 0;
-		_params_list[i].state = PARAM_STATE_NOT_YET_READ;
-		_params_list[i].fetch_attempts = 0;
-		_params_list[i].seen = 0;
-	}
+    for (uint8_t i = 0; i < GIMBAL_NUM_TRACKED_PARAMS; i++)
+    {
+        std::lock_guard<std::mutex> lock(_params_list[i].mutex);
+        _params_list[i].value = 0;
+        _params_list[i].state = PARAM_STATE_NOT_YET_READ;
+        _params_list[i].fetch_attempts = 0;
+        _params_list[i].seen = 0;
+    }
 }
 
 void 
 Gimbal_Interface::
 fetch_params()
 {
-	for (uint8_t i = 0; i < GIMBAL_NUM_TRACKED_PARAMS; i++)
-	{
-		std::lock_guard<std::mutex> lock(_params_list[i].mutex);
-		/// Check the param has been read before
-		if (_params_list[i].state != PARAM_STATE_NOT_YET_READ)
-		{
-			// Then set the state to allow read again
-			_params_list[i].state = PARAM_STATE_FETCH_AGAIN;
-		}
-	}
+    for (uint8_t i = 0; i < GIMBAL_NUM_TRACKED_PARAMS; i++)
+    {
+        std::lock_guard<std::mutex> lock(_params_list[i].mutex);
+        /// Check the param has been read before
+        if (_params_list[i].state != PARAM_STATE_NOT_YET_READ)
+        {
+            // Then set the state to allow read again
+            _params_list[i].state = PARAM_STATE_FETCH_AGAIN;
+        }
+    }
 }
 
 bool
 Gimbal_Interface::
 params_initialized()
 {
-	for (uint8_t i = 0; i < GIMBAL_NUM_TRACKED_PARAMS; i++)
-	{
-		std::lock_guard<std::mutex> lock(_params_list[i].mutex);
-		if (_params_list[i].state == PARAM_STATE_NOT_YET_READ)
-		{
-			return false;
-		}
-	}
+    for (uint8_t i = 0; i < GIMBAL_NUM_TRACKED_PARAMS; i++)
+    {
+        std::lock_guard<std::mutex> lock(_params_list[i].mutex);
+        if (_params_list[i].state == PARAM_STATE_NOT_YET_READ)
+        {
+            return false;
+        }
+    }
 
-	return true;
+    return true;
 }
 
 
@@ -440,7 +461,7 @@ params_received_all()
 {
     for (uint8_t i=0; i < GIMBAL_NUM_TRACKED_PARAMS; i++) 
     {
-    	std::lock_guard<std::mutex> lock(_params_list[i].mutex);
+        std::lock_guard<std::mutex> lock(_params_list[i].mutex);
         if (_params_list[i].state == PARAM_STATE_NOT_YET_READ || _params_list[i].state == PARAM_STATE_FETCH_AGAIN) 
         {
             return false;
@@ -454,187 +475,187 @@ void
 Gimbal_Interface::
 get_param(param_index_t param, int16_t& value, int16_t val)
 {
-	std::lock_guard<std::mutex> lock(_params_list[param].mutex);
-	if (!_params_list[param].seen)
-	{
-		value = val;
-	}
-	else
-	{
-		value = _params_list[param].value;
-	}
+    std::lock_guard<std::mutex> lock(_params_list[param].mutex);
+    if (!_params_list[param].seen)
+    {
+        value = val;
+    }
+    else
+    {
+        value = _params_list[param].value;
+    }
 }
 
 void 
 Gimbal_Interface::
 set_param(param_index_t param, int16_t value) 
 {
-	{
-		std::lock_guard<std::mutex> lock(_params_list[param].mutex);
-		// Check parameter state and param value 
-		if((_params_list[param].state == PARAM_STATE_CONSISTENT) && (_params_list[param].value == value) 
-			|| (_params_list[param].state == PARAM_STATE_NONEXISTANT)) {
-			return;
-		}
+    {
+        std::lock_guard<std::mutex> lock(_params_list[param].mutex);
+        // Check parameter state and param value 
+        if((_params_list[param].state == PARAM_STATE_CONSISTENT) && (_params_list[param].value == value) 
+            || (_params_list[param].state == PARAM_STATE_NONEXISTANT)) {
+            return;
+        }
 
-		_params_list[param].value = value;
-		_params_list[param].state = PARAM_STATE_ATTEMPTING_TO_SET;
-	}
+        _params_list[param].value = value;
+        _params_list[param].state = PARAM_STATE_ATTEMPTING_TO_SET;
+    }
 
-	// Prepare command for off-board mode
-	mavlink_param_set_t param_set = { 0 };
+    // Prepare command for off-board mode
+    mavlink_param_set_t param_set = { 0 };
 
-	param_set.param_value		= value; 		/*<  Onboard parameter value*/
-	param_set.target_system		= system_id; 	/*<  System ID*/
-	param_set.target_component 	= MAV_COMP_ID_GIMBAL;
+    param_set.param_value		= value; 		/*<  Onboard parameter value*/
+    param_set.target_system		= system_id; 	/*<  System ID*/
+    param_set.target_component 	= MAV_COMP_ID_GIMBAL;
 
-	mav_array_memcpy(param_set.param_id, get_param_name(param), sizeof(char)*16);
-	param_set.param_type		= MAVLINK_TYPE_UINT16_T;
+    mav_array_memcpy(param_set.param_id, get_param_name(param), sizeof(char)*16);
+    param_set.param_type		= MAVLINK_TYPE_UINT16_T;
 
-	// --------------------------------------------------------------------------
-	//   ENCODE
-	// --------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
+    //   ENCODE
+    // --------------------------------------------------------------------------
 
-	mavlink_message_t message;
-	mavlink_msg_param_set_encode(system_id, companion_id, &message, &param_set);
+    mavlink_message_t message;
+    mavlink_msg_param_set_encode(system_id, companion_id, &message, &param_set);
 
-	// --------------------------------------------------------------------------
-	//   WRITE
-	// --------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
+    //   WRITE
+    // --------------------------------------------------------------------------
 
-	// do the write
-	int len = write_message(message);
+    // do the write
+    int len = write_message(message);
 
-	_last_set_ms = get_time_msec();
+    _last_set_ms = get_time_msec();
 
-	// check the write
-	if ( len <= 0 )
-	{
-		fprintf(stderr,"WARNING: could not set param: %s\n", get_param_name(param));
-	}
+    // check the write
+    if ( len <= 0 )
+    {
+        fprintf(stderr,"WARNING: could not set param: %s\n", get_param_name(param));
+    }
 }
 
 void 
 Gimbal_Interface::
 param_update()
 {
-	uint64_t tnow_ms = get_time_msec();
-	bool seen = false;
-	param_state_t state = PARAM_STATE_NONEXISTANT;
+    uint64_t tnow_ms = get_time_msec();
+    bool seen = false;
+    param_state_t state = PARAM_STATE_NONEXISTANT;
 
-	/// Retry initia param retrieval
-	if (!params_received_all())
-	{
-		for (uint8_t i = 0; i < GIMBAL_NUM_TRACKED_PARAMS; i++)
-		{
-			{
-				std::lock_guard<std::mutex> lock(_params_list[i].mutex);
-				seen = _params_list[i].seen;
-			}
+    /// Retry initia param retrieval
+    if (!params_received_all())
+    {
+        for (uint8_t i = 0; i < GIMBAL_NUM_TRACKED_PARAMS; i++)
+        {
+            {
+                std::lock_guard<std::mutex> lock(_params_list[i].mutex);
+                seen = _params_list[i].seen;
+            }
 
-			if (!seen && (tnow_ms - _last_request_ms > 10))
-			{	
-				_last_request_ms = tnow_ms;
+            if (!seen && (tnow_ms - _last_request_ms > 10))
+            {	
+                _last_request_ms = tnow_ms;
 
-				mavlink_param_request_read_t	request = {0};
+                mavlink_param_request_read_t	request = {0};
 
-				request.target_system    	= system_id;
-				request.target_component 	= MAV_COMP_ID_GIMBAL;
-				request.param_index 		= _params_list[i].gmb_idx;
+                request.target_system    	= system_id;
+                request.target_component 	= MAV_COMP_ID_GIMBAL;
+                request.param_index 		= _params_list[i].gmb_idx;
 
-				mav_array_memcpy(request.param_id, get_param_name((param_index_t)i), sizeof(char)*16);
+                mav_array_memcpy(request.param_id, get_param_name((param_index_t)i), sizeof(char)*16);
 
-				printf("Request param read: %s \n", get_param_name((param_index_t)i));
+                printf("Request param read: %s \n", get_param_name((param_index_t)i));
 
-				// --------------------------------------------------------------------------
-				//   ENCODE
-				// --------------------------------------------------------------------------
-				mavlink_message_t message;
-				mavlink_msg_param_request_read_encode(system_id, companion_id, &message, &request);
+                // --------------------------------------------------------------------------
+                //   ENCODE
+                // --------------------------------------------------------------------------
+                mavlink_message_t message;
+                mavlink_msg_param_request_read_encode(system_id, companion_id, &message, &request);
 
-				// --------------------------------------------------------------------------
-				//   WRITE
-				// --------------------------------------------------------------------------
+                // --------------------------------------------------------------------------
+                //   WRITE
+                // --------------------------------------------------------------------------
 
-				// do the write
-				int len = write_message(message);
+                // do the write
+                int len = write_message(message);
 
-				// check the write
-				if ( len <= 0 )
-				{
-					fprintf(stderr,"WARNING: could not send Request list to gimbal\n");
-				}
+                // check the write
+                if ( len <= 0 )
+                {
+                    fprintf(stderr,"WARNING: could not send Request list to gimbal\n");
+                }
 
-				{
-					std::lock_guard<std::mutex> lock(_params_list[i].mutex);
-					// Send request read try again
-					_params_list[i].fetch_attempts++;
-				}
-			}
-		}
-	}
+                {
+                    std::lock_guard<std::mutex> lock(_params_list[i].mutex);
+                    // Send request read try again
+                    _params_list[i].fetch_attempts++;
+                }
+            }
+        }
+    }
 
-	// retry param set
-	for (uint8_t i = 0; i < GIMBAL_NUM_TRACKED_PARAMS; i++)
-	{
-		{
-			std::lock_guard<std::mutex> lock(_params_list[i].mutex);
-			state = _params_list[i].state;
-		}
+    // retry param set
+    for (uint8_t i = 0; i < GIMBAL_NUM_TRACKED_PARAMS; i++)
+    {
+        {
+            std::lock_guard<std::mutex> lock(_params_list[i].mutex);
+            state = _params_list[i].state;
+        }
 
-		if (state == PARAM_STATE_ATTEMPTING_TO_SET && 
-			(tnow_ms - _last_set_ms) > _retry_period)
-		{
-			std::lock_guard<std::mutex> lock(_params_list[i].mutex);
+        if (state == PARAM_STATE_ATTEMPTING_TO_SET && 
+            (tnow_ms - _last_set_ms) > _retry_period)
+        {
+            std::lock_guard<std::mutex> lock(_params_list[i].mutex);
 
-			// Prepare command for off-board mode
-			mavlink_param_set_t param_set = { 0 };
+            // Prepare command for off-board mode
+            mavlink_param_set_t param_set = { 0 };
 
-			param_set.target_system		= system_id; 			/*<  System ID*/
-			param_set.target_component 	= MAV_COMP_ID_GIMBAL;
-			param_set.param_value		= _params_list[i].value; /*<  Onboard parameter value*/	
+            param_set.target_system		= system_id; 			/*<  System ID*/
+            param_set.target_component 	= MAV_COMP_ID_GIMBAL;
+            param_set.param_value		= _params_list[i].value; /*<  Onboard parameter value*/	
 
-			mav_array_memcpy(param_set.param_id, get_param_name((param_index_t)i), sizeof(char)*16);
-			param_set.param_type		= MAVLINK_TYPE_UINT16_T;
+            mav_array_memcpy(param_set.param_id, get_param_name((param_index_t)i), sizeof(char)*16);
+            param_set.param_type		= MAVLINK_TYPE_UINT16_T;
 
-			// --------------------------------------------------------------------------
-			//   ENCODE
-			// --------------------------------------------------------------------------
+            // --------------------------------------------------------------------------
+            //   ENCODE
+            // --------------------------------------------------------------------------
 
-			mavlink_message_t message;
-			mavlink_msg_param_set_encode(system_id, companion_id, &message, &param_set);
+            mavlink_message_t message;
+            mavlink_msg_param_set_encode(system_id, companion_id, &message, &param_set);
 
-			// --------------------------------------------------------------------------
-			//   WRITE
-			// --------------------------------------------------------------------------
+            // --------------------------------------------------------------------------
+            //   WRITE
+            // --------------------------------------------------------------------------
 
-			// do the write
-			int len = write_message(message);
+            // do the write
+            int len = write_message(message);
 
-			// check the write
-			if ( len <= 0 )
-			{
-				fprintf(stderr,"WARNING: could not Set param \n");
-			}
+            // check the write
+            if ( len <= 0 )
+            {
+                fprintf(stderr,"WARNING: could not Set param \n");
+            }
 
-			_params_list[i].state 	= PARAM_STATE_FETCH_AGAIN;
-			_params_list[i].seen 	= false;
+            _params_list[i].state 	= PARAM_STATE_FETCH_AGAIN;
+            _params_list[i].seen 	= false;
 
-			_last_set_ms = tnow_ms;	
-		}
-	}
+            _last_set_ms = tnow_ms;	
+        }
+    }
 
-	// Check for nonexistent parameters
-	for(uint8_t i = 0; i < GIMBAL_NUM_TRACKED_PARAMS; i++)
-	{
-		std::lock_guard<std::mutex> lock(_params_list[i].mutex);
+    // Check for nonexistent parameters
+    for(uint8_t i = 0; i < GIMBAL_NUM_TRACKED_PARAMS; i++)
+    {
+        std::lock_guard<std::mutex> lock(_params_list[i].mutex);
 
-		if (!_params_list[i].seen && _params_list[i].fetch_attempts > _max_fetch_attempts)
-		{
-			_params_list[i].state = PARAM_STATE_NONEXISTANT;
-        	printf("Gimbal parameter %s timed out\n", get_param_name((param_index_t)i));
-		}
-	}
+        if (!_params_list[i].seen && _params_list[i].fetch_attempts > _max_fetch_attempts)
+        {
+            _params_list[i].state = PARAM_STATE_NONEXISTANT;
+            printf("Gimbal parameter %s timed out\n", get_param_name((param_index_t)i));
+        }
+    }
 }
 
 
@@ -645,13 +666,13 @@ void
 Gimbal_Interface::
 param_process(void)
 {
-	if (!get_connection())
-	{
-		_state = GIMBAL_STATE_NOT_PRESENT;
-	}
+    if (!get_connection())
+    {
+        _state = GIMBAL_STATE_NOT_PRESENT;
+    }
 
-	switch (_state) 
-	{
+    switch (_state) 
+    {
         case GIMBAL_STATE_NOT_PRESENT:
             // gimbal was just connected or we just rebooted, transition to PRESENT_INITIALIZING
             reset_params();
@@ -659,43 +680,43 @@ param_process(void)
             printf("GIMBAL_STATE_NOT_PRESENT\n");
 
             _state = GIMBAL_STATE_PRESENT_INITIALIZING;
-        	break;
+            break;
 
         case GIMBAL_STATE_PRESENT_INITIALIZING:
-        	param_update();
+            param_update();
 
-        	// // parameters done initializing,
-        	if (params_initialized())
-        	{
-        		for (uint8_t i = 0; i < GIMBAL_NUM_TRACKED_PARAMS; i++)
-				{	
-					std::lock_guard<std::mutex> lock(_params_list[i].mutex);
-        			printf("Check [%s] %d \n", get_param_name((param_index_t)i), _params_list[i].value);
-        		}
+            // // parameters done initializing,
+            if (params_initialized())
+            {
+                for (uint8_t i = 0; i < GIMBAL_NUM_TRACKED_PARAMS; i++)
+                {	
+                    std::lock_guard<std::mutex> lock(_params_list[i].mutex);
+                    printf("Check [%s] %d \n", get_param_name((param_index_t)i), _params_list[i].value);
+                }
 
-        		_state = GIMBAL_STATE_PRESENT_ALIGNING;
-        	}
-        	break;
+                _state = GIMBAL_STATE_PRESENT_ALIGNING;
+            }
+            break;
 
         case GIMBAL_STATE_PRESENT_ALIGNING:
-        	param_update();
+            param_update();
 
-			if (current_messages.sys_status.errors_count2 == 0x00)
-        	{
-        		printf("GIMBAL_STATE_PRESENT_RUNNING \n");
-        		_state = GIMBAL_STATE_PRESENT_RUNNING;	
-        	}
-        	else
-        	{
-	        	printf("Error: %d\n", current_messages.sys_status.errors_count2);
-        	}
+            if (current_messages.sys_status.errors_count2 == 0x00)
+            {
+                printf("GIMBAL_STATE_PRESENT_RUNNING \n");
+                _state = GIMBAL_STATE_PRESENT_RUNNING;	
+            }
+            else
+            {
+                printf("Error: %d\n", current_messages.sys_status.errors_count2);
+            }
 
-        	break;
+            break;
 
         case GIMBAL_STATE_PRESENT_RUNNING:
-        	param_update();
+            param_update();
 
-        	break;
+            break;
     }
 }
 
@@ -714,40 +735,40 @@ void
 Gimbal_Interface::
 set_gimbal_reboot(void)
 {
-	// Prepare command for off-board mode
-	mavlink_command_long_t comm = { 0 };
+    // Prepare command for off-board mode
+    mavlink_command_long_t comm = { 0 };
 
-	comm.target_system    	= system_id;
-	comm.target_component 	= MAV_COMP_ID_GIMBAL;
+    comm.target_system    	= system_id;
+    comm.target_component 	= MAV_COMP_ID_GIMBAL;
 
-	comm.command            = MAV_CMD_PREFLIGHT_REBOOT_SHUTDOWN;
+    comm.command            = MAV_CMD_PREFLIGHT_REBOOT_SHUTDOWN;
 
-	comm.param1             = 0;
-	comm.param2             = 0;
-	comm.param3             = 0;
-	comm.param4             = 1;
-	comm.param5             = 0;
-	comm.param6             = 0;
-	comm.param7             = 0;
-	comm.confirmation     	= true;
+    comm.param1             = 0;
+    comm.param2             = 0;
+    comm.param3             = 0;
+    comm.param4             = 1;
+    comm.param5             = 0;
+    comm.param6             = 0;
+    comm.param7             = 0;
+    comm.confirmation     	= true;
 
-	// --------------------------------------------------------------------------
-	//   ENCODE
-	// --------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
+    //   ENCODE
+    // --------------------------------------------------------------------------
 
-	mavlink_message_t message;
-	mavlink_msg_command_long_encode(system_id, companion_id, &message, &comm);
+    mavlink_message_t message;
+    mavlink_msg_command_long_encode(system_id, companion_id, &message, &comm);
 
-	// --------------------------------------------------------------------------
-	//   WRITE
-	// --------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
+    //   WRITE
+    // --------------------------------------------------------------------------
 
-	// do the write
-	int len = write_message(message);
+    // do the write
+    int len = write_message(message);
 
-	// check the write
-	if ( len <= 0 )
-		fprintf(stderr,"WARNING: could not send GIMBAL REBOOT \n");
+    // check the write
+    if ( len <= 0 )
+        fprintf(stderr,"WARNING: could not send GIMBAL REBOOT \n");
 }
 
 
@@ -760,16 +781,16 @@ uint8_t
 Gimbal_Interface::
 set_gimbal_rc_input(void)
 {
-	// Prepare command for off-board mode
-	mavlink_command_long_t comm = { 0 };
-	uint8_t result 				= MAV_RESULT_IN_PROGRESS;
+    // Prepare command for off-board mode
+    mavlink_command_long_t comm = { 0 };
+    uint8_t result 				= MAV_RESULT_IN_PROGRESS;
 
-	comm.target_system    	= system_id;
-	comm.target_component 	= MAV_COMP_ID_GIMBAL;
+    comm.target_system    	= system_id;
+    comm.target_component 	= MAV_COMP_ID_GIMBAL;
 
-	comm.command            = MAV_CMD_DO_MOUNT_CONFIGURE;
+    comm.command            = MAV_CMD_DO_MOUNT_CONFIGURE;
 
-	comm.param1             = MAV_MOUNT_MODE_RC_TARGETING;
+    comm.param1             = MAV_MOUNT_MODE_RC_TARGETING;
     comm.param2             = 0;
     comm.param3             = 0;
     comm.param4             = 0;
@@ -777,32 +798,32 @@ set_gimbal_rc_input(void)
     comm.param6             = 0;
     comm.param7             = 0;
 
-	// --------------------------------------------------------------------------
-	//   ENCODE
-	// --------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
+    //   ENCODE
+    // --------------------------------------------------------------------------
 
-	mavlink_message_t message;
-	mavlink_msg_command_long_encode(system_id, companion_id, &message, &comm);
+    mavlink_message_t message;
+    mavlink_msg_command_long_encode(system_id, companion_id, &message, &comm);
 
-	// --------------------------------------------------------------------------
-	//   WRITE
-	// --------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
+    //   WRITE
+    // --------------------------------------------------------------------------
 
-	// do the write
-	int len = write_message(message);
+    // do the write
+    int len = write_message(message);
 
-	// check the write
-	if ( len <= 0 )
-		fprintf(stderr,"WARNING: could not send GIMBAL REBOOT \n");
-	else
-		return MAV_RESULT_IN_PROGRESS;
+    // check the write
+    if ( len <= 0 )
+        fprintf(stderr,"WARNING: could not send GIMBAL REBOOT \n");
+    else
+        return MAV_RESULT_IN_PROGRESS;
 
-	/* Wait to receive ack */
-	usleep(10);
+    /* Wait to receive ack */
+    usleep(10);
 
-	result = get_command_ack_do_mount_configure();
+    result = get_command_ack_do_mount_configure();
 
-	return result ;
+    return result ;
 }
 
 /**
@@ -814,33 +835,33 @@ void
 Gimbal_Interface::
 set_gimbal_motor_mode(control_gimbal_motor_t type)
 {
-	// Prepare command for off-board mode
-	mavlink_command_long_t comm = { 0 };
+    // Prepare command for off-board mode
+    mavlink_command_long_t comm = { 0 };
 
-	comm.target_system    	= system_id;
-	comm.target_component 	= MAV_COMP_ID_GIMBAL;
+    comm.target_system    	= system_id;
+    comm.target_component 	= MAV_COMP_ID_GIMBAL;
 
-	comm.command            = MAV_CMD_USER_1;
+    comm.command            = MAV_CMD_USER_1;
     comm.param7             = type;	// type 0 =>off , 1=>on
     comm.confirmation     	= true;
 
-	// --------------------------------------------------------------------------
-	//   ENCODE
-	// --------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
+    //   ENCODE
+    // --------------------------------------------------------------------------
 
-	mavlink_message_t message;
-	mavlink_msg_command_long_encode(system_id, companion_id, &message, &comm);
+    mavlink_message_t message;
+    mavlink_msg_command_long_encode(system_id, companion_id, &message, &comm);
 
-	// --------------------------------------------------------------------------
-	//   WRITE
-	// --------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
+    //   WRITE
+    // --------------------------------------------------------------------------
 
-	// do the write
-	int len = write_message(message);
+    // do the write
+    int len = write_message(message);
 
-	// check the write
-	if ( len <= 0 )
-		fprintf(stderr,"WARNING: could not send MOTOR MODE \n");
+    // check the write
+    if ( len <= 0 )
+        fprintf(stderr,"WARNING: could not send MOTOR MODE \n");
 }
 
 /**
@@ -852,10 +873,10 @@ gimbal_mode_t
 Gimbal_Interface::
 get_gimbal_mode(void)
 {
-	// Get gimbal status 
-	uint16_t errors_count1 = current_messages.sys_status.errors_count1;
+    // Get gimbal status 
+    uint16_t errors_count1 = current_messages.sys_status.errors_count1;
 
-	/* Check gimbal's motor */
+    /* Check gimbal's motor */
     if (errors_count1 & STATUS1_MOTORS)
     {
         this->gimbal_status.state = GIMBAL_STATE_ON;
@@ -880,39 +901,39 @@ uint8_t
 Gimbal_Interface::
 set_gimbal_lock_mode_sync(void)
 {
-	// Prepare command for off-board mode
-	mavlink_command_long_t comm = { 0 };
-	uint8_t result 				= MAV_RESULT_IN_PROGRESS;
-	comm.target_system    		= system_id;
-	comm.target_component 		= MAV_COMP_ID_GIMBAL;
+    // Prepare command for off-board mode
+    mavlink_command_long_t comm = { 0 };
+    uint8_t result 				= MAV_RESULT_IN_PROGRESS;
+    comm.target_system    		= system_id;
+    comm.target_component 		= MAV_COMP_ID_GIMBAL;
 
-	comm.command            	= MAV_CMD_USER_2;
+    comm.command            	= MAV_CMD_USER_2;
     comm.param7             	= GIMBAL_LOCK_MODE;
     comm.confirmation     		= false;
 
-	// --------------------------------------------------------------------------
-	//   ENCODE
-	// --------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
+    //   ENCODE
+    // --------------------------------------------------------------------------
 
-	mavlink_message_t message;
-	mavlink_msg_command_long_encode(system_id, companion_id, &message, &comm);
+    mavlink_message_t message;
+    mavlink_msg_command_long_encode(system_id, companion_id, &message, &comm);
 
-	// --------------------------------------------------------------------------
-	//   WRITE
-	// --------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
+    //   WRITE
+    // --------------------------------------------------------------------------
 
-	// do the write
-	int len = write_message(message);
+    // do the write
+    int len = write_message(message);
 
-	// check the write
-	if ( len <= 0 )
-		fprintf(stderr,"WARNING: could not send GIMBAL MODE \n");
-	else
-		result = MAV_RESULT_FAILED;
+    // check the write
+    if ( len <= 0 )
+        fprintf(stderr,"WARNING: could not send GIMBAL MODE \n");
+    else
+        result = MAV_RESULT_FAILED;
 
-	result = get_command_ack_gimbal_mode();
+    result = get_command_ack_gimbal_mode();
 
-	return result;
+    return result;
 }
 
 /**
@@ -924,44 +945,44 @@ uint8_t
 Gimbal_Interface::
 set_gimbal_follow_mode_sync(void)
 {
-	// Prepare command for off-board mode
-	mavlink_command_long_t comm = { 0 };
-	uint8_t result 				= MAV_RESULT_IN_PROGRESS;
+    // Prepare command for off-board mode
+    mavlink_command_long_t comm = { 0 };
+    uint8_t result 				= MAV_RESULT_IN_PROGRESS;
 
-	comm.target_system    		= system_id;
-	comm.target_component 		= MAV_COMP_ID_GIMBAL;
+    comm.target_system    		= system_id;
+    comm.target_component 		= MAV_COMP_ID_GIMBAL;
 
-	comm.command            	= MAV_CMD_USER_2;
+    comm.command            	= MAV_CMD_USER_2;
     comm.param7             	= GIMBAL_FOLLOW_MODE;
     comm.confirmation     		= false;
 
-	// --------------------------------------------------------------------------
-	//   ENCODE
-	// --------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
+    //   ENCODE
+    // --------------------------------------------------------------------------
 
-	mavlink_message_t message;
-	mavlink_msg_command_long_encode(system_id, companion_id, &message, &comm);
+    mavlink_message_t message;
+    mavlink_msg_command_long_encode(system_id, companion_id, &message, &comm);
 
-	// --------------------------------------------------------------------------
-	//   WRITE
-	// --------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
+    //   WRITE
+    // --------------------------------------------------------------------------
 
-	// do the write
-	int len = write_message(message);
+    // do the write
+    int len = write_message(message);
 
-	// check the write
-	if ( len <= 0 )
-		fprintf(stderr,"WARNING: could not send GIMBAL MODE \n");
+    // check the write
+    if ( len <= 0 )
+        fprintf(stderr,"WARNING: could not send GIMBAL MODE \n");
 
-	// check the write
-	if ( len <= 0 )
-		fprintf(stderr,"WARNING: could not send GIMBAL MODE \n");
-	else
-		result = MAV_RESULT_FAILED;
+    // check the write
+    if ( len <= 0 )
+        fprintf(stderr,"WARNING: could not send GIMBAL MODE \n");
+    else
+        result = MAV_RESULT_FAILED;
 
-	result = get_command_ack_gimbal_mode();
+    result = get_command_ack_gimbal_mode();
 
-	return result;
+    return result;
 }
 
 
@@ -974,35 +995,35 @@ uint8_t
 Gimbal_Interface::
 set_gimbal_mode(gimbal_mode_t mode)
 {
-	// Prepare command for off-board mode
-	mavlink_command_long_t comm = { 0 };
+    // Prepare command for off-board mode
+    mavlink_command_long_t comm = { 0 };
 
-	comm.target_system    	= system_id;
-	comm.target_component 	= MAV_COMP_ID_GIMBAL;
+    comm.target_system    	= system_id;
+    comm.target_component 	= MAV_COMP_ID_GIMBAL;
 
-	comm.command            = MAV_CMD_USER_2;
+    comm.command            = MAV_CMD_USER_2;
     comm.param7             = mode;
     comm.confirmation     	= false;
 
-	// --------------------------------------------------------------------------
-	//   ENCODE
-	// --------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
+    //   ENCODE
+    // --------------------------------------------------------------------------
 
-	mavlink_message_t message;
-	mavlink_msg_command_long_encode(system_id, companion_id, &message, &comm);
+    mavlink_message_t message;
+    mavlink_msg_command_long_encode(system_id, companion_id, &message, &comm);
 
-	// --------------------------------------------------------------------------
-	//   WRITE
-	// --------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
+    //   WRITE
+    // --------------------------------------------------------------------------
 
-	// do the write
-	int len = write_message(message);
+    // do the write
+    int len = write_message(message);
 
-	// check the write
-	if ( len <= 0 )
-		fprintf(stderr,"WARNING: could not send GIMBAL MODE \n");
+    // check the write
+    if ( len <= 0 )
+        fprintf(stderr,"WARNING: could not send GIMBAL MODE \n");
 
-	return 1;
+    return 1;
 }
 
 /**
@@ -1032,25 +1053,25 @@ set_gimbal_reset_mode(gimbal_reset_mode_t  reset_mode)
     command_long.target_component   = MAV_COMP_ID_GIMBAL;
     command_long.target_system      = system_id;
     
-	// --------------------------------------------------------------------------
-	//   ENCODE
-	// --------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
+    //   ENCODE
+    // --------------------------------------------------------------------------
 
-	mavlink_message_t message;
-	mavlink_msg_command_long_encode(system_id, companion_id, &message, &command_long);
+    mavlink_message_t message;
+    mavlink_msg_command_long_encode(system_id, companion_id, &message, &command_long);
 
-	// --------------------------------------------------------------------------
-	//   WRITE
-	// --------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
+    //   WRITE
+    // --------------------------------------------------------------------------
 
-	// do the write
-	int len = write_message(message);
+    // do the write
+    int len = write_message(message);
 
-	// check the write
-	if ( len <= 0 )
-		fprintf(stderr,"WARNING: could not send GIMBAL MODE \n");
+    // check the write
+    if ( len <= 0 )
+        fprintf(stderr,"WARNING: could not send GIMBAL MODE \n");
 
-	return 1;
+    return 1;
 }
 
 
@@ -1066,20 +1087,20 @@ set_gimbal_axes_mode(control_gimbal_axis_mode_t tilt,
                         control_gimbal_axis_mode_t roll,
                         control_gimbal_axis_mode_t pan)
 {
-	// Prepare command for off-board mode
-	mavlink_command_long_t comm = { 0 };
+    // Prepare command for off-board mode
+    mavlink_command_long_t comm = { 0 };
 
 
-	comm.target_system    	= system_id;
-	comm.target_component 	= MAV_COMP_ID_GIMBAL;
+    comm.target_system    	= system_id;
+    comm.target_component 	= MAV_COMP_ID_GIMBAL;
     comm.confirmation     	= false;
 
-	/*Default all axes that stabilize mode */
+    /*Default all axes that stabilize mode */
     roll.stabilize  = 1;
     tilt.stabilize  = 1;
     pan.stabilize   = 1;
 
-	comm.command            = MAV_CMD_DO_MOUNT_CONFIGURE;
+    comm.command            = MAV_CMD_DO_MOUNT_CONFIGURE;
 
     comm.param1             = MAV_MOUNT_MODE_MAVLINK_TARGETING;
     comm.param2             = roll.stabilize;
@@ -1089,23 +1110,23 @@ set_gimbal_axes_mode(control_gimbal_axis_mode_t tilt,
     comm.param6             = tilt.input_mode;
     comm.param7             = pan.input_mode;
 
-	// --------------------------------------------------------------------------
-	//   ENCODE
-	// --------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
+    //   ENCODE
+    // --------------------------------------------------------------------------
 
-	mavlink_message_t message;
-	mavlink_msg_command_long_encode(system_id, companion_id, &message, &comm);
+    mavlink_message_t message;
+    mavlink_msg_command_long_encode(system_id, companion_id, &message, &comm);
 
-	// --------------------------------------------------------------------------
-	//   WRITE
-	// --------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
+    //   WRITE
+    // --------------------------------------------------------------------------
 
-	// do the write
-	int len = write_message(message);
+    // do the write
+    int len = write_message(message);
 
-	// check the write
-	if ( len <= 0 )
-		fprintf(stderr,"WARNING: could not send GIMBAL AXES MODE \n");
+    // check the write
+    if ( len <= 0 )
+        fprintf(stderr,"WARNING: could not send GIMBAL AXES MODE \n");
 }
 
 
@@ -1118,13 +1139,13 @@ uint8_t
 Gimbal_Interface::
 set_gimbal_rotation_sync(float tilt, float roll, float pan, gimbal_rotation_mode_t rotation_mode)
 {
-	// Prepare command for off-board mode
-	mavlink_command_long_t comm = { 0 };
-	uint8_t result 				= MAV_RESULT_IN_PROGRESS;
-	comm.target_system    		= system_id;
-	comm.target_component 		= MAV_COMP_ID_GIMBAL;
+    // Prepare command for off-board mode
+    mavlink_command_long_t comm = { 0 };
+    uint8_t result 				= MAV_RESULT_IN_PROGRESS;
+    comm.target_system    		= system_id;
+    comm.target_component 		= MAV_COMP_ID_GIMBAL;
 
-	comm.command            	= MAV_CMD_DO_MOUNT_CONTROL;
+    comm.command            	= MAV_CMD_DO_MOUNT_CONTROL;
     comm.confirmation     		= true;
 
     comm.param1             	= tilt;
@@ -1133,32 +1154,32 @@ set_gimbal_rotation_sync(float tilt, float roll, float pan, gimbal_rotation_mode
     comm.param6             	= rotation_mode;
     comm.param7             	= (float) MAV_MOUNT_MODE_MAVLINK_TARGETING;
 
-	// --------------------------------------------------------------------------
-	//   ENCODE
-	// --------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
+    //   ENCODE
+    // --------------------------------------------------------------------------
 
-	mavlink_message_t message;
-	mavlink_msg_command_long_encode(system_id, companion_id, &message, &comm);
+    mavlink_message_t message;
+    mavlink_msg_command_long_encode(system_id, companion_id, &message, &comm);
 
-	// --------------------------------------------------------------------------
-	//   WRITE
-	// --------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
+    //   WRITE
+    // --------------------------------------------------------------------------
 
-	// do the write
-	int len = write_message(message);
+    // do the write
+    int len = write_message(message);
 
-	// check the write
-	if ( len <= 0 )
-		fprintf(stderr,"WARNING: could not send GIMBAL AXES MODE \n");
-	else
-		result = MAV_RESULT_FAILED;
+    // check the write
+    if ( len <= 0 )
+        fprintf(stderr,"WARNING: could not send GIMBAL AXES MODE \n");
+    else
+        result = MAV_RESULT_FAILED;
 
-	/* Wait to receive ack */
-	usleep(10);
+    /* Wait to receive ack */
+    usleep(10);
 
-	result = get_command_ack_do_mount_control();
+    result = get_command_ack_do_mount_control();
 
- 	return result;
+     return result;
 }
 
 
@@ -1181,22 +1202,22 @@ set_gimbal_rotation_sync(float tilt, float roll, float pan, gimbal_rotation_mode
 void 
 Gimbal_Interface::
 set_gimbal_motor_control(	gimbal_motor_control_t tilt, 
-							gimbal_motor_control_t roll,
-							gimbal_motor_control_t pan, 
-							uint8_t gyro_filter, uint8_t output_filter, uint8_t gain)
+                            gimbal_motor_control_t roll,
+                            gimbal_motor_control_t pan, 
+                            uint8_t gyro_filter, uint8_t output_filter, uint8_t gain)
 {
-	set_param(GMB_PARAM_STIFFNESS_PITCH, (int16_t)tilt.stiffness);
-	set_param(GMB_PARAM_HOLDSTRENGTH_PITCH, (int16_t)tilt.holdstrength);
+    set_param(GMB_PARAM_STIFFNESS_PITCH, (int16_t)tilt.stiffness);
+    set_param(GMB_PARAM_HOLDSTRENGTH_PITCH, (int16_t)tilt.holdstrength);
 
-	set_param(GMB_PARAM_STIFFNESS_ROLL, (int16_t)roll.stiffness);
-	set_param(GMB_PARAM_HOLDSTRENGTH_ROLL, (int16_t)roll.holdstrength);
+    set_param(GMB_PARAM_STIFFNESS_ROLL, (int16_t)roll.stiffness);
+    set_param(GMB_PARAM_HOLDSTRENGTH_ROLL, (int16_t)roll.holdstrength);
 
-	set_param(GMB_PARAM_STIFFNESS_YAW, (int16_t)pan.stiffness);
-	set_param(GMB_PARAM_HOLDSTRENGTH_YAW, (int16_t)pan.holdstrength);
+    set_param(GMB_PARAM_STIFFNESS_YAW, (int16_t)pan.stiffness);
+    set_param(GMB_PARAM_HOLDSTRENGTH_YAW, (int16_t)pan.holdstrength);
 
-	set_param(GMB_PARAM_OUTPUT_FILTER, (int16_t)output_filter);
-	set_param(GMB_PARAM_GYRO_FILTER, (int16_t)gyro_filter);
-	set_param(GMB_PARAM_GAIN, (int16_t)gain);	
+    set_param(GMB_PARAM_OUTPUT_FILTER, (int16_t)output_filter);
+    set_param(GMB_PARAM_GYRO_FILTER, (int16_t)gyro_filter);
+    set_param(GMB_PARAM_GAIN, (int16_t)gain);	
 }
 
 /**
@@ -1218,33 +1239,33 @@ set_gimbal_motor_control(	gimbal_motor_control_t tilt,
 void 
 Gimbal_Interface::
 get_gimbal_motor_control(	gimbal_motor_control_t& tilt, 
-							gimbal_motor_control_t& roll,
-							gimbal_motor_control_t& pan, 
-							uint8_t& gyro_filter, uint8_t& output_filter, uint8_t& gain)
+                            gimbal_motor_control_t& roll,
+                            gimbal_motor_control_t& pan, 
+                            uint8_t& gyro_filter, uint8_t& output_filter, uint8_t& gain)
 {
-	int16_t value = 0;
+    int16_t value = 0;
 
-	get_param(GMB_PARAM_STIFFNESS_PITCH, value);
-	tilt.stiffness 		=  (uint8_t)value;
-	get_param(GMB_PARAM_HOLDSTRENGTH_PITCH, value);
-	tilt.holdstrength 	=  (uint8_t)value;
+    get_param(GMB_PARAM_STIFFNESS_PITCH, value);
+    tilt.stiffness 		=  (uint8_t)value;
+    get_param(GMB_PARAM_HOLDSTRENGTH_PITCH, value);
+    tilt.holdstrength 	=  (uint8_t)value;
 
-	get_param(GMB_PARAM_STIFFNESS_ROLL, value);
-	roll.stiffness 		=  (uint8_t)value;
-	get_param(GMB_PARAM_HOLDSTRENGTH_ROLL, value);
-	roll.holdstrength 	=  (uint8_t)value;
+    get_param(GMB_PARAM_STIFFNESS_ROLL, value);
+    roll.stiffness 		=  (uint8_t)value;
+    get_param(GMB_PARAM_HOLDSTRENGTH_ROLL, value);
+    roll.holdstrength 	=  (uint8_t)value;
 
-	get_param(GMB_PARAM_STIFFNESS_YAW, value);
-	pan.stiffness 		=  (uint8_t)value;
-	get_param(GMB_PARAM_HOLDSTRENGTH_YAW, value);
-	pan.holdstrength 	=  (uint8_t)value;
+    get_param(GMB_PARAM_STIFFNESS_YAW, value);
+    pan.stiffness 		=  (uint8_t)value;
+    get_param(GMB_PARAM_HOLDSTRENGTH_YAW, value);
+    pan.holdstrength 	=  (uint8_t)value;
 
-	get_param(GMB_PARAM_OUTPUT_FILTER, value);
-	output_filter	= (uint8_t)value;
-	get_param(GMB_PARAM_GYRO_FILTER, value);
-	gyro_filter		= (uint8_t)value;
-	get_param(GMB_PARAM_GAIN, value);	
-	gain			= (uint8_t)value;
+    get_param(GMB_PARAM_OUTPUT_FILTER, value);
+    output_filter	= (uint8_t)value;
+    get_param(GMB_PARAM_GYRO_FILTER, value);
+    gyro_filter		= (uint8_t)value;
+    get_param(GMB_PARAM_GAIN, value);	
+    gain			= (uint8_t)value;
 }
 
 /**
@@ -1260,25 +1281,25 @@ void
 Gimbal_Interface::
 set_gimbal_config_tilt_axis(gimbal_config_axis_t config)
 {
-	set_param(GMB_PARAM_SMOOTH_CONTROL_PITCH, (int16_t)config.smooth_control);
-	set_param(GMB_PARAM_SMOOTH_FOLLOW_PITCH, (int16_t)config.smooth_follow);
-	set_param(GMB_PARAM_WINDOW_FOLLOW_PITCH,(int16_t)config.window_follow);
-	set_param(GMB_PARAM_SPEED_FOLLOW_PITCH, (int16_t)config.speed_follow);
-	set_param(GMB_PARAM_SPEED_CONTROL_PITCH, (int16_t)config.speed_control);
+    set_param(GMB_PARAM_SMOOTH_CONTROL_PITCH, (int16_t)config.smooth_control);
+    set_param(GMB_PARAM_SMOOTH_FOLLOW_PITCH, (int16_t)config.smooth_follow);
+    set_param(GMB_PARAM_WINDOW_FOLLOW_PITCH,(int16_t)config.window_follow);
+    set_param(GMB_PARAM_SPEED_FOLLOW_PITCH, (int16_t)config.speed_follow);
+    set_param(GMB_PARAM_SPEED_CONTROL_PITCH, (int16_t)config.speed_control);
 
-	int16_t get_dir;
-	get_param(GMB_PARAM_AXIS_DIR, get_dir);
+    int16_t get_dir;
+    get_param(GMB_PARAM_AXIS_DIR, get_dir);
 
-	if (config.dir == DIR_CCW)
-	{
-		get_dir = get_dir | 0x01;
-	}
-	else
-	{
-		get_dir &= (~0x01);
-	}
+    if (config.dir == DIR_CCW)
+    {
+        get_dir = get_dir | 0x01;
+    }
+    else
+    {
+        get_dir &= (~0x01);
+    }
 
-	set_param(GMB_PARAM_AXIS_DIR, get_dir);
+    set_param(GMB_PARAM_AXIS_DIR, get_dir);
 }
 
 /**
@@ -1291,37 +1312,37 @@ gimbal_config_axis_t
 Gimbal_Interface::
 get_gimbal_config_tilt_axis(void)
 {
-	gimbal_config_axis_t setting;
+    gimbal_config_axis_t setting;
 
-	int16_t ret;
+    int16_t ret;
 
-	get_param(GMB_PARAM_SMOOTH_CONTROL_PITCH,ret);
-	setting.smooth_control = (uint8_t)ret;
+    get_param(GMB_PARAM_SMOOTH_CONTROL_PITCH,ret);
+    setting.smooth_control = (uint8_t)ret;
 
-	get_param(GMB_PARAM_SMOOTH_FOLLOW_PITCH,ret);
-	setting.smooth_follow = (uint8_t)ret; 
+    get_param(GMB_PARAM_SMOOTH_FOLLOW_PITCH,ret);
+    setting.smooth_follow = (uint8_t)ret; 
 
-	get_param(GMB_PARAM_WINDOW_FOLLOW_PITCH,ret);
-	setting.window_follow = (uint8_t)ret; 
+    get_param(GMB_PARAM_WINDOW_FOLLOW_PITCH,ret);
+    setting.window_follow = (uint8_t)ret; 
 
-	get_param(GMB_PARAM_SPEED_FOLLOW_PITCH, ret);
-	setting.speed_follow = (uint8_t)ret;
+    get_param(GMB_PARAM_SPEED_FOLLOW_PITCH, ret);
+    setting.speed_follow = (uint8_t)ret;
 
-	get_param(GMB_PARAM_SPEED_CONTROL_PITCH,ret);
-	setting.speed_control = (uint8_t)ret;
+    get_param(GMB_PARAM_SPEED_CONTROL_PITCH,ret);
+    setting.speed_control = (uint8_t)ret;
 
-	get_param(GMB_PARAM_AXIS_DIR, ret);
+    get_param(GMB_PARAM_AXIS_DIR, ret);
 
-	if (ret & 0x01)
-	{
-		setting.dir = DIR_CCW;
-	}
-	else if (!(ret & 0x01))
-	{
-		setting.dir = DIR_CW;
-	}
+    if (ret & 0x01)
+    {
+        setting.dir = DIR_CCW;
+    }
+    else if (!(ret & 0x01))
+    {
+        setting.dir = DIR_CW;
+    }
 
-	return setting;
+    return setting;
 }
 
 
@@ -1335,25 +1356,25 @@ void
 Gimbal_Interface::
 set_gimbal_config_pan_axis(gimbal_config_axis_t config)
 {
-	set_param(GMB_PARAM_SMOOTH_CONTROL_YAW, (int16_t)config.smooth_control);
-	set_param(GMB_PARAM_SMOOTH_FOLLOW_YAW, (int16_t)config.smooth_follow);
-	set_param(GMB_PARAM_WINDOW_FOLLOW_YAW,(int16_t)config.window_follow);
-	set_param(GMB_PARAM_SPEED_FOLLOW_YAW, (int16_t)config.speed_follow);
-	set_param(GMB_PARAM_SPEED_CONTROL_YAW, (int16_t)config.speed_control);
+    set_param(GMB_PARAM_SMOOTH_CONTROL_YAW, (int16_t)config.smooth_control);
+    set_param(GMB_PARAM_SMOOTH_FOLLOW_YAW, (int16_t)config.smooth_follow);
+    set_param(GMB_PARAM_WINDOW_FOLLOW_YAW,(int16_t)config.window_follow);
+    set_param(GMB_PARAM_SPEED_FOLLOW_YAW, (int16_t)config.speed_follow);
+    set_param(GMB_PARAM_SPEED_CONTROL_YAW, (int16_t)config.speed_control);
 
-	int16_t get_dir;
-	get_param(GMB_PARAM_AXIS_DIR, get_dir);
+    int16_t get_dir;
+    get_param(GMB_PARAM_AXIS_DIR, get_dir);
 
-	if (config.dir == DIR_CCW)
-	{
-		get_dir = get_dir | 0x02;
-	}
-	else
-	{
-		get_dir &= (~0x02);
-	}
+    if (config.dir == DIR_CCW)
+    {
+        get_dir = get_dir | 0x02;
+    }
+    else
+    {
+        get_dir &= (~0x02);
+    }
 
-	set_param(GMB_PARAM_AXIS_DIR, get_dir);
+    set_param(GMB_PARAM_AXIS_DIR, get_dir);
 }
 /**
  * @brief  This function shall return the setting on the pan axis
@@ -1365,37 +1386,37 @@ gimbal_config_axis_t
 Gimbal_Interface::
 get_gimbal_config_pan_axis(void)
 {
-	gimbal_config_axis_t setting;
+    gimbal_config_axis_t setting;
 
-	int16_t ret;
+    int16_t ret;
 
-	get_param(GMB_PARAM_SMOOTH_CONTROL_YAW, ret);
-	setting.smooth_control = (uint8_t)ret; 
+    get_param(GMB_PARAM_SMOOTH_CONTROL_YAW, ret);
+    setting.smooth_control = (uint8_t)ret; 
 
-	get_param(GMB_PARAM_SMOOTH_FOLLOW_YAW, ret);
-	setting.smooth_follow = (uint8_t)ret; 
+    get_param(GMB_PARAM_SMOOTH_FOLLOW_YAW, ret);
+    setting.smooth_follow = (uint8_t)ret; 
 
-	get_param(GMB_PARAM_WINDOW_FOLLOW_YAW, ret);
-	setting.window_follow = (uint8_t)ret; 
+    get_param(GMB_PARAM_WINDOW_FOLLOW_YAW, ret);
+    setting.window_follow = (uint8_t)ret; 
 
-	get_param(GMB_PARAM_SPEED_FOLLOW_YAW, ret);
-	setting.speed_follow = (uint8_t)ret;
+    get_param(GMB_PARAM_SPEED_FOLLOW_YAW, ret);
+    setting.speed_follow = (uint8_t)ret;
 
-	get_param(GMB_PARAM_SPEED_CONTROL_YAW,ret);
-	setting.speed_control = (uint8_t)ret;
+    get_param(GMB_PARAM_SPEED_CONTROL_YAW,ret);
+    setting.speed_control = (uint8_t)ret;
 
-	get_param(GMB_PARAM_AXIS_DIR, ret);
+    get_param(GMB_PARAM_AXIS_DIR, ret);
 
-	if (ret & 0x02)
-	{
-		setting.dir = DIR_CCW;
-	}
-	else if (!(ret & 0x02))
-	{
-		setting.dir = DIR_CW;
-	}
+    if (ret & 0x02)
+    {
+        setting.dir = DIR_CCW;
+    }
+    else if (!(ret & 0x02))
+    {
+        setting.dir = DIR_CW;
+    }
 
-	return setting;
+    return setting;
 }
 
 /**
@@ -1408,22 +1429,22 @@ void
 Gimbal_Interface::
 set_gimbal_config_roll_axis(gimbal_config_axis_t config)
 {
-	set_param(GMB_PARAM_SMOOTH_CONTROL_ROLL, (int16_t)config.smooth_control);
-	set_param(GMB_PARAM_SPEED_CONTROL_ROLL, (int16_t)config.speed_control);
+    set_param(GMB_PARAM_SMOOTH_CONTROL_ROLL, (int16_t)config.smooth_control);
+    set_param(GMB_PARAM_SPEED_CONTROL_ROLL, (int16_t)config.speed_control);
 
-	int16_t get_dir;
-	get_param(GMB_PARAM_AXIS_DIR, get_dir);
+    int16_t get_dir;
+    get_param(GMB_PARAM_AXIS_DIR, get_dir);
 
-	if (config.dir == DIR_CCW)
-	{
-		get_dir = get_dir | 0x04;
-	}
-	else
-	{
-		get_dir &= (~0x04);
-	}
+    if (config.dir == DIR_CCW)
+    {
+        get_dir = get_dir | 0x04;
+    }
+    else
+    {
+        get_dir &= (~0x04);
+    }
 
-	set_param(GMB_PARAM_AXIS_DIR, get_dir);
+    set_param(GMB_PARAM_AXIS_DIR, get_dir);
 }
 
 /**
@@ -1436,33 +1457,33 @@ gimbal_config_axis_t
 Gimbal_Interface::
 get_gimbal_config_roll_axis(void)
 {
-	gimbal_config_axis_t setting;
+    gimbal_config_axis_t setting;
 
-	int16_t ret;
+    int16_t ret;
 
-	get_param(GMB_PARAM_SMOOTH_CONTROL_ROLL, ret);
-	setting.smooth_control = (uint8_t)ret;
+    get_param(GMB_PARAM_SMOOTH_CONTROL_ROLL, ret);
+    setting.smooth_control = (uint8_t)ret;
 
-	// Roll dosen't support in follow mode
-	setting.smooth_follow = 0; 
-	setting.window_follow = 0; 
-	setting.speed_follow = 0;
+    // Roll dosen't support in follow mode
+    setting.smooth_follow = 0; 
+    setting.window_follow = 0; 
+    setting.speed_follow = 0;
 
-	get_param(GMB_PARAM_SPEED_CONTROL_ROLL, ret);
-	setting.speed_control = (uint8_t)ret;
+    get_param(GMB_PARAM_SPEED_CONTROL_ROLL, ret);
+    setting.speed_control = (uint8_t)ret;
 
-	get_param(GMB_PARAM_AXIS_DIR, ret);
+    get_param(GMB_PARAM_AXIS_DIR, ret);
 
-	if (ret & 0x04)
-	{
-		setting.dir = DIR_CCW;
-	}
-	else if (!(ret & 0x04))
-	{
-		setting.dir = DIR_CW;
-	}
+    if (ret & 0x04)
+    {
+        setting.dir = DIR_CCW;
+    }
+    else if (!(ret & 0x04))
+    {
+        setting.dir = DIR_CW;
+    }
 
-	return setting;
+    return setting;
 }
 
 /**
@@ -1480,18 +1501,18 @@ get_gimbal_config_roll_axis(void)
 void 
 Gimbal_Interface::
 set_gimbal_config_mavlink_msg(uint8_t emit_heatbeat, 
-									uint8_t status_rate, 
-									uint8_t enc_value_rate, 
-									uint8_t enc_type_send,
-									uint8_t orien_rate,
-									uint8_t imu_rate)
+                                    uint8_t status_rate, 
+                                    uint8_t enc_value_rate, 
+                                    uint8_t enc_type_send,
+                                    uint8_t orien_rate,
+                                    uint8_t imu_rate)
 {
-	set_param(GMB_PARAM_HEATBEAT_EMIT, (int16_t)emit_heatbeat);
-	set_param(GMB_PARAM_STATUS_RATE, (int16_t)status_rate);
-	set_param(GMB_PARAM_ENCODER_VALUE_RATE, (int16_t)enc_value_rate);
-	set_param(GMB_PARAM_ENCODER_TYPE, (int16_t)enc_type_send);
-	set_param(GMB_PARAM_ORIENTATION_RATE, (int16_t)orien_rate);
-	set_param(GMB_PARAM_RAW_IMU_RATE, (int16_t)imu_rate);
+    set_param(GMB_PARAM_HEATBEAT_EMIT, (int16_t)emit_heatbeat);
+    set_param(GMB_PARAM_STATUS_RATE, (int16_t)status_rate);
+    set_param(GMB_PARAM_ENCODER_VALUE_RATE, (int16_t)enc_value_rate);
+    set_param(GMB_PARAM_ENCODER_TYPE, (int16_t)enc_type_send);
+    set_param(GMB_PARAM_ORIENTATION_RATE, (int16_t)orien_rate);
+    set_param(GMB_PARAM_RAW_IMU_RATE, (int16_t)imu_rate);
 }
 
 /**
@@ -1504,29 +1525,29 @@ config_mavlink_message_t
 Gimbal_Interface::
 get_gimbal_config_mavlink_msg(void)
 {
-	config_mavlink_message_t config;
+    config_mavlink_message_t config;
 
-	int16_t ret;
+    int16_t ret;
 
-	get_param(GMB_PARAM_HEATBEAT_EMIT, ret);
-	config.emit_heatbeat	= (uint8_t)ret;
+    get_param(GMB_PARAM_HEATBEAT_EMIT, ret);
+    config.emit_heatbeat	= (uint8_t)ret;
 
-	get_param(GMB_PARAM_STATUS_RATE, ret);
-	config.status_rate		= (uint8_t)ret;
+    get_param(GMB_PARAM_STATUS_RATE, ret);
+    config.status_rate		= (uint8_t)ret;
 
-	get_param(GMB_PARAM_ENCODER_VALUE_RATE, ret);
-	config.enc_value_rate	= (uint8_t)ret;
+    get_param(GMB_PARAM_ENCODER_VALUE_RATE, ret);
+    config.enc_value_rate	= (uint8_t)ret;
 
-	get_param(GMB_PARAM_ENCODER_TYPE, ret);
-	config.enc_type_send	= (uint8_t)ret;
+    get_param(GMB_PARAM_ENCODER_TYPE, ret);
+    config.enc_type_send	= (uint8_t)ret;
 
-	get_param(GMB_PARAM_ORIENTATION_RATE, ret);
-	config.orientation_rate	= (uint8_t)ret;
+    get_param(GMB_PARAM_ORIENTATION_RATE, ret);
+    config.orientation_rate	= (uint8_t)ret;
 
-	get_param(GMB_PARAM_RAW_IMU_RATE, ret);
-	config.imu_rate			= (uint8_t)ret;
+    get_param(GMB_PARAM_RAW_IMU_RATE, ret);
+    config.imu_rate			= (uint8_t)ret;
 
-	return config;
+    return config;
 }
 
 /**
@@ -1540,8 +1561,8 @@ void
 Gimbal_Interface::
 set_limit_angle_pitch(limit_angle_t limit_angle)
 {
-	set_param(GMB_PARAM_MIN_LIMIT_ANGLE_PITCH, (int16_t)limit_angle.angle_min);
-	set_param(GMB_PARAM_MAX_LIMIT_ANGLE_PITCH, (int16_t)limit_angle.angle_max);
+    set_param(GMB_PARAM_MIN_LIMIT_ANGLE_PITCH, (int16_t)limit_angle.angle_min);
+    set_param(GMB_PARAM_MAX_LIMIT_ANGLE_PITCH, (int16_t)limit_angle.angle_max);
 }
 
 /**
@@ -1555,12 +1576,12 @@ void
 Gimbal_Interface::
 get_limit_angle_pitch(limit_angle_t &limit_angle)
 {
-	int16_t ret;
+    int16_t ret;
 
-	get_param(GMB_PARAM_MIN_LIMIT_ANGLE_PITCH, ret);
-	limit_angle.angle_min = ret;
-	get_param(GMB_PARAM_MAX_LIMIT_ANGLE_PITCH, ret);
-	limit_angle.angle_max = ret;
+    get_param(GMB_PARAM_MIN_LIMIT_ANGLE_PITCH, ret);
+    limit_angle.angle_min = ret;
+    get_param(GMB_PARAM_MAX_LIMIT_ANGLE_PITCH, ret);
+    limit_angle.angle_max = ret;
 }
 
 /**
@@ -1574,8 +1595,8 @@ void
 Gimbal_Interface::
 set_limit_angle_roll(limit_angle_t limit_angle)
 {
-	set_param(GMB_PARAM_MIN_LIMIT_ANGLE_ROLL, (int16_t)limit_angle.angle_min);
-	set_param(GMB_PARAM_MAX_LIMIT_ANGLE_ROLL, (int16_t)limit_angle.angle_max);
+    set_param(GMB_PARAM_MIN_LIMIT_ANGLE_ROLL, (int16_t)limit_angle.angle_min);
+    set_param(GMB_PARAM_MAX_LIMIT_ANGLE_ROLL, (int16_t)limit_angle.angle_max);
 }
 
 /**
@@ -1589,12 +1610,12 @@ void
 Gimbal_Interface::
 get_limit_angle_roll(limit_angle_t &limit_angle)
 {
-	int16_t ret;
+    int16_t ret;
 
-	get_param(GMB_PARAM_MIN_LIMIT_ANGLE_ROLL, ret);
-	limit_angle.angle_min = ret;
-	get_param(GMB_PARAM_MAX_LIMIT_ANGLE_ROLL, ret);
-	limit_angle.angle_max = ret;
+    get_param(GMB_PARAM_MIN_LIMIT_ANGLE_ROLL, ret);
+    limit_angle.angle_min = ret;
+    get_param(GMB_PARAM_MAX_LIMIT_ANGLE_ROLL, ret);
+    limit_angle.angle_max = ret;
 }
 
 /**
@@ -1608,8 +1629,8 @@ void
 Gimbal_Interface::
 set_limit_angle_yaw(limit_angle_t limit_angle)
 {
-	set_param(GMB_PARAM_MIN_LIMIT_ANGLE_YAW, (int16_t)limit_angle.angle_min);
-	set_param(GMB_PARAM_MAX_LIMIT_ANGLE_YAW, (int16_t)limit_angle.angle_max);
+    set_param(GMB_PARAM_MIN_LIMIT_ANGLE_YAW, (int16_t)limit_angle.angle_min);
+    set_param(GMB_PARAM_MAX_LIMIT_ANGLE_YAW, (int16_t)limit_angle.angle_max);
 }
 
 /**
@@ -1623,12 +1644,12 @@ void
 Gimbal_Interface::
 get_limit_angle_yaw(limit_angle_t &limit_angle)
 {
-	int16_t ret;
+    int16_t ret;
 
-	get_param(GMB_PARAM_MIN_LIMIT_ANGLE_YAW, ret);
-	limit_angle.angle_min = ret;
-	get_param(GMB_PARAM_MAX_LIMIT_ANGLE_YAW, ret);
-	limit_angle.angle_max = ret;
+    get_param(GMB_PARAM_MIN_LIMIT_ANGLE_YAW, ret);
+    limit_angle.angle_min = ret;
+    get_param(GMB_PARAM_MAX_LIMIT_ANGLE_YAW, ret);
+    limit_angle.angle_max = ret;
 }
 
 
@@ -1641,14 +1662,14 @@ gimbal_status_t
 Gimbal_Interface::
 get_gimbal_status(void)
 {
-	/* Check gimbal status has changed*/
-	if(current_messages.time_stamps.sys_status)
-	{
-		// Get gimbal status 
-		uint16_t errors_count1 = current_messages.sys_status.errors_count1;
-		uint16_t errors_count2 = current_messages.sys_status.errors_count2;
+    /* Check gimbal status has changed*/
+    if(current_messages.time_stamps.sys_status)
+    {
+        // Get gimbal status 
+        uint16_t errors_count1 = current_messages.sys_status.errors_count1;
+        uint16_t errors_count2 = current_messages.sys_status.errors_count2;
 
-		/* Check gimbal's motor */
+        /* Check gimbal's motor */
         if (errors_count1 & STATUS1_MOTORS)
         {
             this->gimbal_status.state = GIMBAL_STATE_ON;
@@ -1665,8 +1686,8 @@ get_gimbal_status(void)
         } 
         else if (not (errors_count1 & STATUS1_MOTORS))
         {
-        	this->gimbal_status.state = GIMBAL_STATE_OFF;
-        	this->gimbal_status.mode  = GIMBAL_STATE_OFF;
+            this->gimbal_status.state = GIMBAL_STATE_OFF;
+            this->gimbal_status.mode  = GIMBAL_STATE_OFF;
         }
         /* Check gimbal is initializing*/
         else if (errors_count1 & STATUS1_INIT_MOTOR)
@@ -1674,8 +1695,8 @@ get_gimbal_status(void)
             this->gimbal_status.state = GIMBAL_STATE_INIT;
         }
         else if ((errors_count1 & STATUS1_SENSOR_ERROR) ||
-        		(errors_count1 & STATUS1_MOTOR_PHASE_ERROR) ||
-        		(errors_count1 & STATUS1_MOTOR_ANGLE_ERROR))
+                (errors_count1 & STATUS1_MOTOR_PHASE_ERROR) ||
+                (errors_count1 & STATUS1_MOTOR_ANGLE_ERROR))
         {
             /* Check gimbal is error state*/
             this->gimbal_status.state = GIMBAL_STATE_ERROR;
@@ -1705,9 +1726,9 @@ get_gimbal_status(void)
         {
             this->gimbal_status.sensor = SENSOR_OK;
         }
-	}
+    }
 
-	return gimbal_status;
+    return gimbal_status;
 }
 
 
@@ -1720,18 +1741,18 @@ imu_t
 Gimbal_Interface::
 get_gimbal_raw_imu(void)
 {
-	/* Check gimbal status has changed*/
-	if (current_messages.time_stamps.raw_imu)
-	{
-		imu_t imu;
+    /* Check gimbal status has changed*/
+    if (current_messages.time_stamps.raw_imu)
+    {
+        imu_t imu;
 
-		{
-			std::lock_guard<std::mutex> lock(gimbal_imu.mutex);
-			imu = gimbal_imu.data;
-		}
+        {
+            std::lock_guard<std::mutex> lock(gimbal_imu.mutex);
+            imu = gimbal_imu.data;
+        }
 
-		return imu;
-	}
+        return imu;
+    }
 }
 
 /**
@@ -1743,18 +1764,18 @@ attitude3f_t
 Gimbal_Interface::
 get_gimbal_mount_orientation(void)
 {
-	/* Check gimbal status has changed*/
-	if (current_messages.time_stamps.mount_orientation)
-	{
-		attitude3f_t attitude;
+    /* Check gimbal status has changed*/
+    if (current_messages.time_stamps.mount_orientation)
+    {
+        attitude3f_t attitude;
 
-		{
-			std::lock_guard<std::mutex> lock(gimbal_attitude.mutex);
-			attitude = gimbal_attitude.data;
-		}
+        {
+            std::lock_guard<std::mutex> lock(gimbal_attitude.mutex);
+            attitude = gimbal_attitude.data;
+        }
 
-		return attitude;
-	}
+        return attitude;
+    }
 }
 
 /**
@@ -1766,18 +1787,18 @@ attitude3d_t
 Gimbal_Interface::
 get_gimbal_encoder(void)
 {
-	/* Check gimbal status has changed*/
-	if(current_messages.time_stamps.mount_status)
-	{
-		attitude3d_t encoder;
+    /* Check gimbal status has changed*/
+    if(current_messages.time_stamps.mount_status)
+    {
+        attitude3d_t encoder;
 
-		{
-			std::lock_guard<std::mutex> lock(gimbal_encoder.mutex);
-			encoder = gimbal_encoder.data;
-		}
+        {
+            std::lock_guard<std::mutex> lock(gimbal_encoder.mutex);
+            encoder = gimbal_encoder.data;
+        }
 
-		return encoder;
-	}
+        return encoder;
+    }
 }
 
 /**
@@ -1791,8 +1812,8 @@ void
 Gimbal_Interface::
 set_autopilot_attitude(attitude3f_t &attitude)
 {
-	std::lock_guard<std::mutex> lock(autopilot_attitude.mutex);
-	autopilot_attitude.data = attitude;
+    std::lock_guard<std::mutex> lock(autopilot_attitude.mutex);
+    autopilot_attitude.data = attitude;
 }
 
 
@@ -1806,7 +1827,7 @@ Gimbal_Interface::
 get_gimbal_time_stamps(void)
 {
 
-	return current_messages.time_stamps;
+    return current_messages.time_stamps;
 }
 
 /**
@@ -1818,7 +1839,7 @@ Sequence_Numbers
 Gimbal_Interface::
 get_gimbal_seq_num(void)
 {
-	return current_messages.current_seq_rx;
+    return current_messages.current_seq_rx;
 }
 
 /**
@@ -1830,13 +1851,13 @@ uint8_t
 Gimbal_Interface::
 get_command_ack_do_mount_configure(void)
 {
-	/* Check gimbal command ack has changed*/
-	if (current_messages.time_stamps.command_ack)
-	{
-		return current_messages.result_cmd_ack_msg_configure;
-	}
+    /* Check gimbal command ack has changed*/
+    if (current_messages.time_stamps.command_ack)
+    {
+        return current_messages.result_cmd_ack_msg_configure;
+    }
 
-	return MAV_RESULT_IN_PROGRESS;
+    return MAV_RESULT_IN_PROGRESS;
 }
 
 /**
@@ -1848,26 +1869,26 @@ uint8_t
 Gimbal_Interface::
 get_command_ack_do_mount_control(void)
 {
-	if (is_wait_ack) 
-	{
-		/*Check is has been received a command ack */
-		if (is_received_ack) {
+    if (is_wait_ack) 
+    {
+        /*Check is has been received a command ack */
+        if (is_received_ack) {
 
-			/*Clear */
-			is_received_ack = 0;
-			is_wait_ack = 0;
+            /*Clear */
+            is_received_ack = 0;
+            is_wait_ack = 0;
 
-			/*Return accepted */
-			return MAV_RESULT_ACCEPTED;		
-		}
-	} 
-	else 
-	{
-		is_wait_ack = 1;
-		is_received_ack = 0;
-	}
-	
-	return MAV_RESULT_IN_PROGRESS;
+            /*Return accepted */
+            return MAV_RESULT_ACCEPTED;		
+        }
+    } 
+    else 
+    {
+        is_wait_ack = 1;
+        is_received_ack = 0;
+    }
+    
+    return MAV_RESULT_IN_PROGRESS;
 }
 
 /**
@@ -1880,17 +1901,17 @@ Gimbal_Interface::
 get_command_ack_gimbal_mode(void)
 {
 
-	/*Check is has been received a command ack */
-	if (is_received_ack)
-	{
-		/*Clear */
-		is_received_ack = 0;
+    /*Check is has been received a command ack */
+    if (is_received_ack)
+    {
+        /*Clear */
+        is_received_ack = 0;
 
-		/*Return accepted */
-		return MAV_RESULT_ACCEPTED;		
-	}
+        /*Return accepted */
+        return MAV_RESULT_ACCEPTED;		
+    }
 
-	return MAV_RESULT_IN_PROGRESS;
+    return MAV_RESULT_IN_PROGRESS;
 }
 // ------------------------------------------------------------------------------
 //   Write heartbeat Message
@@ -1899,31 +1920,31 @@ void
 Gimbal_Interface::
 write_heartbeat(void)
 {
-	mavlink_heartbeat_t heartbeat;
+    mavlink_heartbeat_t heartbeat;
 
-	heartbeat.type 			= MAV_TYPE_ONBOARD_CONTROLLER;
-	heartbeat.autopilot 	= MAV_AUTOPILOT_GENERIC;
-	heartbeat.base_mode 	= 0;
-	heartbeat.custom_mode 	= 0;
-	heartbeat.system_status = MAV_STATE_ACTIVE;
+    heartbeat.type 			= MAV_TYPE_ONBOARD_CONTROLLER;
+    heartbeat.autopilot 	= MAV_AUTOPILOT_INVALID;
+    heartbeat.base_mode 	= 0;
+    heartbeat.custom_mode 	= 0;
+    heartbeat.system_status = MAV_STATE_ACTIVE;
 
-	// --------------------------------------------------------------------------
-	//   ENCODE
-	// --------------------------------------------------------------------------
-	mavlink_message_t message;
+    // --------------------------------------------------------------------------
+    //   ENCODE
+    // --------------------------------------------------------------------------
+    mavlink_message_t message;
 
-	mavlink_msg_heartbeat_encode(SYSID_ONBOARD, MAV_COMP_ID_SYSTEM_CONTROL, &message, &heartbeat);
+    mavlink_msg_heartbeat_encode(SYSID_ONBOARD, MAV_COMP_ID_ONBOARD_COMPUTER, &message, &heartbeat);
 
-	// --------------------------------------------------------------------------
-	//   WRITE
-	// --------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
+    //   WRITE
+    // --------------------------------------------------------------------------
 
-	// do the write
-	int len = write_message(message);
+    // do the write
+    int len = write_message(message);
 
-	// check the write
-	if ( len <= 0 )
-		fprintf(stderr,"WARNING: could not send POSITION_TARGET_LOCAL_NED \n");
+    // check the write
+    if ( len <= 0 )
+        fprintf(stderr,"WARNING: could not send POSITION_TARGET_LOCAL_NED \n");
 }
 
 /**
@@ -1942,32 +1963,32 @@ void
 Gimbal_Interface::
 send_autopilot_attitude(void)
 {
-	mavlink_attitude_t attitude;
+    mavlink_attitude_t attitude;
 
-	{	
-		std::lock_guard<std::mutex> lock(autopilot_attitude.mutex);
-		attitude.roll 	= autopilot_attitude.data.roll;
-		attitude.pitch 	= autopilot_attitude.data.pitch;
-		attitude.yaw 	= autopilot_attitude.data.yaw;
-	}
+    {	
+        std::lock_guard<std::mutex> lock(autopilot_attitude.mutex);
+        attitude.roll 	= autopilot_attitude.data.roll;
+        attitude.pitch 	= autopilot_attitude.data.pitch;
+        attitude.yaw 	= autopilot_attitude.data.yaw;
+    }
 
-	// --------------------------------------------------------------------------
-	//   ENCODE
-	// --------------------------------------------------------------------------
-	mavlink_message_t message;
+    // --------------------------------------------------------------------------
+    //   ENCODE
+    // --------------------------------------------------------------------------
+    mavlink_message_t message;
 
-	mavlink_msg_attitude_encode(SYSID_ONBOARD, MAV_COMP_ID_SYSTEM_CONTROL, &message, &attitude);
+    mavlink_msg_attitude_encode(SYSID_ONBOARD, MAV_COMP_ID_SYSTEM_CONTROL, &message, &attitude);
 
-	// --------------------------------------------------------------------------
-	//   WRITE
-	// --------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
+    //   WRITE
+    // --------------------------------------------------------------------------
 
-	// do the write
-	int len = write_message(message);
+    // do the write
+    int len = write_message(message);
 
-	// check the write
-	if ( len <= 0 )
-		fprintf(stderr,"WARNING: could not send ATTITUDE \n");
+    // check the write
+    if ( len <= 0 )
+        fprintf(stderr,"WARNING: could not send ATTITUDE \n");
 }
 
 
@@ -1981,21 +2002,21 @@ void
 Gimbal_Interface::
 set_gimbal_combine_attitude(bool flag)
 {
-	int16_t param;
-	get_param(GMB_PARAM_AXIS_DIR, param);
+    int16_t param;
+    get_param(GMB_PARAM_AXIS_DIR, param);
 
-	if (flag) 
-	{
-		param = param | 0x10;
-	} 
-	else 
-	{
-		param &= (~0x10);
-	}
+    if (flag) 
+    {
+        param = param | 0x10;
+    } 
+    else 
+    {
+        param &= (~0x10);
+    }
 
-	set_param(GMB_PARAM_AXIS_DIR, param);
+    set_param(GMB_PARAM_AXIS_DIR, param);
 
-	reduce_pan_drift_enable = flag;
+    reduce_pan_drift_enable = flag;
 }
 
 // ------------------------------------------------------------------------------
@@ -2005,91 +2026,92 @@ void
 Gimbal_Interface::
 start()
 {
-	int result;
+    int result;
 
-	// --------------------------------------------------------------------------
-	//   CHECK SERIAL PORT
-	// --------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
+    //   CHECK SERIAL PORT
+    // --------------------------------------------------------------------------
 
-	if ( serial_port->status != 1 ) // SERIAL_PORT_OPEN
-	{
-		fprintf(stderr,"ERROR: serial port not open\n");
-		throw 1;
-	}
+    if ( serial_port->status != 1 ) // SERIAL_PORT_OPEN
+    {
+        fprintf(stderr,"ERROR: serial port not open\n");
+        throw 1;
+    }
 
-	// --------------------------------------------------------------------------
-	//   READ THREAD
-	// --------------------------------------------------------------------------
+    /* Firstly, enable write thread to send heartbeat to gimbal */
+    // --------------------------------------------------------------------------
+    //   WRITE THREAD
+    // --------------------------------------------------------------------------
+    printf("START WRITE THREAD \n");
 
-	printf("START READ THREAD \n");
+    result = pthread_create( &write_tid, NULL, &start_gimbal_interface_write_thread, this );
+    if ( result ) throw result;
 
-	result = pthread_create( &read_tid, NULL, &start_gimbal_interface_read_thread, this );
-	if ( result ) throw result;
+    // wait for it to be started
+    while ( not writing_status )
+        usleep(100000); // 10Hz
 
-	// now we're reading messages
-	printf("\n");
+    // now we're streaming setpoint commands
+    printf("\n");
 
-	// --------------------------------------------------------------------------
-	//   CHECK FOR MESSAGES
-	// --------------------------------------------------------------------------
-	do
-	{
-		if ( time_to_exit )
-		{
-			printf("CHECK FOR MESSAGES sysid: %d compid: %d\n", current_messages.sysid, current_messages.compid);
+    // --------------------------------------------------------------------------
+    //   READ THREAD
+    // --------------------------------------------------------------------------
 
-			return;
-		}
-		usleep(500000); // Check at 2Hz
+    printf("START READ THREAD \n");
 
-	} while(not get_connection());
+    result = pthread_create( &read_tid, NULL, &start_gimbal_interface_read_thread, this );
+    if ( result ) throw result;
 
-	printf("Found \n");
+    // now we're reading messages
+    printf("\n");
 
-	// We know the gimbal is sending messages
-	printf("\n");
+    // --------------------------------------------------------------------------
+    //   CHECK FOR MESSAGES
+    // --------------------------------------------------------------------------
+    do
+    {
+        if ( time_to_exit )
+        {
+            printf("CHECK FOR MESSAGES sysid: %d compid: %d\n", current_messages.sysid, current_messages.compid);
 
-	// --------------------------------------------------------------------------
-	//   GET SYSTEM and COMPONENT IDs
-	// --------------------------------------------------------------------------
+            return;
+        }
+        usleep(500000); // Check at 2Hz
 
-	// This comes from the heartbeat, which in theory should only come from
-	// the Gimbal we're directly connected to it.  If there is more than one
-	// vehicle then we can't expect to discover id's like this.
-	// In which case set the id's manually.
+    } while(not get_connection());
 
-	// System ID
-	if ( not system_id )
-	{
-		system_id = current_messages.sysid;
-		printf("GOT GIMBAL SYSTEM ID: %i\n", system_id );
-	}
+    printf("Found \n");
 
-	// Component ID
-	if ( not gimbal_id )
-	{
-		gimbal_id = current_messages.compid;
-		printf("GOT GIMBAL COMPONENT ID: %i\n", gimbal_id);
-		printf("\n");
-	}
-	
-	// --------------------------------------------------------------------------
-	//   WRITE THREAD
-	// --------------------------------------------------------------------------
-	printf("START WRITE THREAD \n");
+    // We know the gimbal is sending messages
+    printf("\n");
 
-	result = pthread_create( &write_tid, NULL, &start_gimbal_interface_write_thread, this );
-	if ( result ) throw result;
+    // --------------------------------------------------------------------------
+    //   GET SYSTEM and COMPONENT IDs
+    // --------------------------------------------------------------------------
 
-	// wait for it to be started
-	while ( not writing_status )
-		usleep(100000); // 10Hz
+    // This comes from the heartbeat, which in theory should only come from
+    // the Gimbal we're directly connected to it.  If there is more than one
+    // vehicle then we can't expect to discover id's like this.
+    // In which case set the id's manually.
 
-	// now we're streaming setpoint commands
-	printf("\n");
+    // System ID
+    if ( not system_id )
+    {
+        system_id = current_messages.sysid;
+        printf("GOT GIMBAL SYSTEM ID: %i\n", system_id );
+    }
 
-	// Done!
-	return;
+    // Component ID
+    if ( not gimbal_id )
+    {
+        gimbal_id = current_messages.compid;
+        printf("GOT GIMBAL COMPONENT ID: %i\n", gimbal_id);
+        printf("\n");
+    }
+
+    // Done!
+    return;
 }
 
 
@@ -2100,22 +2122,22 @@ void
 Gimbal_Interface::
 stop()
 {
-	// --------------------------------------------------------------------------
-	//   CLOSE THREADS
-	// --------------------------------------------------------------------------
-	printf("CLOSE THREADS\n");
+    // --------------------------------------------------------------------------
+    //   CLOSE THREADS
+    // --------------------------------------------------------------------------
+    printf("CLOSE THREADS\n");
 
-	// signal exit
-	time_to_exit = true;
+    // signal exit
+    time_to_exit = true;
 
-	// wait for exit
-	pthread_join(read_tid , NULL);
-	pthread_join(write_tid, NULL);
+    // wait for exit
+    pthread_join(read_tid , NULL);
+    pthread_join(write_tid, NULL);
 
-	// now the read and write threads are closed
-	printf("\n");
+    // now the read and write threads are closed
+    printf("\n");
 
-	// still need to close the serial_port separately
+    // still need to close the serial_port separately
 }
 
 // ------------------------------------------------------------------------------
@@ -2125,16 +2147,16 @@ void
 Gimbal_Interface::
 start_read_thread()
 {
-	if ( reading_status != 0 )
-	{
-		fprintf(stderr,"read thread already running\n");
-		return;
-	}
-	else
-	{
-		read_thread();
-		return;
-	}
+    if ( reading_status != 0 )
+    {
+        fprintf(stderr,"read thread already running\n");
+        return;
+    }
+    else
+    {
+        read_thread();
+        return;
+    }
 }
 
 
@@ -2145,16 +2167,16 @@ void
 Gimbal_Interface::
 start_write_thread(void)
 {
-	if ( not writing_status == false )
-	{
-		fprintf(stderr,"write thread already running\n");
-		return;
-	}
-	else
-	{
-		write_thread();
-		return;
-	}
+    if ( not writing_status == false )
+    {
+        fprintf(stderr,"write thread already running\n");
+        return;
+    }
+    else
+    {
+        write_thread();
+        return;
+    }
 
 }
 
@@ -2167,52 +2189,52 @@ Gimbal_Interface::
 handle_quit( int sig )
 {
 
-	// Send command disable 
-	// disable_offboard_control();
+    // Send command disable 
+    // disable_offboard_control();
 
-	try {
-		stop();
+    try {
+        stop();
 
-	}
-	catch (int error) {
-		fprintf(stderr,"Warning, could not stop gimbal interface\n");
-	}
+    }
+    catch (int error) {
+        fprintf(stderr,"Warning, could not stop gimbal interface\n");
+    }
 
 }
 
 bool Gimbal_Interface::
 get_flag_exit(void)
 {
-	return time_to_exit;
+    return time_to_exit;
 }
 
 bool Gimbal_Interface::
 get_connection(void)
 {
-	uint64_t timeout = get_time_usec() - _last_report_msg_us;
+    uint64_t timeout = get_time_usec() - _last_report_msg_us;
 
-	// Check heartbeat from gimbal
-	if (timeout > _time_lost_connection || !has_detected)
-	{
-		printf(" Lost Connection!\n");
+    // Check heartbeat from gimbal
+    if (timeout > _time_lost_connection || !has_detected)
+    {
+        printf(" Lost Connection!\n");
 
-		// gimbal went away
-		return false;
-	}
+        // gimbal went away
+        return false;
+    }
 
-	return true;
+    return true;
 }
 
 bool 
 Gimbal_Interface::
 present()
 {
-	uint64_t timeout = get_time_usec() - _last_report_msg_us;
+    uint64_t timeout = get_time_usec() - _last_report_msg_us;
 
-	// Check time out
-	if (_state != GIMBAL_STATE_NOT_PRESENT && timeout > _time_lost_connection) 
-	{
-	    printf(" Not Present!\n");
+    // Check time out
+    if (_state != GIMBAL_STATE_NOT_PRESENT && timeout > _time_lost_connection) 
+    {
+        printf(" Not Present!\n");
 
         // gimbal went away
         _state = GIMBAL_STATE_NOT_PRESENT;
@@ -2230,17 +2252,17 @@ void
 Gimbal_Interface::
 read_thread()
 {
-	reading_status = true;
+    reading_status = true;
 
-	while ( !time_to_exit )
-	{
-		read_messages();
-		usleep(100); // Read batches at 10kHz
-	}
+    while ( !time_to_exit )
+    {
+        read_messages();
+        usleep(100); // Read batches at 10kHz
+    }
 
-	reading_status = false;
+    reading_status = false;
 
-	return;
+    return;
 }
 
 // ------------------------------------------------------------------------------
@@ -2250,49 +2272,49 @@ void
 Gimbal_Interface::
 write_thread(void)
 {
-	uint64_t time_send_param = 0, time_send_heartbeat = 0, time_send_attitude = 0;
+    uint64_t time_send_param = 0, time_send_heartbeat = 0, time_send_attitude = 0;
 
-	// Blocking wait for new data
-	while ( !writing_status and !time_to_exit )
-	{
-		uint64_t tnow_us = get_time_usec();
+    // Blocking wait for new data
+    while ( !writing_status and !time_to_exit )
+    {
+        uint64_t tnow_us = get_time_usec();
 
-		// signal startup
-		writing_status = 2;
+        // signal startup
+        writing_status = 2;
 
-		if (tnow_us - time_send_heartbeat > 1000000)	// 1Hz
-		{
+        if (tnow_us - time_send_heartbeat > 1000000)	// 1Hz
+        {
 
-			time_send_heartbeat = get_time_usec();
-			// write a message and signal writing
-			write_heartbeat();
+            time_send_heartbeat = get_time_usec();
+            // write a message and signal writing
+            write_heartbeat();
 
-			write_heartbeat_count++;
-		}
+            write_heartbeat_count++;
+        }
 
-		if (tnow_us - time_send_param > 100000 && write_heartbeat_count >= 5)	// 2Hz
-		{
+        if (tnow_us - time_send_param > 100000 && write_heartbeat_count >= 5)	// 2Hz
+        {
 
-			time_send_param = get_time_usec();
+            time_send_param = get_time_usec();
 
-			// Process check param
-			param_process();
-		}
+            // Process check param
+            param_process();
+        }
 
-		if (reduce_pan_drift_enable && tnow_us - time_send_attitude > 20000)	// 50Hz
-		{
-			time_send_attitude = get_time_usec();
+        if (reduce_pan_drift_enable && tnow_us - time_send_attitude > 20000)	// 50Hz
+        {
+            time_send_attitude = get_time_usec();
 
-			// Write autopilot attitude to gimbal to reduce pan drift
-			send_autopilot_attitude();
-		}
+            // Write autopilot attitude to gimbal to reduce pan drift
+            send_autopilot_attitude();
+        }
 
-		// signal end
-		writing_status = false;
+        // signal end
+        writing_status = false;
 
-		// sleep
-		usleep(1000);
-	}
+        // sleep
+        usleep(1000);
+    }
 }
 
 // End Gimbal_Interface
@@ -2304,27 +2326,27 @@ write_thread(void)
 void*
 start_gimbal_interface_read_thread(void *args)
 {
-	// takes an gimbal object argument
-	Gimbal_Interface *gimbal_interface = (Gimbal_Interface *)args;
+    // takes an gimbal object argument
+    Gimbal_Interface *gimbal_interface = (Gimbal_Interface *)args;
 
-	// run the object's read thread
-	gimbal_interface->start_read_thread();
+    // run the object's read thread
+    gimbal_interface->start_read_thread();
 
-	// done!
-	return NULL;
+    // done!
+    return NULL;
 }
 
 void*
 start_gimbal_interface_write_thread(void *args)
 {
-	// takes an gimbal object argument
-	Gimbal_Interface *gimbal_interface = (Gimbal_Interface *)args;
+    // takes an gimbal object argument
+    Gimbal_Interface *gimbal_interface = (Gimbal_Interface *)args;
 
-	// run the object's read thread
-	gimbal_interface->start_write_thread();
+    // run the object's read thread
+    gimbal_interface->start_write_thread();
 
-	// done!
-	return NULL;
+    // done!
+    return NULL;
 }
 
 /*********** Portions COPYRIGHT 2018 Gremsy.Co., Ltd.*****END OF FILE**********/

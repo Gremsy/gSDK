@@ -47,6 +47,8 @@ typedef enum _sdk_process_state
     STATE_MOVE_TO_ZERO,
     STATE_SWITCH_TO_RC,
 
+    STATE_MEASURE_MESSAGE_RATE,
+
     STATE_SET_RESET_MODE,
 
     STATE_SET_GIMBAL_REBOOT,
@@ -72,115 +74,157 @@ int
 gGimbal_sample (int argc, char **argv)
 {
 
-	// --------------------------------------------------------------------------
-	//   PARSE THE COMMANDS
-	// --------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
+    //   PARSE THE COMMANDS
+    // --------------------------------------------------------------------------
 
-	// Default input arguments
+    // Default input arguments
 #ifdef __APPLE__
-	char *uart_name = (char*)"/dev/tty.usbmodem1";
+    char *uart_name = (char*)"/dev/tty.usbmodem1";
 #else
-	char *uart_name = (char*)"/dev/ttyUSB0";
+    char *uart_name = (char*)"/dev/ttyUSB0";
 #endif
-	int baudrate = 115200;
+    int baudrate = 115200;
 
-	// do the parse, will throw an int if it fails
-	parse_commandline(argc, argv, uart_name, baudrate);
-
-
-	// --------------------------------------------------------------------------
-	//   PORT and THREAD STARTUP
-	// --------------------------------------------------------------------------
-
-	/*
-	 * Instantiate a serial port object
-	 *
-	 * This object handles the opening and closing of the offboard computer's
-	 * serial port over which it will communicate to an autopilot.  It has
-	 * methods to read and write a mavlink_message_t object.  To help with read
-	 * and write in the context of pthreading, it gaurds port operations with a
-	 * pthread mutex lock.
-	 *
-	 */
-	Serial_Port serial_port(uart_name, baudrate);
+    // do the parse, will throw an int if it fails
+    parse_commandline(argc, argv, uart_name, baudrate);
 
 
-	/*
-	 * Instantiate an autopilot interface object
-	 *
-	 * This starts two threads for read and write over MAVlink. The read thread
-	 * listens for any MAVlink message and pushes it to the current_messages
-	 * attribute.  The write thread at the moment only streams a heartbeat 1hz It's
-	 * important that one way or another this program signals offboard mode exit,
-	 * otherwise the vehicle will go into failsafe.
-	 *
-	 */
-	Gimbal_Interface gimbal_interface(&serial_port);
+    // --------------------------------------------------------------------------
+    //   PORT and THREAD STARTUP
+    // --------------------------------------------------------------------------
 
-	/*
-	 * Setup interrupt signal handler
-	 *
-	 * Responds to early exits signaled with Ctrl-C.  The handler will command
-	 * to exit offboard mode if required, and close threads and the port.
-	 * The handler in this example needs references to the above objects.
-	 *
-	 */
-	serial_port_quit        = &serial_port;
-	gimbal_interface_quit 	= &gimbal_interface;
-	signal(SIGINT, quit_handler);
+    /*
+     * Instantiate a serial port object
+     *
+     * This object handles the opening and closing of the offboard computer's
+     * serial port over which it will communicate to an autopilot.  It has
+     * methods to read and write a mavlink_message_t object.  To help with read
+     * and write in the context of pthreading, it gaurds port operations with a
+     * pthread mutex lock.
+     *
+     */
+    Serial_Port serial_port(uart_name, baudrate);
 
-	/*
-	 * Start the port and Gimbal_interface
-	 * This is where the port is opened, and read and write threads are started.
-	 */
-	serial_port.start();
-	gimbal_interface.start();
 
-	/// Process data 
-	while (!gimbal_interface.get_flag_exit())
-	{
-		uint64_t time_display_ms = get_time_msec();
+    /*
+     * Instantiate an autopilot interface object
+     *
+     * This starts two threads for read and write over MAVlink. The read thread
+     * listens for any MAVlink message and pushes it to the current_messages
+     * attribute.  The write thread at the moment only streams a heartbeat 1hz It's
+     * important that one way or another this program signals offboard mode exit,
+     * otherwise the vehicle will go into failsafe.
+     *
+     */
+    Gimbal_Interface gimbal_interface(&serial_port);
+
+    /*
+     * Setup interrupt signal handler
+     *
+     * Responds to early exits signaled with Ctrl-C.  The handler will command
+     * to exit offboard mode if required, and close threads and the port.
+     * The handler in this example needs references to the above objects.
+     *
+     */
+    serial_port_quit        = &serial_port;
+    gimbal_interface_quit 	= &gimbal_interface;
+    signal(SIGINT, quit_handler);
+
+    /*
+     * Start the port and Gimbal_interface
+     * This is where the port is opened, and read and write threads are started.
+     */
+    serial_port.start();
+    gimbal_interface.start();
+
+    /// Process data 
+    while (!gimbal_interface.get_flag_exit())
+    {
+        uint64_t time_display_ms = get_time_msec();
         uint64_t last_time_send_attitude_ms = 0;
 
-		if (gimbal_interface.present())
-		{
+        if (gimbal_interface.present())
+        {
             // Reset time 
             sdk.timeout = get_time_usec();
 
-             // Sample control
-			gGimbal_control_sample(gimbal_interface);
+            // Sample control
+            gGimbal_control_sample(gimbal_interface);
 
             // Sample display value
-			// gGimbal_displays(gimbal_interface);
-		}
+            // gGimbal_displays(gimbal_interface);
+        }
 
         /* Update autopilot attitude for gimbal to reduce pan drift*/
         if (time_display_ms - last_time_send_attitude_ms > 20) // 50Hz
         {
-            attitude3f_t autopilot_attitude = { 0.f, 0.f, 0.f};
+            attitude3f_t autopilot_attitude = { 30.f, 0.f, 0.f};
 
             gimbal_interface.set_autopilot_attitude(autopilot_attitude);
         }
 
         usleep(1000);   // 1ms
-	}
+    }
 
-	// --------------------------------------------------------------------------
-	//   THREAD and PORT SHUTDOWN
-	// --------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
+    //   THREAD and PORT SHUTDOWN
+    // --------------------------------------------------------------------------
 
-	/*
-	 * Now that we are done we can stop the threads and close the port
-	 */
-	gimbal_interface.stop();
-	serial_port.stop();
+    /*
+     * Now that we are done we can stop the threads and close the port
+     */
+    gimbal_interface.stop();
+    serial_port.stop();
 
-	// --------------------------------------------------------------------------
-	//   DONE
-	// --------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
+    //   DONE
+    // --------------------------------------------------------------------------
 
-	// woot!
-	return 0;
+    // woot!
+    return 0;
+}
+
+float get_speed(limit_angle_t limit_angle, float angle, float tgt_angle)
+{
+    float speed;
+    // check if the angles are within limit
+    if (angle < limit_angle.angle_min or angle > limit_angle.angle_max)
+    {
+        printf("Angle is not within limit, set speed to 0!! \n");
+        speed = 0;
+    }
+    else if (fabsf(angle-tgt_angle) > 20)
+    {
+        if (angle > tgt_angle){
+            speed = -10;  // set to 10 deg/s if over 10 deg away from target
+        }
+        else {
+            speed = 10;
+        }
+    }
+    else if (fabsf(angle-tgt_angle) > 1)
+    {
+        if (angle > tgt_angle){
+            speed = -5;  // set to 5 deg/s if over 2 deg away from target
+        }
+        else {
+            speed = 5;
+        }
+    }
+    else if (fabsf(angle-tgt_angle) > 0.1)
+    {
+        if (angle > tgt_angle){
+            speed = -0.1;  // set to 0.1 deg/s (minimum) if less than 2 deg away from target
+        }
+        else{
+            speed= 0.1;
+        }
+    }
+    else{
+        speed = 0;   // set to 0 if less than 0.1 deg away from target
+    }
+    return speed;
 }
 
 // --------------------------------------------------------------------------
@@ -189,11 +233,11 @@ gGimbal_sample (int argc, char **argv)
 
 void gGimbal_displays(Gimbal_Interface &api)
 {
-	/*--------------------------------------------------------------------------
-	  GET A MESSAGE
-	--------------------------------------------------------------------------*/
-	printf("READ SOME MESSAGES \n");
-	printf("\n");
+    /*--------------------------------------------------------------------------
+      GET A MESSAGE
+    --------------------------------------------------------------------------*/
+    printf("READ SOME MESSAGES \n");
+    printf("\n");
 
     gimbal_status_t gimbal_status = api.get_gimbal_status();
     printf("Got message gimbal status \n");
@@ -218,8 +262,8 @@ void gGimbal_displays(Gimbal_Interface &api)
     imu_t imu;
     imu = api.get_gimbal_raw_imu();
 
-	printf("Got message RAW IMU.\n");
-	printf("\traw imu: xacc:%d, yacc:%d, zacc:%d, xgyro:%d, xgyro:%d, xgyro:%d(raw)\n", 
+    printf("Got message RAW IMU.\n");
+    printf("\traw imu: xacc:%d, yacc:%d, zacc:%d, xgyro:%d, xgyro:%d, xgyro:%d(raw)\n", 
                                                     imu.accel.x, 
                                                     imu.accel.y, 
                                                     imu.accel.z,
@@ -227,11 +271,11 @@ void gGimbal_displays(Gimbal_Interface &api)
                                                     imu.gyro.y,
                                                     imu.gyro.z);
 
-	attitude3f_t mnt_orien;
+    attitude3f_t mnt_orien;
     mnt_orien = api.get_gimbal_mount_orientation();
 
-	printf("Got message Mount orientation.\n");
-	printf("\torientation: pitch:%f, roll:%f, yaw:%f (degree)\n", 
+    printf("Got message Mount orientation.\n");
+    printf("\torientation: pitch:%f, roll:%f, yaw:%f (degree)\n", 
                                                         mnt_orien.pitch, 
                                                         mnt_orien.roll, 
                                                         mnt_orien.yaw);
@@ -239,7 +283,7 @@ void gGimbal_displays(Gimbal_Interface &api)
     attitude3d_t encoder;
     encoder = api.get_gimbal_encoder();
 
-	printf("Got message Mount status \n");
+    printf("Got message Mount status \n");
 
     if(api.get_gimbal_config_mavlink_msg().enc_type_send)
     {
@@ -255,8 +299,6 @@ void gGimbal_displays(Gimbal_Interface &api)
                                                             encoder.roll, 
                                                             encoder.yaw);
     }
-
-
 
     gimbal_config_axis_t setting = api.get_gimbal_config_tilt_axis();
 
@@ -293,7 +335,7 @@ void gGimbal_displays(Gimbal_Interface &api)
     printf("Limit angle [Yaw]: upper_limit %d lower_limit %d\n", limit_angle_yaw.angle_max, limit_angle_yaw.angle_min);
 
 
-	printf("\n");
+    printf("\n");
 }
 
 // ------------------------------------------------------------------------------
@@ -312,27 +354,30 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
            sdk.last_time_send = get_time_usec();
         }
         break;
+
         case STATE_CHECK_FIRMWARE_VERSION:
         {
 
            fw_version_t fw = onboard.get_gimbal_version();
            printf("FW Version: %d.%d.%d.%s\n", fw.x, fw.y, fw.z, fw.type);
 
+            // // This firmware only apply for the firmware version from v7.x.x or above
+            // if(fw.x >= 7)
+            // {
+            //     sdk.state = STATE_SETTING_GIMBAL;
+            // }
+            // else
+            // {
+            //     printf("DO NOT SUPPORT FUNCTIONS. Please check the firmware version\n");
+            //     printf("1. MOTOR CONTROL\n");
+            //     printf("2. AXIS CONFIGURATION\n");
+            //     printf("3. MAVLINK MSG RATE CONFIGURATION\n");
+            // }
 
-           // This firmware only apply for the firmware version from v7.x.x or above
-           if(fw.x >= 7)
-           {
-                sdk.state = STATE_SETTING_GIMBAL;
-           }
-           else
-           {
-                printf("DO NOT SUPPORT FUNCTIONS. Please check the firmware version\n");
-                printf("1. MOTOR CONTROL\n");
-                printf("2. AXIS CONFIGURATION\n");
-                printf("3. MAVLINK MSG RATE CONFIGURATION\n");
-           }
+            sdk.state = STATE_SETTING_GIMBAL;
         }
         break;
+
         case STATE_SETTING_GIMBAL:
         {
 
@@ -352,16 +397,16 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             usleep(1000);
 
             // Motor control likes: Stiffness, holdstrength, gyro filter, output filter and gain
-            gimbal_motor_control_t tilt = {70, 40};
-            gimbal_motor_control_t roll = {80, 40};
-            gimbal_motor_control_t pan = {100, 40};
-            onboard.set_gimbal_motor_control(tilt, roll, pan, 2, 4, 120);
+            gimbal_motor_control_t tilt = {30, 30};
+            gimbal_motor_control_t roll = {40, 35};
+            gimbal_motor_control_t pan = {50, 40};
+            onboard.set_gimbal_motor_control(tilt, roll, pan, 2, 4, 150);
 
             /*Delay 1ms*/
             usleep(1000);
 
             /*Set limit */
-            limit_angle_t limit_angle_pitch = {-90, 45};
+            limit_angle_t limit_angle_pitch = {-90, 90};
             limit_angle_t limit_angle_roll = {-45, 45};
             limit_angle_t limit_angle_yaw = {-320, 320};
             onboard.set_limit_angle_pitch(limit_angle_pitch);
@@ -371,13 +416,14 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             /*Delay 1ms*/
             usleep(1000);
 
-            /*Set enable combine attitude from the aircraft*/
+            /* Set enable combine attitude from the aircraft*/
             /* Uncomment the line below to enable gimbal reduce pan drift */
-            onboard.set_gimbal_combine_attitude(true);
+            // onboard.set_gimbal_combine_attitude(false);
 
             sdk.state = STATE_SETTING_MESSAGE_RATE;
         }
         break;
+
         case STATE_SETTING_MESSAGE_RATE:
         {
             uint8_t emit_heatbeat = 1;
@@ -399,6 +445,7 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             sdk.state = STATE_SET_GIMBAL_OFF;
         }
         break;
+
         case STATE_SET_GIMBAL_OFF:
         {
            // Check gimbal is on
@@ -422,6 +469,7 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             }
         }
         break;
+
         case STATE_SET_GIMBAL_ON:
         {
             // Check gimbal is on
@@ -446,6 +494,7 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             }
         }
         break;
+
         case STATE_SET_GIMBAL_FOLLOW_MODE:
         {
             if(onboard.set_gimbal_follow_mode_sync() == MAV_RESULT_ACCEPTED)
@@ -464,12 +513,13 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             }
         }
         break;
+
         case STATE_SET_GIMBAL_ROTATION_CW_1:
         {
             /*Set Pitch up 40 degrees and Pan rotates 300 degrees clockwise */
             float setpoint_pitch  = 40.f;
             float setpoint_roll   = 0.f;
-            float setpoint_yaw    = 300.f;
+            float setpoint_yaw    = 170.f;
          
             /// Set command gimbal move
             uint8_t res = onboard.set_gimbal_rotation_sync(setpoint_pitch, setpoint_roll, setpoint_yaw, GIMBAL_ROTATION_MODE_ABSOLUTE_ANGLE);
@@ -480,18 +530,19 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             float delta_yaw_angle   = fabsf(onboard.get_gimbal_mount_orientation().yaw - setpoint_yaw);
 
 
-            printf("Moving clockwise gimbal RYP [%3.2f - %3.2f - %3.2f] [Result: %d]\n",setpoint_roll,
-                                                                                setpoint_pitch,
-                                                                                setpoint_yaw,
-                                                                                res);
+            printf("Moving clockwise gimbal RYP [%3.2f - %3.2f - %3.2f] [Result: %d]\n",  setpoint_roll,
+                                                                                          setpoint_yaw,
+                                                                                          setpoint_pitch,
+                                                                                          res);
             bool complete_command = false;
 
             if(delta_pitch_angle < 1.f &&
                delta_roll_angle < 1.f  &&
                delta_yaw_angle < 1.f )
-           {
+            {
                 complete_command = true;
-           } 
+            }
+
             // Check gimbal feedback COMMAND_ACK when sending MAV_CMD_DO_MOUNT_CONTROL
             if(res == MAV_RESULT_ACCEPTED || complete_command) {
                 //Wait a moment about some seconds. Just see the effect
@@ -512,14 +563,14 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             /*Set Pitch down 90 degrees and Pan rotates 300 degrees counter-clockwise */
             float setpoint_pitch  = -90.f;
             float setpoint_roll   = 0;
-            float setpoint_yaw    = -300.f;
+            float setpoint_yaw    = -170.f;
 
-             /// Set command gimbal move
+            /// Set command gimbal move
             int res = onboard.set_gimbal_rotation_sync(setpoint_pitch, setpoint_roll, setpoint_yaw, GIMBAL_ROTATION_MODE_ABSOLUTE_ANGLE);
 
             printf("Moving Counter-Clockwise gimbal RYP [%3.2f - %3.2f - %3.2f] [Result: %d]\n",setpoint_roll,
-                                                                                                setpoint_pitch,
                                                                                                 setpoint_yaw,
+                                                                                                setpoint_pitch,
                                                                                                 res);
 
 
@@ -533,9 +584,9 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             if(delta_pitch_angle < 1.f &&
                delta_roll_angle < 1.f  &&
                delta_yaw_angle < 1.f )
-           {
+            {
                 complete_command = true;
-           } 
+            } 
             // Check gimbal feedback COMMAND_ACK when sending MAV_CMD_DO_MOUNT_CONTROL
             if(res == MAV_RESULT_ACCEPTED || complete_command) {
                 //Wait a moment about some seconds. Just see the effect
@@ -548,6 +599,7 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             }
         }
         break;
+
         case STATE_SET_GIMBAL_LOCK_MODE:
         {
             if(onboard.set_gimbal_lock_mode_sync() == MAV_RESULT_ACCEPTED) 
@@ -567,19 +619,20 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             }
         }
         break;
+
         case STATE_SET_GIMBAL_ROTATION_CW_2:
         {
             /*Set Pitch up 40 degrees and Pan rotates 320 degrees clockwise */
             float setpoint_pitch  = 40.f;
             float setpoint_roll   = 0.f;
-            float setpoint_yaw    = 300.f;
+            float setpoint_yaw    = 170.f;
          
             /// Set command gimbal move
             int res = onboard.set_gimbal_rotation_sync(setpoint_pitch, setpoint_roll, setpoint_yaw, GIMBAL_ROTATION_MODE_ABSOLUTE_ANGLE);
 
             printf("Moving Clockwise gimbal RYP [%3.2f - %3.2f - %3.2f] [Result: %d]\n",setpoint_roll,
-                                                                                        setpoint_pitch,
                                                                                         setpoint_yaw,
+                                                                                        setpoint_pitch,
                                                                                         res);
 
             /* Check delta to make sure gimbal has move complete. */
@@ -615,14 +668,14 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             /*Set Pitch down 90 degrees and Pan rotates 320 degrees counter-clockwise */
             float setpoint_pitch  = -90.f;
             float setpoint_roll   = 0;
-            float setpoint_yaw    = -300.f;
+            float setpoint_yaw    = -170.f;
 
              /// Set command gimbal move
             int res = onboard.set_gimbal_rotation_sync(setpoint_pitch, setpoint_roll, setpoint_yaw, GIMBAL_ROTATION_MODE_ABSOLUTE_ANGLE);
 
             printf("Moving Counter-Clockwise gimbal RYP [%3.2f - %3.2f - %3.2f] [Result: %d]\n",setpoint_roll,
-                                                                                                setpoint_pitch,
                                                                                                 setpoint_yaw,
+                                                                                                setpoint_pitch,
                                                                                                 res);
             /* Check delta to make sure gimbal has move complete. */
             float delta_pitch_angle = fabsf(onboard.get_gimbal_mount_orientation().pitch - setpoint_pitch);
@@ -650,19 +703,21 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             }
         }
         break;
+
         case STATE_SET_GIMBAL_ROTATION_SPEED_CW:
         {
-            float speed_pitch  = 50.f;
-            float speed_roll  = 0.f;
-            float speed_yaw    = 100.f;
+            // Set gimbal move to 
+            float speed_pitch   = 0.f;
+            float speed_roll    = 0.f;
+            float speed_yaw     = 10.f;
 
              /// Set command gimbal move
             int res = onboard.set_gimbal_rotation_sync(speed_pitch, speed_roll, speed_yaw, GIMBAL_ROTATION_MODE_SPEED);
 
             printf("Moving Speed Clockwise gimbal RYP [%3.2f - %3.2f - %3.2f] [Result: %d]\n",speed_roll,
-                                                                                                        speed_pitch,
-                                                                                                        speed_yaw,
-                                                                                                        res);
+                                                                                              speed_pitch,
+                                                                                              speed_yaw,
+                                                                                              res);
 
             //Wait a moment about 5 seconds. Just see the effect
             if((get_time_usec() - sdk.last_time_send) > 10000000)
@@ -673,12 +728,13 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             }
         }
         break;
+
         case STATE_SET_GIMBAL_ROTATION_SPEED_CCW:
         {
             // Set gimbal move to 
-            float speed_pitch  = -50.f;
-            float speed_roll  = 0.f;
-            float speed_yaw    = -100.f;
+            float speed_pitch   = 0.f;
+            float speed_roll    = 0.f;
+            float speed_yaw     = -10.f;
 
              /// Set command gimbal move
             int res = onboard.set_gimbal_rotation_sync(speed_pitch, speed_roll, speed_yaw, GIMBAL_ROTATION_MODE_SPEED);
@@ -695,8 +751,8 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                 
                 sdk.state = STATE_SET_RESET_MODE;
             }
-            break;
         }
+        break;
 
         case STATE_MOVE_TO_ZERO:
         {
@@ -733,6 +789,8 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                 }
             }
         }
+        break;
+
         case STATE_SET_RESET_MODE:
         {
             onboard.set_gimbal_reset_mode(GIMBAL_RESET_MODE_PITCH_AND_YAW);
@@ -743,6 +801,7 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
 
         }
         break;
+
         case STATE_SWITCH_TO_RC: 
         {
             static uint8_t res = MAV_RESULT_IN_PROGRESS;
@@ -758,9 +817,27 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                 // sdk.state = STATE_SET_GIMBAL_REBOOT;
             }
 
-
-            break;
+            printf("Gimbal attitude: [%3.2f - %3.2f - %3.2f]\n",onboard.get_gimbal_mount_orientation().pitch,
+                                                                onboard.get_gimbal_mount_orientation().roll,
+                                                                onboard.get_gimbal_mount_orientation().yaw);
         }
+        break;
+
+        case STATE_MEASURE_MESSAGE_RATE:
+        {
+            printf("\n");
+
+            printf("| HEARTBEAT             | %2f|\n", onboard.get_heartbeat_rate());
+            printf("| SYS_STATUS            | %2f|\n", onboard.get_sys_status_rate());
+            printf("| MOUNT_STATUS          | %2f|\n", onboard.get_mount_status_rate());
+            printf("| MOUNT_ORIENTATION     | %2f|\n", onboard.get_mount_orientation_rate());
+            printf("| RAW_IMU               | %2f|\n", onboard.get_raw_imu_rate());
+            printf("| COMPONENT_INFORMATION | %2f|\n", onboard.get_comp_info_rate());
+
+            usleep(1000000);
+        }
+        break;
+
         case STATE_SET_GIMBAL_REBOOT:
         {
             // printf("STATE_SET_GIMBAL_REBOOT!\n");
@@ -774,6 +851,7 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             // }
         }
         break;
+
     }
 }
 
@@ -784,44 +862,44 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
 void
 parse_commandline(int argc, char **argv, char *&uart_name, int &baudrate)
 {
-	// string for command line usage
-	const char *commandline_usage = "usage: mavlink_serial -d <devicename> -b <baudrate>";
+    // string for command line usage
+    const char *commandline_usage = "usage: mavlink_serial -d <devicename> -b <baudrate>";
 
-	// Read input arguments
-	for (int i = 1; i < argc; i++) { // argv[0] is "mavlink"
+    // Read input arguments
+    for (int i = 1; i < argc; i++) { // argv[0] is "mavlink"
 
-		// Help
-		if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
-			printf("%s\n",commandline_usage);
-			throw EXIT_FAILURE;
-		}
+        // Help
+        if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
+            printf("%s\n",commandline_usage);
+            throw EXIT_FAILURE;
+        }
 
-		// UART device ID
-		if (strcmp(argv[i], "-d") == 0 || strcmp(argv[i], "--device") == 0) {
-			if (argc > i + 1) {
-				uart_name = argv[i + 1];
+        // UART device ID
+        if (strcmp(argv[i], "-d") == 0 || strcmp(argv[i], "--device") == 0) {
+            if (argc > i + 1) {
+                uart_name = argv[i + 1];
 
-			} else {
-				printf("%s\n",commandline_usage);
-				throw EXIT_FAILURE;
-			}
-		}
+            } else {
+                printf("%s\n",commandline_usage);
+                throw EXIT_FAILURE;
+            }
+        }
 
-		// Baud rate
-		if (strcmp(argv[i], "-b") == 0 || strcmp(argv[i], "--baud") == 0) {
-			if (argc > i + 1) {
-				baudrate = atoi(argv[i + 1]);
+        // Baud rate
+        if (strcmp(argv[i], "-b") == 0 || strcmp(argv[i], "--baud") == 0) {
+            if (argc > i + 1) {
+                baudrate = atoi(argv[i + 1]);
 
-			} else {
-				printf("%s\n",commandline_usage);
-				throw EXIT_FAILURE;
-			}
-		}
-	}
-	// end: for each input argument
+            } else {
+                printf("%s\n",commandline_usage);
+                throw EXIT_FAILURE;
+            }
+        }
+    }
+    // end: for each input argument
 
-	// Done!
-	return;
+    // Done!
+    return;
 }
 
 
@@ -832,24 +910,24 @@ parse_commandline(int argc, char **argv, char *&uart_name, int &baudrate)
 void
 quit_handler( int sig )
 {
-	printf("\n");
-	printf("TERMINATING AT USER REQUEST\n");
-	printf("\n");
+    printf("\n");
+    printf("TERMINATING AT USER REQUEST\n");
+    printf("\n");
 
-	// autopilot interface
-	try {
-		gimbal_interface_quit->handle_quit(sig);
-	}
-	catch (int error){}
+    // autopilot interface
+    try {
+        gimbal_interface_quit->handle_quit(sig);
+    }
+    catch (int error){}
 
-	// serial port
-	try {
-		serial_port_quit->handle_quit(sig);
-	}
-	catch (int error){}
+    // serial port
+    try {
+        serial_port_quit->handle_quit(sig);
+    }
+    catch (int error){}
 
-	// end program here
-	exit(0);
+    // end program here
+    exit(0);
 
 }
 
@@ -860,18 +938,18 @@ quit_handler( int sig )
 int
 main(int argc, char **argv)
 {
-	// This program uses throw, wrap one big try/catch here
-	try
-	{
-		int result = gGimbal_sample(argc,argv);
-		return result;
-	}
+    // This program uses throw, wrap one big try/catch here
+    try
+    {
+        int result = gGimbal_sample(argc,argv);
+        return result;
+    }
 
-	catch ( int error )
-	{
-		fprintf(stderr,"mavlink_control threw exception %i \n" , error);
-		return error;
-	}
+    catch ( int error )
+    {
+        fprintf(stderr,"mavlink_control threw exception %i \n" , error);
+        return error;
+    }
 
 }
 
