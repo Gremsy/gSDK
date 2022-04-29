@@ -3,11 +3,11 @@
 
 #define MAVLINK_MSG_ID_RANGEFINDER 173
 
-MAVPACKED(
+
 typedef struct __mavlink_rangefinder_t {
  float distance; /*< [m] Distance.*/
  float voltage; /*< [V] Raw voltage if available, zero otherwise.*/
-}) mavlink_rangefinder_t;
+} mavlink_rangefinder_t;
 
 #define MAVLINK_MSG_ID_RANGEFINDER_LEN 8
 #define MAVLINK_MSG_ID_RANGEFINDER_MIN_LEN 8
@@ -170,7 +170,7 @@ static inline void mavlink_msg_rangefinder_send_struct(mavlink_channel_t chan, c
 
 #if MAVLINK_MSG_ID_RANGEFINDER_LEN <= MAVLINK_MAX_PAYLOAD_LEN
 /*
-  This varient of _send() can be used to save stack space by re-using
+  This variant of _send() can be used to save stack space by re-using
   memory from the receive buffer.  The caller provides a
   mavlink_message_t which is the size of a full mavlink message. This
   is usually the receive buffer for the channel, and allows a reply to an

@@ -28,6 +28,9 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}
 set(GSDK_APP_SRC
     mavlink_control.cpp
     ${MAVLINK_SRC}/gimbal_interface.cpp
+    ${MAVLINK_SRC}/gimbal_protocol.cpp
+    ${MAVLINK_SRC}/gimbal_protocol_v1.cpp
+    ${MAVLINK_SRC}/gimbal_protocol_v2.cpp
     ${MAVLINK_SRC}/serial_port.cpp
 )
 

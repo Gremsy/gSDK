@@ -3,7 +3,7 @@
 
 #define MAVLINK_MSG_ID_FLEXIFUNCTION_DIRECTORY 155
 
-MAVPACKED(
+
 typedef struct __mavlink_flexifunction_directory_t {
  uint8_t target_system; /*<  System ID*/
  uint8_t target_component; /*<  Component ID*/
@@ -11,7 +11,7 @@ typedef struct __mavlink_flexifunction_directory_t {
  uint8_t start_index; /*<  index of first directory entry to write*/
  uint8_t count; /*<  count of directory entries to write*/
  int8_t directory_data[48]; /*<  Settings data*/
-}) mavlink_flexifunction_directory_t;
+} mavlink_flexifunction_directory_t;
 
 #define MAVLINK_MSG_ID_FLEXIFUNCTION_DIRECTORY_LEN 53
 #define MAVLINK_MSG_ID_FLEXIFUNCTION_DIRECTORY_MIN_LEN 53
@@ -212,7 +212,7 @@ static inline void mavlink_msg_flexifunction_directory_send_struct(mavlink_chann
 
 #if MAVLINK_MSG_ID_FLEXIFUNCTION_DIRECTORY_LEN <= MAVLINK_MAX_PAYLOAD_LEN
 /*
-  This varient of _send() can be used to save stack space by re-using
+  This variant of _send() can be used to save stack space by re-using
   memory from the receive buffer.  The caller provides a
   mavlink_message_t which is the size of a full mavlink message. This
   is usually the receive buffer for the channel, and allows a reply to an

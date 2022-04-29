@@ -3,12 +3,12 @@
 
 #define MAVLINK_MSG_ID_AOA_SSA 11020
 
-MAVPACKED(
+
 typedef struct __mavlink_aoa_ssa_t {
  uint64_t time_usec; /*< [us] Timestamp (since boot or Unix epoch).*/
  float AOA; /*< [deg] Angle of Attack.*/
  float SSA; /*< [deg] Side Slip Angle.*/
-}) mavlink_aoa_ssa_t;
+} mavlink_aoa_ssa_t;
 
 #define MAVLINK_MSG_ID_AOA_SSA_LEN 16
 #define MAVLINK_MSG_ID_AOA_SSA_MIN_LEN 16
@@ -182,7 +182,7 @@ static inline void mavlink_msg_aoa_ssa_send_struct(mavlink_channel_t chan, const
 
 #if MAVLINK_MSG_ID_AOA_SSA_LEN <= MAVLINK_MAX_PAYLOAD_LEN
 /*
-  This varient of _send() can be used to save stack space by re-using
+  This variant of _send() can be used to save stack space by re-using
   memory from the receive buffer.  The caller provides a
   mavlink_message_t which is the size of a full mavlink message. This
   is usually the receive buffer for the channel, and allows a reply to an

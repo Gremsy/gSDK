@@ -1,1 +1,0 @@
-/usr/lib/ccache/c++     CMakeFiles/save_param_to_file.dir/save_param_to_file.cpp.o CMakeFiles/save_param_to_file.dir/__/__/src/gimbal_interface.cpp.o CMakeFiles/save_param_to_file.dir/__/__/src/serial_port.cpp.o  -o save_param_to_file  -lpthread 

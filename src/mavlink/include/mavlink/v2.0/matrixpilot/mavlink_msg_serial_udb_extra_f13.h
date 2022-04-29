@@ -3,13 +3,13 @@
 
 #define MAVLINK_MSG_ID_SERIAL_UDB_EXTRA_F13 177
 
-MAVPACKED(
+
 typedef struct __mavlink_serial_udb_extra_f13_t {
  int32_t sue_lat_origin; /*<  Serial UDB Extra MP Origin Latitude*/
  int32_t sue_lon_origin; /*<  Serial UDB Extra MP Origin Longitude*/
  int32_t sue_alt_origin; /*<  Serial UDB Extra MP Origin Altitude Above Sea Level*/
  int16_t sue_week_no; /*<  Serial UDB Extra GPS Week Number*/
-}) mavlink_serial_udb_extra_f13_t;
+} mavlink_serial_udb_extra_f13_t;
 
 #define MAVLINK_MSG_ID_SERIAL_UDB_EXTRA_F13_LEN 14
 #define MAVLINK_MSG_ID_SERIAL_UDB_EXTRA_F13_MIN_LEN 14
@@ -194,7 +194,7 @@ static inline void mavlink_msg_serial_udb_extra_f13_send_struct(mavlink_channel_
 
 #if MAVLINK_MSG_ID_SERIAL_UDB_EXTRA_F13_LEN <= MAVLINK_MAX_PAYLOAD_LEN
 /*
-  This varient of _send() can be used to save stack space by re-using
+  This variant of _send() can be used to save stack space by re-using
   memory from the receive buffer.  The caller provides a
   mavlink_message_t which is the size of a full mavlink message. This
   is usually the receive buffer for the channel, and allows a reply to an

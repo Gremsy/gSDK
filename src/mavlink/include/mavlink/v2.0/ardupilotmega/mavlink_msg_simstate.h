@@ -3,7 +3,7 @@
 
 #define MAVLINK_MSG_ID_SIMSTATE 164
 
-MAVPACKED(
+
 typedef struct __mavlink_simstate_t {
  float roll; /*< [rad] Roll angle.*/
  float pitch; /*< [rad] Pitch angle.*/
@@ -16,7 +16,7 @@ typedef struct __mavlink_simstate_t {
  float zgyro; /*< [rad/s] Angular speed around Z axis.*/
  int32_t lat; /*< [degE7] Latitude.*/
  int32_t lng; /*< [degE7] Longitude.*/
-}) mavlink_simstate_t;
+} mavlink_simstate_t;
 
 #define MAVLINK_MSG_ID_SIMSTATE_LEN 44
 #define MAVLINK_MSG_ID_SIMSTATE_MIN_LEN 44
@@ -278,7 +278,7 @@ static inline void mavlink_msg_simstate_send_struct(mavlink_channel_t chan, cons
 
 #if MAVLINK_MSG_ID_SIMSTATE_LEN <= MAVLINK_MAX_PAYLOAD_LEN
 /*
-  This varient of _send() can be used to save stack space by re-using
+  This variant of _send() can be used to save stack space by re-using
   memory from the receive buffer.  The caller provides a
   mavlink_message_t which is the size of a full mavlink message. This
   is usually the receive buffer for the channel, and allows a reply to an

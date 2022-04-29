@@ -3,14 +3,14 @@
 
 #define MAVLINK_MSG_ID_SERIAL_UDB_EXTRA_F6 174
 
-MAVPACKED(
+
 typedef struct __mavlink_serial_udb_extra_f6_t {
  float sue_PITCHGAIN; /*<  Serial UDB Extra PITCHGAIN Proportional Control*/
  float sue_PITCHKD; /*<  Serial UDB Extra Pitch Rate Control*/
  float sue_RUDDER_ELEV_MIX; /*<  Serial UDB Extra Rudder to Elevator Mix*/
  float sue_ROLL_ELEV_MIX; /*<  Serial UDB Extra Roll to Elevator Mix*/
  float sue_ELEVATOR_BOOST; /*<  Gain For Boosting Manual Elevator control When Plane Stabilized*/
-}) mavlink_serial_udb_extra_f6_t;
+} mavlink_serial_udb_extra_f6_t;
 
 #define MAVLINK_MSG_ID_SERIAL_UDB_EXTRA_F6_LEN 20
 #define MAVLINK_MSG_ID_SERIAL_UDB_EXTRA_F6_MIN_LEN 20
@@ -206,7 +206,7 @@ static inline void mavlink_msg_serial_udb_extra_f6_send_struct(mavlink_channel_t
 
 #if MAVLINK_MSG_ID_SERIAL_UDB_EXTRA_F6_LEN <= MAVLINK_MAX_PAYLOAD_LEN
 /*
-  This varient of _send() can be used to save stack space by re-using
+  This variant of _send() can be used to save stack space by re-using
   memory from the receive buffer.  The caller provides a
   mavlink_message_t which is the size of a full mavlink message. This
   is usually the receive buffer for the channel, and allows a reply to an

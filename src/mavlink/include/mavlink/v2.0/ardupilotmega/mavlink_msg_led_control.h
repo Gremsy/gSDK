@@ -3,7 +3,7 @@
 
 #define MAVLINK_MSG_ID_LED_CONTROL 186
 
-MAVPACKED(
+
 typedef struct __mavlink_led_control_t {
  uint8_t target_system; /*<  System ID.*/
  uint8_t target_component; /*<  Component ID.*/
@@ -11,7 +11,7 @@ typedef struct __mavlink_led_control_t {
  uint8_t pattern; /*<  Pattern (see LED_PATTERN_ENUM).*/
  uint8_t custom_len; /*<  Custom Byte Length.*/
  uint8_t custom_bytes[24]; /*<  Custom Bytes.*/
-}) mavlink_led_control_t;
+} mavlink_led_control_t;
 
 #define MAVLINK_MSG_ID_LED_CONTROL_LEN 29
 #define MAVLINK_MSG_ID_LED_CONTROL_MIN_LEN 29
@@ -212,7 +212,7 @@ static inline void mavlink_msg_led_control_send_struct(mavlink_channel_t chan, c
 
 #if MAVLINK_MSG_ID_LED_CONTROL_LEN <= MAVLINK_MAX_PAYLOAD_LEN
 /*
-  This varient of _send() can be used to save stack space by re-using
+  This variant of _send() can be used to save stack space by re-using
   memory from the receive buffer.  The caller provides a
   mavlink_message_t which is the size of a full mavlink message. This
   is usually the receive buffer for the channel, and allows a reply to an

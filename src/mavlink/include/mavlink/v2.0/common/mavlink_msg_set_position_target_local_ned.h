@@ -3,7 +3,7 @@
 
 #define MAVLINK_MSG_ID_SET_POSITION_TARGET_LOCAL_NED 84
 
-MAVPACKED(
+
 typedef struct __mavlink_set_position_target_local_ned_t {
  uint32_t time_boot_ms; /*< [ms] Timestamp (time since system boot).*/
  float x; /*< [m] X Position in NED frame*/
@@ -17,11 +17,11 @@ typedef struct __mavlink_set_position_target_local_ned_t {
  float afz; /*< [m/s/s] Z acceleration or force (if bit 10 of type_mask is set) in NED frame in meter / s^2 or N*/
  float yaw; /*< [rad] yaw setpoint*/
  float yaw_rate; /*< [rad/s] yaw rate setpoint*/
- uint16_t type_mask; /*<  Bitmap to indicate which dimensions should be ignored by the vehicle: a value of 0b0000000000000000 or 0b0000001000000000 indicates that none of the setpoint dimensions should be ignored. If bit 10 is set the floats afx afy afz should be interpreted as force instead of acceleration. Mapping: bit 1: x, bit 2: y, bit 3: z, bit 4: vx, bit 5: vy, bit 6: vz, bit 7: ax, bit 8: ay, bit 9: az, bit 10: is force setpoint, bit 11: yaw, bit 12: yaw rate*/
+ uint16_t type_mask; /*<  Bitmap to indicate which dimensions should be ignored by the vehicle.*/
  uint8_t target_system; /*<  System ID*/
  uint8_t target_component; /*<  Component ID*/
  uint8_t coordinate_frame; /*<  Valid options are: MAV_FRAME_LOCAL_NED = 1, MAV_FRAME_LOCAL_OFFSET_NED = 7, MAV_FRAME_BODY_NED = 8, MAV_FRAME_BODY_OFFSET_NED = 9*/
-}) mavlink_set_position_target_local_ned_t;
+} mavlink_set_position_target_local_ned_t;
 
 #define MAVLINK_MSG_ID_SET_POSITION_TARGET_LOCAL_NED_LEN 53
 #define MAVLINK_MSG_ID_SET_POSITION_TARGET_LOCAL_NED_MIN_LEN 53
@@ -90,7 +90,7 @@ typedef struct __mavlink_set_position_target_local_ned_t {
  * @param target_system  System ID
  * @param target_component  Component ID
  * @param coordinate_frame  Valid options are: MAV_FRAME_LOCAL_NED = 1, MAV_FRAME_LOCAL_OFFSET_NED = 7, MAV_FRAME_BODY_NED = 8, MAV_FRAME_BODY_OFFSET_NED = 9
- * @param type_mask  Bitmap to indicate which dimensions should be ignored by the vehicle: a value of 0b0000000000000000 or 0b0000001000000000 indicates that none of the setpoint dimensions should be ignored. If bit 10 is set the floats afx afy afz should be interpreted as force instead of acceleration. Mapping: bit 1: x, bit 2: y, bit 3: z, bit 4: vx, bit 5: vy, bit 6: vz, bit 7: ax, bit 8: ay, bit 9: az, bit 10: is force setpoint, bit 11: yaw, bit 12: yaw rate
+ * @param type_mask  Bitmap to indicate which dimensions should be ignored by the vehicle.
  * @param x [m] X Position in NED frame
  * @param y [m] Y Position in NED frame
  * @param z [m] Z Position in NED frame (note, altitude is negative in NED)
@@ -163,7 +163,7 @@ static inline uint16_t mavlink_msg_set_position_target_local_ned_pack(uint8_t sy
  * @param target_system  System ID
  * @param target_component  Component ID
  * @param coordinate_frame  Valid options are: MAV_FRAME_LOCAL_NED = 1, MAV_FRAME_LOCAL_OFFSET_NED = 7, MAV_FRAME_BODY_NED = 8, MAV_FRAME_BODY_OFFSET_NED = 9
- * @param type_mask  Bitmap to indicate which dimensions should be ignored by the vehicle: a value of 0b0000000000000000 or 0b0000001000000000 indicates that none of the setpoint dimensions should be ignored. If bit 10 is set the floats afx afy afz should be interpreted as force instead of acceleration. Mapping: bit 1: x, bit 2: y, bit 3: z, bit 4: vx, bit 5: vy, bit 6: vz, bit 7: ax, bit 8: ay, bit 9: az, bit 10: is force setpoint, bit 11: yaw, bit 12: yaw rate
+ * @param type_mask  Bitmap to indicate which dimensions should be ignored by the vehicle.
  * @param x [m] X Position in NED frame
  * @param y [m] Y Position in NED frame
  * @param z [m] Z Position in NED frame (note, altitude is negative in NED)
@@ -262,7 +262,7 @@ static inline uint16_t mavlink_msg_set_position_target_local_ned_encode_chan(uin
  * @param target_system  System ID
  * @param target_component  Component ID
  * @param coordinate_frame  Valid options are: MAV_FRAME_LOCAL_NED = 1, MAV_FRAME_LOCAL_OFFSET_NED = 7, MAV_FRAME_BODY_NED = 8, MAV_FRAME_BODY_OFFSET_NED = 9
- * @param type_mask  Bitmap to indicate which dimensions should be ignored by the vehicle: a value of 0b0000000000000000 or 0b0000001000000000 indicates that none of the setpoint dimensions should be ignored. If bit 10 is set the floats afx afy afz should be interpreted as force instead of acceleration. Mapping: bit 1: x, bit 2: y, bit 3: z, bit 4: vx, bit 5: vy, bit 6: vz, bit 7: ax, bit 8: ay, bit 9: az, bit 10: is force setpoint, bit 11: yaw, bit 12: yaw rate
+ * @param type_mask  Bitmap to indicate which dimensions should be ignored by the vehicle.
  * @param x [m] X Position in NED frame
  * @param y [m] Y Position in NED frame
  * @param z [m] Z Position in NED frame (note, altitude is negative in NED)
@@ -338,7 +338,7 @@ static inline void mavlink_msg_set_position_target_local_ned_send_struct(mavlink
 
 #if MAVLINK_MSG_ID_SET_POSITION_TARGET_LOCAL_NED_LEN <= MAVLINK_MAX_PAYLOAD_LEN
 /*
-  This varient of _send() can be used to save stack space by re-using
+  This variant of _send() can be used to save stack space by re-using
   memory from the receive buffer.  The caller provides a
   mavlink_message_t which is the size of a full mavlink message. This
   is usually the receive buffer for the channel, and allows a reply to an
@@ -438,7 +438,7 @@ static inline uint8_t mavlink_msg_set_position_target_local_ned_get_coordinate_f
 /**
  * @brief Get field type_mask from set_position_target_local_ned message
  *
- * @return  Bitmap to indicate which dimensions should be ignored by the vehicle: a value of 0b0000000000000000 or 0b0000001000000000 indicates that none of the setpoint dimensions should be ignored. If bit 10 is set the floats afx afy afz should be interpreted as force instead of acceleration. Mapping: bit 1: x, bit 2: y, bit 3: z, bit 4: vx, bit 5: vy, bit 6: vz, bit 7: ax, bit 8: ay, bit 9: az, bit 10: is force setpoint, bit 11: yaw, bit 12: yaw rate
+ * @return  Bitmap to indicate which dimensions should be ignored by the vehicle.
  */
 static inline uint16_t mavlink_msg_set_position_target_local_ned_get_type_mask(const mavlink_message_t* msg)
 {

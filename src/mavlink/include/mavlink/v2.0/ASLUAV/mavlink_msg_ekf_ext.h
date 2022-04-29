@@ -1,9 +1,9 @@
 #pragma once
 // MESSAGE EKF_EXT PACKING
 
-#define MAVLINK_MSG_ID_EKF_EXT 206
+#define MAVLINK_MSG_ID_EKF_EXT 8007
 
-MAVPACKED(
+
 typedef struct __mavlink_ekf_ext_t {
  uint64_t timestamp; /*< [us]  Time since system start*/
  float Windspeed; /*< [m/s]  Magnitude of wind velocity (in lateral inertial plane)*/
@@ -12,21 +12,21 @@ typedef struct __mavlink_ekf_ext_t {
  float Airspeed; /*< [m/s]  Magnitude of air velocity*/
  float beta; /*< [rad]  Sideslip angle*/
  float alpha; /*< [rad]  Angle of attack*/
-}) mavlink_ekf_ext_t;
+} mavlink_ekf_ext_t;
 
 #define MAVLINK_MSG_ID_EKF_EXT_LEN 32
 #define MAVLINK_MSG_ID_EKF_EXT_MIN_LEN 32
-#define MAVLINK_MSG_ID_206_LEN 32
-#define MAVLINK_MSG_ID_206_MIN_LEN 32
+#define MAVLINK_MSG_ID_8007_LEN 32
+#define MAVLINK_MSG_ID_8007_MIN_LEN 32
 
 #define MAVLINK_MSG_ID_EKF_EXT_CRC 64
-#define MAVLINK_MSG_ID_206_CRC 64
+#define MAVLINK_MSG_ID_8007_CRC 64
 
 
 
 #if MAVLINK_COMMAND_24BIT
 #define MAVLINK_MESSAGE_INFO_EKF_EXT { \
-    206, \
+    8007, \
     "EKF_EXT", \
     7, \
     {  { "timestamp", NULL, MAVLINK_TYPE_UINT64_T, 0, 0, offsetof(mavlink_ekf_ext_t, timestamp) }, \
@@ -230,7 +230,7 @@ static inline void mavlink_msg_ekf_ext_send_struct(mavlink_channel_t chan, const
 
 #if MAVLINK_MSG_ID_EKF_EXT_LEN <= MAVLINK_MAX_PAYLOAD_LEN
 /*
-  This varient of _send() can be used to save stack space by re-using
+  This variant of _send() can be used to save stack space by re-using
   memory from the receive buffer.  The caller provides a
   mavlink_message_t which is the size of a full mavlink message. This
   is usually the receive buffer for the channel, and allows a reply to an

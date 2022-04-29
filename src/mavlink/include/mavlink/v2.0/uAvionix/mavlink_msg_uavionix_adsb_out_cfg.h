@@ -3,7 +3,7 @@
 
 #define MAVLINK_MSG_ID_UAVIONIX_ADSB_OUT_CFG 10001
 
-MAVPACKED(
+
 typedef struct __mavlink_uavionix_adsb_out_cfg_t {
  uint32_t ICAO; /*<  Vehicle address (24 bit)*/
  uint16_t stallSpeed; /*< [cm/s] Aircraft stall speed in cm/s*/
@@ -13,7 +13,7 @@ typedef struct __mavlink_uavionix_adsb_out_cfg_t {
  uint8_t gpsOffsetLat; /*<  GPS antenna lateral offset (table 2-36 of DO-282B)*/
  uint8_t gpsOffsetLon; /*<  GPS antenna longitudinal offset from nose [if non-zero, take position (in meters) divide by 2 and add one] (table 2-37 DO-282B)*/
  uint8_t rfSelect; /*<  ADS-B transponder reciever and transmit enable flags*/
-}) mavlink_uavionix_adsb_out_cfg_t;
+} mavlink_uavionix_adsb_out_cfg_t;
 
 #define MAVLINK_MSG_ID_UAVIONIX_ADSB_OUT_CFG_LEN 20
 #define MAVLINK_MSG_ID_UAVIONIX_ADSB_OUT_CFG_MIN_LEN 20
@@ -236,7 +236,7 @@ static inline void mavlink_msg_uavionix_adsb_out_cfg_send_struct(mavlink_channel
 
 #if MAVLINK_MSG_ID_UAVIONIX_ADSB_OUT_CFG_LEN <= MAVLINK_MAX_PAYLOAD_LEN
 /*
-  This varient of _send() can be used to save stack space by re-using
+  This variant of _send() can be used to save stack space by re-using
   memory from the receive buffer.  The caller provides a
   mavlink_message_t which is the size of a full mavlink message. This
   is usually the receive buffer for the channel, and allows a reply to an

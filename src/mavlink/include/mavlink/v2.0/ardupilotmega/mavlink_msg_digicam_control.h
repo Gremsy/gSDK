@@ -3,7 +3,7 @@
 
 #define MAVLINK_MSG_ID_DIGICAM_CONTROL 155
 
-MAVPACKED(
+
 typedef struct __mavlink_digicam_control_t {
  float extra_value; /*<  Correspondent value to given extra_param.*/
  uint8_t target_system; /*<  System ID.*/
@@ -15,7 +15,7 @@ typedef struct __mavlink_digicam_control_t {
  uint8_t shot; /*<  0: ignore, 1: shot or start filming.*/
  uint8_t command_id; /*<  Command Identity (incremental loop: 0 to 255)//A command sent multiple times will be executed or pooled just once.*/
  uint8_t extra_param; /*<  Extra parameters enumeration (0 means ignore).*/
-}) mavlink_digicam_control_t;
+} mavlink_digicam_control_t;
 
 #define MAVLINK_MSG_ID_DIGICAM_CONTROL_LEN 13
 #define MAVLINK_MSG_ID_DIGICAM_CONTROL_MIN_LEN 13
@@ -266,7 +266,7 @@ static inline void mavlink_msg_digicam_control_send_struct(mavlink_channel_t cha
 
 #if MAVLINK_MSG_ID_DIGICAM_CONTROL_LEN <= MAVLINK_MAX_PAYLOAD_LEN
 /*
-  This varient of _send() can be used to save stack space by re-using
+  This variant of _send() can be used to save stack space by re-using
   memory from the receive buffer.  The caller provides a
   mavlink_message_t which is the size of a full mavlink message. This
   is usually the receive buffer for the channel, and allows a reply to an

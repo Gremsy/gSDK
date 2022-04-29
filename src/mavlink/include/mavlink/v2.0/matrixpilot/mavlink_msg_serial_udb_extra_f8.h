@@ -3,7 +3,7 @@
 
 #define MAVLINK_MSG_ID_SERIAL_UDB_EXTRA_F8 176
 
-MAVPACKED(
+
 typedef struct __mavlink_serial_udb_extra_f8_t {
  float sue_HEIGHT_TARGET_MAX; /*<  Serial UDB Extra HEIGHT_TARGET_MAX*/
  float sue_HEIGHT_TARGET_MIN; /*<  Serial UDB Extra HEIGHT_TARGET_MIN*/
@@ -12,7 +12,7 @@ typedef struct __mavlink_serial_udb_extra_f8_t {
  float sue_ALT_HOLD_PITCH_MIN; /*<  Serial UDB Extra ALT_HOLD_PITCH_MIN*/
  float sue_ALT_HOLD_PITCH_MAX; /*<  Serial UDB Extra ALT_HOLD_PITCH_MAX*/
  float sue_ALT_HOLD_PITCH_HIGH; /*<  Serial UDB Extra ALT_HOLD_PITCH_HIGH*/
-}) mavlink_serial_udb_extra_f8_t;
+} mavlink_serial_udb_extra_f8_t;
 
 #define MAVLINK_MSG_ID_SERIAL_UDB_EXTRA_F8_LEN 28
 #define MAVLINK_MSG_ID_SERIAL_UDB_EXTRA_F8_MIN_LEN 28
@@ -230,7 +230,7 @@ static inline void mavlink_msg_serial_udb_extra_f8_send_struct(mavlink_channel_t
 
 #if MAVLINK_MSG_ID_SERIAL_UDB_EXTRA_F8_LEN <= MAVLINK_MAX_PAYLOAD_LEN
 /*
-  This varient of _send() can be used to save stack space by re-using
+  This variant of _send() can be used to save stack space by re-using
   memory from the receive buffer.  The caller provides a
   mavlink_message_t which is the size of a full mavlink message. This
   is usually the receive buffer for the channel, and allows a reply to an

@@ -1,0 +1,9 @@
+{
+    "cmake.configureOnOpen": true,
+    "files.associations": {
+        "vector": "cpp",
+        "*.tcc": "cpp",
+        "functional": "cpp",
+        "random": "cpp"
+    }
+}

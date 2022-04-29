@@ -3,10 +3,10 @@
 
 #define MAVLINK_MSG_ID_UAVIONIX_ADSB_TRANSCEIVER_HEALTH_REPORT 10003
 
-MAVPACKED(
+
 typedef struct __mavlink_uavionix_adsb_transceiver_health_report_t {
  uint8_t rfHealth; /*<  ADS-B transponder messages*/
-}) mavlink_uavionix_adsb_transceiver_health_report_t;
+} mavlink_uavionix_adsb_transceiver_health_report_t;
 
 #define MAVLINK_MSG_ID_UAVIONIX_ADSB_TRANSCEIVER_HEALTH_REPORT_LEN 1
 #define MAVLINK_MSG_ID_UAVIONIX_ADSB_TRANSCEIVER_HEALTH_REPORT_MIN_LEN 1
@@ -158,7 +158,7 @@ static inline void mavlink_msg_uavionix_adsb_transceiver_health_report_send_stru
 
 #if MAVLINK_MSG_ID_UAVIONIX_ADSB_TRANSCEIVER_HEALTH_REPORT_LEN <= MAVLINK_MAX_PAYLOAD_LEN
 /*
-  This varient of _send() can be used to save stack space by re-using
+  This variant of _send() can be used to save stack space by re-using
   memory from the receive buffer.  The caller provides a
   mavlink_message_t which is the size of a full mavlink message. This
   is usually the receive buffer for the channel, and allows a reply to an

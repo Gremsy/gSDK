@@ -3,14 +3,14 @@
 
 #define MAVLINK_MSG_ID_GIMBAL_TORQUE_CMD_REPORT 214
 
-MAVPACKED(
+
 typedef struct __mavlink_gimbal_torque_cmd_report_t {
  int16_t rl_torque_cmd; /*<  Roll Torque Command.*/
  int16_t el_torque_cmd; /*<  Elevation Torque Command.*/
  int16_t az_torque_cmd; /*<  Azimuth Torque Command.*/
  uint8_t target_system; /*<  System ID.*/
  uint8_t target_component; /*<  Component ID.*/
-}) mavlink_gimbal_torque_cmd_report_t;
+} mavlink_gimbal_torque_cmd_report_t;
 
 #define MAVLINK_MSG_ID_GIMBAL_TORQUE_CMD_REPORT_LEN 8
 #define MAVLINK_MSG_ID_GIMBAL_TORQUE_CMD_REPORT_MIN_LEN 8
@@ -206,7 +206,7 @@ static inline void mavlink_msg_gimbal_torque_cmd_report_send_struct(mavlink_chan
 
 #if MAVLINK_MSG_ID_GIMBAL_TORQUE_CMD_REPORT_LEN <= MAVLINK_MAX_PAYLOAD_LEN
 /*
-  This varient of _send() can be used to save stack space by re-using
+  This variant of _send() can be used to save stack space by re-using
   memory from the receive buffer.  The caller provides a
   mavlink_message_t which is the size of a full mavlink message. This
   is usually the receive buffer for the channel, and allows a reply to an

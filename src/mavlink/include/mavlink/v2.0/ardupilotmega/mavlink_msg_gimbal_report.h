@@ -3,7 +3,7 @@
 
 #define MAVLINK_MSG_ID_GIMBAL_REPORT 200
 
-MAVPACKED(
+
 typedef struct __mavlink_gimbal_report_t {
  float delta_time; /*< [s] Time since last update.*/
  float delta_angle_x; /*< [rad] Delta angle X.*/
@@ -17,7 +17,7 @@ typedef struct __mavlink_gimbal_report_t {
  float joint_az; /*< [rad] Joint AZ.*/
  uint8_t target_system; /*<  System ID.*/
  uint8_t target_component; /*<  Component ID.*/
-}) mavlink_gimbal_report_t;
+} mavlink_gimbal_report_t;
 
 #define MAVLINK_MSG_ID_GIMBAL_REPORT_LEN 42
 #define MAVLINK_MSG_ID_GIMBAL_REPORT_MIN_LEN 42
@@ -290,7 +290,7 @@ static inline void mavlink_msg_gimbal_report_send_struct(mavlink_channel_t chan,
 
 #if MAVLINK_MSG_ID_GIMBAL_REPORT_LEN <= MAVLINK_MAX_PAYLOAD_LEN
 /*
-  This varient of _send() can be used to save stack space by re-using
+  This variant of _send() can be used to save stack space by re-using
   memory from the receive buffer.  The caller provides a
   mavlink_message_t which is the size of a full mavlink message. This
   is usually the receive buffer for the channel, and allows a reply to an
