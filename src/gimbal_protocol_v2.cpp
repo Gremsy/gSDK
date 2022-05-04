@@ -60,6 +60,41 @@ Gimbal_Protocol::result_t Gimbal_Protocol_V2::set_gimbal_mode_sync(control_mode_
  */
 Gimbal_Protocol_V2::result_t Gimbal_Protocol_V2::set_gimbal_reset_mode(gimbal_reset_mode_t reset_mode)
 {
+    float pitch = _attitude.pitch;
+    float roll  = _attitude.roll;
+    float yaw   = _attitude.yaw;
+
+    switch (reset_mode) {
+        case GIMBAL_RESET_MODE_YAW:
+            yaw = 0.f;
+            break;
+
+        case GIMBAL_RESET_MODE_PITCH_AND_YAW:
+            pitch = 0.f;
+            roll  = 0.f;
+            yaw   = 0.f;
+            break;
+
+        case GIMBAL_RESET_MODE_PITCH_DOWNWARD_UPWARD_AND_YAW:
+            pitch = -90.f;
+            roll  = 0.f;
+            yaw   = 0.f;
+            break;
+
+        case GIMBAL_RESET_MODE_PITCH_DOWNWARD_UPWARD:
+            pitch = -90.f;
+            break;
+
+        case GIMBAL_RESET_MODE_PITCH_MAPPING:
+            pitch = -90.f;
+            break;
+
+        default:
+            break;
+    }
+    /* Switch to follow */
+    _control_mode = GIMBAL_FOLLOW_MODE;
+    return set_gimbal_move_sync(pitch, roll, yaw, INPUT_ANGLE);
 }
 
 /**

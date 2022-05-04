@@ -46,50 +46,6 @@ void *start_gimbal_interface_read_thread(void *args);
 void *start_gimbal_interface_write_thread(void *args);
 
 // ------------------------------------------------------------------------------
-//   Data Structures
-// ------------------------------------------------------------------------------
-template<typename T>
-struct attitude {
-    T roll  = 0;
-    T pitch = 0;
-    T yaw   = 0;
-
-    static constexpr float DEG2RAD = M_PI / 180.f;
-    static constexpr float RAD2DEG = 180.f / M_PI;
-
-    attitude() = default;
-    attitude(T val) : roll(val), pitch(val), yaw(val) {};
-    attitude(T r, T p, T y) : roll(r), pitch(p), yaw(y) {};
-
-    attitude &to_rad(void)
-    {
-        roll  *= DEG2RAD;
-        pitch *= DEG2RAD;
-        yaw   *= DEG2RAD;
-        return *this;
-    }
-
-    attitude &to_deg(void)
-    {
-        roll  *= RAD2DEG;
-        pitch *= RAD2DEG;
-        yaw   *= RAD2DEG;
-        return *this;
-    }
-};
-
-template<typename T>
-struct vector3 {
-    T x = 0;
-    T y = 0;
-    T z = 0;
-
-    vector3() = default;
-    vector3(T val) : x(val), y(val), z(val) {};
-    vector3(T _x, T _y, T _z) : x(_x), y(_y), z(_z) {};
-};
-
-// ------------------------------------------------------------------------------
 //   Gimbal Interface Class
 // ------------------------------------------------------------------------------
 /*
@@ -149,6 +105,20 @@ public:
     };
 
     /**
+     * @brief Gimbal Operation status
+     */
+    enum operation_state_t {
+        GIMBAL_STATE_OFF         = 0x00,   /*< Gimbal is off*/
+        GIMBAL_STATE_INIT        = 0x01,   /*< Gimbal is initializing*/
+        GIMBAL_STATE_ON          = 0x02,   /*< Gimbal is on */
+        GIMBAL_STATE_LOCK_MODE   = 0x04,
+        GIMBAL_STATE_FOLLOW_MODE = 0x08,
+        GIMBAL_STATE_SEARCH_HOME = 0x10,
+        GIMBAL_STATE_SET_HOME    = 0x20,
+        GIMBAL_STATE_ERROR       = 0x40
+    };
+
+    /**
      * @brief Firmware version
      *
      */
@@ -166,8 +136,8 @@ public:
         uint16_t load;			  /*< [ms] Maximum usage the mainloop time. Values: [0-1000] - should always be below 1000*/
         uint16_t voltage_battery; /*< [V] Battery voltage*/
         uint8_t sensor;			  /*< Specific sensor occur error (encorder, imu) refer sensor_state_t*/
-        uint16_t state;			  /* System state of gimbal. Refer interface_state_t*/
-        uint8_t mode;			  /*< Gimbal mode is running*/
+        uint8_t state;			  /* System state of gimbal. Refer interface_state_t*/
+        uint8_t mode;
     };
 
     /**
@@ -504,6 +474,13 @@ public:
     Gimbal_Protocol::result_t set_gimbal_encoder_type_send(bool type);
 
     /**
+     * @brief reuqest gimbal device info message
+     * 
+     * @return Gimbal_Protocol::result_t 
+     */
+    Gimbal_Protocol::result_t request_gimbal_device_info(void);
+
+    /**
      * @brief Get the gimbal encoder type send
      *
      * @return true send raw encoder values
@@ -621,20 +598,6 @@ private:
         {
             time_stamps.reset_timestamps();
         }
-    };
-
-    /**
-     * @brief Gimbal Operation status
-     */
-    enum operation_state_t {
-        GIMBAL_STATE_OFF         = 0x00,   /*< Gimbal is off*/
-        GIMBAL_STATE_INIT        = 0x01,   /*< Gimbal is initializing*/
-        GIMBAL_STATE_ON          = 0x02,   /*< Gimbal is on */
-        GIMBAL_STATE_LOCK_MODE   = 0x04,
-        GIMBAL_STATE_FOLLOW_MODE = 0x08,
-        GIMBAL_STATE_SEARCH_HOME = 0x10,
-        GIMBAL_STATE_SET_HOME    = 0x20,
-        GIMBAL_STATE_ERROR       = 0x40
     };
 
     /**

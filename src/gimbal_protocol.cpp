@@ -38,7 +38,8 @@
 Gimbal_Protocol::Gimbal_Protocol(Serial_Port *serial_port,
                                  const mavlink_system_t &system) :
     _serial_port(serial_port),
-    _system(system)
+    _system(system),
+    _attitude()
 {
     pthread_mutex_init(&_mutex, NULL);
     pthread_cond_init(&_condition, NULL);
@@ -190,4 +191,29 @@ Gimbal_Protocol::result_t Gimbal_Protocol::from_mav_result(MAV_RESULT res)
     }
 
     return UNKNOWN;
+}
+
+/**
+ * @brief Update gimbal attitude for gimbal protocol instance
+ *
+ * @param pitch
+ * @param roll
+ * @param yaw
+ */
+void Gimbal_Protocol::update_attitude(float pitch, float roll, float yaw)
+{
+    _attitude.pitch = pitch;
+    _attitude.roll  = roll;
+    _attitude.yaw   = yaw;
+}
+
+/**
+ * @brief Update gimbal attitude for gimbal protocol instance
+ *
+ * @param q attitude quaternion
+ */
+void Gimbal_Protocol::update_attitude(const float q[4])
+{
+    mavlink_quaternion_to_euler(q, &_attitude.roll, &_attitude.pitch, &_attitude.yaw);
+    (void)_attitude.to_deg();
 }

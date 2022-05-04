@@ -19,6 +19,9 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}
 set(SAVE_PARAM_SRC
     save_param_to_file.cpp
     ${MAVLINK_SRC}/gimbal_interface.cpp
+    ${MAVLINK_SRC}/gimbal_protocol.cpp
+    ${MAVLINK_SRC}/gimbal_protocol_v1.cpp
+    ${MAVLINK_SRC}/gimbal_protocol_v2.cpp
     ${MAVLINK_SRC}/serial_port.cpp
 )
 

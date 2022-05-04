@@ -1,0 +1,8 @@
+/home/ngminhle97/gSDK/build/CMakeFiles/rebuild_cache.dir
+/home/ngminhle97/gSDK/build/CMakeFiles/edit_cache.dir
+/home/ngminhle97/gSDK/build/CMakeFiles/gSDK.dir
+/home/ngminhle97/gSDK/build/examples/CMakeFiles/rebuild_cache.dir
+/home/ngminhle97/gSDK/build/examples/CMakeFiles/edit_cache.dir
+/home/ngminhle97/gSDK/build/examples/save_param_to_file/CMakeFiles/rebuild_cache.dir
+/home/ngminhle97/gSDK/build/examples/save_param_to_file/CMakeFiles/edit_cache.dir
+/home/ngminhle97/gSDK/build/examples/save_param_to_file/CMakeFiles/save_param_to_file.dir

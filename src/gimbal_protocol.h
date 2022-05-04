@@ -40,6 +40,50 @@
 
 #include <ardupilotmega/mavlink.h>
 
+// ------------------------------------------------------------------------------
+//   Data Structures
+// ------------------------------------------------------------------------------
+template<typename T>
+struct attitude {
+    T roll  = 0;
+    T pitch = 0;
+    T yaw   = 0;
+
+    static constexpr float DEG2RAD = M_PI / 180.f;
+    static constexpr float RAD2DEG = 180.f / M_PI;
+
+    attitude() = default;
+    attitude(T val) : roll(val), pitch(val), yaw(val) {};
+    attitude(T r, T p, T y) : roll(r), pitch(p), yaw(y) {};
+
+    attitude &to_rad(void)
+    {
+        roll  *= DEG2RAD;
+        pitch *= DEG2RAD;
+        yaw   *= DEG2RAD;
+        return *this;
+    }
+
+    attitude &to_deg(void)
+    {
+        roll  *= RAD2DEG;
+        pitch *= RAD2DEG;
+        yaw   *= RAD2DEG;
+        return *this;
+    }
+};
+
+template<typename T>
+struct vector3 {
+    T x = 0;
+    T y = 0;
+    T z = 0;
+
+    vector3() = default;
+    vector3(T val) : x(val), y(val), z(val) {};
+    vector3(T _x, T _y, T _z) : x(_x), y(_y), z(_z) {};
+};
+
 // ----------------------------------------------------------------------------------
 //   Gimbal Protocol Class
 // ----------------------------------------------------------------------------------
@@ -165,6 +209,22 @@ public:
      */
     void command_ack_callback(const mavlink_message_t &message);
 
+    /**
+     * @brief Update gimbal attitude for gimbal protocol instance
+     * 
+     * @param pitch 
+     * @param roll 
+     * @param yaw 
+     */
+    void update_attitude(float pitch, float roll, float yaw);
+
+    /**
+     * @brief Update gimbal attitude for gimbal protocol instance
+     * 
+     * @param q attitude quaternion
+     */
+    void update_attitude(const float q[4]);
+
     // Helper
     static float to_deg(float rad) {
         static constexpr float RAD2DEG = 180.f / M_PI;
@@ -188,6 +248,8 @@ protected:
     bool             _is_init = false;
 
     mavlink_command_ack_t _ack = { 0 };
+
+    attitude<float> _attitude;
 
     /**
      * @brief convert from mav result

@@ -132,8 +132,8 @@ int gGimbal_init (int argc, char **argv)
      * The handler in this example needs references to the above objects.
      *
      */
-    serial_port_quit        = &serial_port;
-    gimbal_interface_quit 	= &gimbal_interface;
+    serial_port_quit      = &serial_port;
+    gimbal_interface_quit = &gimbal_interface;
     signal(SIGINT, quit_handler);
     /*
      * Start the port and Gimbal_interface
@@ -145,17 +145,26 @@ int gGimbal_init (int argc, char **argv)
     uint32_t time_display_offset = (uint32_t) (get_time_usec() / 1000);
     // open file to write
     myfile.open ("output.txt");
+    uint32_t time_display = 0;
+    uint8_t gyro_filter = 0, output_filter = 0, gain = 0;
+    Gimbal_Interface::gimbal_motor_control_t tilt;
+    Gimbal_Interface::gimbal_motor_control_t roll;
+    Gimbal_Interface::gimbal_motor_control_t pan;
+    Gimbal_Protocol::result_t res = Gimbal_Protocol::UNKNOWN;
 
     /// Process data
     while (!gimbal_interface.get_flag_exit()) {
-        uint32_t time_display = (uint32_t) (get_time_usec() / 1000);
+        time_display = (uint32_t) (get_time_usec() / 1000);
         // get PARAM_STIFFNESS_PITCH value
-        int16_t ret;
-        gimbal_interface.get_param(GMB_PARAM_STIFFNESS_PITCH, ret);
-        // print output to console
-        printf("[Act] Write param to file: [%d] value: %d\n", time_display - time_display_offset, ret);
-        // write param value to file
-        myfile << "[" << (time_display - time_display_offset) << "] STIFFNESS_PITCH: " << ret << " \n";
+        res = gimbal_interface.get_gimbal_motor_control(tilt, roll, pan, gyro_filter, output_filter, gain);
+
+        if (res == Gimbal_Protocol::SUCCESS) {
+            // print output to console
+            printf("[Act] Write param to file: [%d] value: %d\n", time_display - time_display_offset, tilt.stiffness);
+            // write param value to file
+            myfile << "[" << (time_display - time_display_offset) << "] STIFFNESS_PITCH: " << tilt.stiffness << " \n";
+        }
+
         usleep(100000);
     }
 

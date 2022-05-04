@@ -119,7 +119,10 @@ Gimbal_Interface::Gimbal_Interface(Serial_Port *serial_port,
     _proto         = proto;
 
     if (_proto == MAVLINK_GIMBAL_V1) {
-        // TODO create corresponding gimbal protocol object
+        _gimbal_proto = new Gimbal_Protocol_V1(serial_port, _system);
+
+    } else {
+        _gimbal_proto = new Gimbal_Protocol_V2(serial_port, _system);
     }
 }
 
@@ -166,6 +169,11 @@ void Gimbal_Interface::read_messages()
                             // Store message sysid and compid.
                             _gimbal.sysid  = message.sysid;
                             _gimbal.compid = message.compid;
+
+                            if (_gimbal_proto != nullptr) {
+                                _gimbal_proto->initialize(_gimbal);
+                            }
+
                             has_detected   = true;
                         }
 
@@ -187,12 +195,24 @@ void Gimbal_Interface::read_messages()
                 case MAVLINK_MSG_ID_MOUNT_ORIENTATION: {
                         mavlink_msg_mount_orientation_decode(&message, &_messages.mount_orientation);
                         _messages.time_stamps.mount_orientation = get_time_usec();
+
+                        if (_gimbal_proto != nullptr) {
+                            _gimbal_proto->update_attitude(_messages.mount_orientation.pitch,
+                                                           _messages.mount_orientation.roll,
+                                                           _messages.mount_orientation.yaw);
+                        }
+
                         break;
                     }
 
                 case MAVLINK_MSG_ID_GIMBAL_DEVICE_ATTITUDE_STATUS: {
                         mavlink_msg_gimbal_device_attitude_status_decode(&message, &_messages.atttitude_status);
                         _messages.time_stamps.attitude_status = get_time_usec();
+
+                        if (_gimbal_proto != nullptr) {
+                            _gimbal_proto->update_attitude(_messages.atttitude_status.q);
+                        }
+
                         break;
                     }
 
@@ -205,6 +225,9 @@ void Gimbal_Interface::read_messages()
                 case MAVLINK_MSG_ID_GIMBAL_DEVICE_INFORMATION: {
                         mavlink_msg_gimbal_device_information_decode(&message, &_messages.gimbal_device_info);
                         _messages.time_stamps.gimbal_device_info = get_time_usec();
+                        printf("GET GIMBAL DEVICE: \n");
+                        printf("Vendor name: %s", _messages.gimbal_device_info.vendor_name);
+                        printf("Model name: %s", _messages.gimbal_device_info.model_name);
                         break;
                     }
 
@@ -212,7 +235,11 @@ void Gimbal_Interface::read_messages()
                         mavlink_command_ack_t packet = { 0 };
                         mavlink_msg_command_ack_decode(&message, &packet);
                         _messages.time_stamps.command_ack = get_time_usec();
-                        // TODO: Handle ack to corresponding subcribe msg
+
+                        if (_gimbal_proto != nullptr) {
+                            _gimbal_proto->command_ack_callback(message);
+                        }
+                        
                         break;
                     }
 
@@ -534,7 +561,7 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_motor(control_motor_t typ
         return Gimbal_Protocol::ERROR;
     }
 
-    const float param[7] = { 
+    const float param[7] = {
         0,
         0,
         0,
@@ -1111,6 +1138,16 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_encoder_type_send(bool ty
 }
 
 /**
+ * @brief reuqest gimbal device info message
+ *
+ * @return Gimbal_Protocol::result_t
+ */
+Gimbal_Protocol::result_t Gimbal_Interface::request_gimbal_device_info(void)
+{
+    return request_msg(MAVLINK_MSG_ID_GIMBAL_DEVICE_INFORMATION);
+}
+
+/**
  * @brief Get the gimbal encoder type send
  *
  * @return true send raw encoder values
@@ -1494,7 +1531,7 @@ void Gimbal_Interface::start_write_thread(void)
 // ------------------------------------------------------------------------------
 //   Quit Handler
 // ------------------------------------------------------------------------------
-void Gimbal_Interface:: handle_quit( int sig )
+void Gimbal_Interface::handle_quit( int sig )
 {
     // Send command disable
     // disable_offboard_control();

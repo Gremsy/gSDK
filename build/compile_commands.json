@@ -1,0 +1,62 @@
+[
+{
+  "directory": "/home/ngminhle97/gSDK/build",
+  "command": "/usr/bin/c++   -I/home/ngminhle97/gSDK -I/home/ngminhle97/gSDK/src -I/home/ngminhle97/gSDK/src/mavlink/include/mavlink/v2.0  -g   -o CMakeFiles/gSDK.dir/mavlink_control.cpp.o -c /home/ngminhle97/gSDK/mavlink_control.cpp",
+  "file": "/home/ngminhle97/gSDK/mavlink_control.cpp"
+},
+{
+  "directory": "/home/ngminhle97/gSDK/build",
+  "command": "/usr/bin/c++   -I/home/ngminhle97/gSDK -I/home/ngminhle97/gSDK/src -I/home/ngminhle97/gSDK/src/mavlink/include/mavlink/v2.0  -g   -o CMakeFiles/gSDK.dir/src/gimbal_interface.cpp.o -c /home/ngminhle97/gSDK/src/gimbal_interface.cpp",
+  "file": "/home/ngminhle97/gSDK/src/gimbal_interface.cpp"
+},
+{
+  "directory": "/home/ngminhle97/gSDK/build",
+  "command": "/usr/bin/c++   -I/home/ngminhle97/gSDK -I/home/ngminhle97/gSDK/src -I/home/ngminhle97/gSDK/src/mavlink/include/mavlink/v2.0  -g   -o CMakeFiles/gSDK.dir/src/gimbal_protocol.cpp.o -c /home/ngminhle97/gSDK/src/gimbal_protocol.cpp",
+  "file": "/home/ngminhle97/gSDK/src/gimbal_protocol.cpp"
+},
+{
+  "directory": "/home/ngminhle97/gSDK/build",
+  "command": "/usr/bin/c++   -I/home/ngminhle97/gSDK -I/home/ngminhle97/gSDK/src -I/home/ngminhle97/gSDK/src/mavlink/include/mavlink/v2.0  -g   -o CMakeFiles/gSDK.dir/src/gimbal_protocol_v1.cpp.o -c /home/ngminhle97/gSDK/src/gimbal_protocol_v1.cpp",
+  "file": "/home/ngminhle97/gSDK/src/gimbal_protocol_v1.cpp"
+},
+{
+  "directory": "/home/ngminhle97/gSDK/build",
+  "command": "/usr/bin/c++   -I/home/ngminhle97/gSDK -I/home/ngminhle97/gSDK/src -I/home/ngminhle97/gSDK/src/mavlink/include/mavlink/v2.0  -g   -o CMakeFiles/gSDK.dir/src/gimbal_protocol_v2.cpp.o -c /home/ngminhle97/gSDK/src/gimbal_protocol_v2.cpp",
+  "file": "/home/ngminhle97/gSDK/src/gimbal_protocol_v2.cpp"
+},
+{
+  "directory": "/home/ngminhle97/gSDK/build",
+  "command": "/usr/bin/c++   -I/home/ngminhle97/gSDK -I/home/ngminhle97/gSDK/src -I/home/ngminhle97/gSDK/src/mavlink/include/mavlink/v2.0  -g   -o CMakeFiles/gSDK.dir/src/serial_port.cpp.o -c /home/ngminhle97/gSDK/src/serial_port.cpp",
+  "file": "/home/ngminhle97/gSDK/src/serial_port.cpp"
+},
+{
+  "directory": "/home/ngminhle97/gSDK/build/examples/save_param_to_file",
+  "command": "/usr/bin/c++   -I/home/ngminhle97/gSDK -I/home/ngminhle97/gSDK/src -I/home/ngminhle97/gSDK/src/mavlink/include/mavlink/v2.0 -I/home/ngminhle97/gSDK/examples/save_param_to_file  -g   -o CMakeFiles/save_param_to_file.dir/save_param_to_file.cpp.o -c /home/ngminhle97/gSDK/examples/save_param_to_file/save_param_to_file.cpp",
+  "file": "/home/ngminhle97/gSDK/examples/save_param_to_file/save_param_to_file.cpp"
+},
+{
+  "directory": "/home/ngminhle97/gSDK/build/examples/save_param_to_file",
+  "command": "/usr/bin/c++   -I/home/ngminhle97/gSDK -I/home/ngminhle97/gSDK/src -I/home/ngminhle97/gSDK/src/mavlink/include/mavlink/v2.0 -I/home/ngminhle97/gSDK/examples/save_param_to_file  -g   -o CMakeFiles/save_param_to_file.dir/__/__/src/gimbal_interface.cpp.o -c /home/ngminhle97/gSDK/src/gimbal_interface.cpp",
+  "file": "/home/ngminhle97/gSDK/src/gimbal_interface.cpp"
+},
+{
+  "directory": "/home/ngminhle97/gSDK/build/examples/save_param_to_file",
+  "command": "/usr/bin/c++   -I/home/ngminhle97/gSDK -I/home/ngminhle97/gSDK/src -I/home/ngminhle97/gSDK/src/mavlink/include/mavlink/v2.0 -I/home/ngminhle97/gSDK/examples/save_param_to_file  -g   -o CMakeFiles/save_param_to_file.dir/__/__/src/gimbal_protocol.cpp.o -c /home/ngminhle97/gSDK/src/gimbal_protocol.cpp",
+  "file": "/home/ngminhle97/gSDK/src/gimbal_protocol.cpp"
+},
+{
+  "directory": "/home/ngminhle97/gSDK/build/examples/save_param_to_file",
+  "command": "/usr/bin/c++   -I/home/ngminhle97/gSDK -I/home/ngminhle97/gSDK/src -I/home/ngminhle97/gSDK/src/mavlink/include/mavlink/v2.0 -I/home/ngminhle97/gSDK/examples/save_param_to_file  -g   -o CMakeFiles/save_param_to_file.dir/__/__/src/gimbal_protocol_v1.cpp.o -c /home/ngminhle97/gSDK/src/gimbal_protocol_v1.cpp",
+  "file": "/home/ngminhle97/gSDK/src/gimbal_protocol_v1.cpp"
+},
+{
+  "directory": "/home/ngminhle97/gSDK/build/examples/save_param_to_file",
+  "command": "/usr/bin/c++   -I/home/ngminhle97/gSDK -I/home/ngminhle97/gSDK/src -I/home/ngminhle97/gSDK/src/mavlink/include/mavlink/v2.0 -I/home/ngminhle97/gSDK/examples/save_param_to_file  -g   -o CMakeFiles/save_param_to_file.dir/__/__/src/gimbal_protocol_v2.cpp.o -c /home/ngminhle97/gSDK/src/gimbal_protocol_v2.cpp",
+  "file": "/home/ngminhle97/gSDK/src/gimbal_protocol_v2.cpp"
+},
+{
+  "directory": "/home/ngminhle97/gSDK/build/examples/save_param_to_file",
+  "command": "/usr/bin/c++   -I/home/ngminhle97/gSDK -I/home/ngminhle97/gSDK/src -I/home/ngminhle97/gSDK/src/mavlink/include/mavlink/v2.0 -I/home/ngminhle97/gSDK/examples/save_param_to_file  -g   -o CMakeFiles/save_param_to_file.dir/__/__/src/serial_port.cpp.o -c /home/ngminhle97/gSDK/src/serial_port.cpp",
+  "file": "/home/ngminhle97/gSDK/src/serial_port.cpp"
+}
+]
