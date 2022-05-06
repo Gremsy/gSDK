@@ -1252,9 +1252,21 @@ mavlink_helpers.h
 ../mavlink_get_info.h
 ../src/mavlink/include/mavlink/v2.0/mavlink_get_info.h
 
-/home/ngminhle97/gSDK/src/gimbal_protocol.cpp
-errno.h
+/home/ngminhle97/gSDK/src/gimbal_interface.cpp
+signal.h
 -
+time.h
+-
+sys/time.h
+-
+gimbal_protocol_v1.h
+/home/ngminhle97/gSDK/src/gimbal_protocol_v1.h
+gimbal_protocol_v2.h
+/home/ngminhle97/gSDK/src/gimbal_protocol_v2.h
+gimbal_interface.h
+/home/ngminhle97/gSDK/src/gimbal_interface.h
+
+/home/ngminhle97/gSDK/src/gimbal_interface.h
 gimbal_protocol.h
 /home/ngminhle97/gSDK/src/gimbal_protocol.h
 
@@ -1266,17 +1278,9 @@ serial_port.h
 ardupilotmega/mavlink.h
 -
 
-/home/ngminhle97/gSDK/src/gimbal_protocol_v1.cpp
-gimbal_protocol_v1.h
-/home/ngminhle97/gSDK/src/gimbal_protocol_v1.h
-
 /home/ngminhle97/gSDK/src/gimbal_protocol_v1.h
 gimbal_protocol.h
 /home/ngminhle97/gSDK/src/gimbal_protocol.h
-
-/home/ngminhle97/gSDK/src/gimbal_protocol_v2.cpp
-gimbal_protocol_v2.h
-/home/ngminhle97/gSDK/src/gimbal_protocol_v2.h
 
 /home/ngminhle97/gSDK/src/gimbal_protocol_v2.h
 gimbal_protocol.h

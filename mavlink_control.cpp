@@ -68,8 +68,7 @@ enum sdk_process_state_t {
 
 struct sdk_process_t {
     sdk_process_state_t state = STATE_IDLE;
-    uint64_t            last_time_send;
-    uint64_t            timeout;
+    uint64_t            timeout_ms;
 };
 
 /* Private variable ----------------------------------------------------------*/
@@ -151,13 +150,13 @@ int gGimbal_sample(int argc, char **argv)
     while (!gimbal_interface.get_flag_exit()) {
         if (gimbal_interface.present()) {
             // Reset time
-            sdk.timeout = get_time_usec();
+            sdk.timeout_ms = get_time_msec();
             // Sample control
             gGimbal_control_sample(gimbal_interface);
             // Uncomment line below to dispay sample value
             // gGimbal_displays(gimbal_interface);
 
-        } else if (get_time_usec() - sdk.timeout > 2000000) {
+        } else if (get_time_msec() - sdk.timeout_ms > 2000) {
             /* Reset state */
             sdk.state = STATE_IDLE;
         }
@@ -269,7 +268,6 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
     switch (sdk.state) {
         case STATE_IDLE: {
                 sdk.state = STATE_CHECK_FIRMWARE_VERSION;
-                sdk.last_time_send = get_time_usec();
             }
             break;
 
@@ -321,7 +319,7 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                 onboard.set_msg_attitude_status_rate(orien_rate);
                 printf("Set raw imu messgaes rate: %dHz\n", imu_rate);
                 onboard.set_msg_raw_imu_rate(imu_rate);
-                printf("Set gimbal send raw encoder value");
+                printf("Set gimbal send raw encoder value.\n");
                 onboard.set_gimbal_encoder_type_send(true);
 
                 if (onboard.request_gimbal_device_info() == Gimbal_Protocol::SUCCESS) {
@@ -340,7 +338,6 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                     // Turn off
                     if (onboard.set_gimbal_motor(Gimbal_Interface::TURN_OFF) == Gimbal_Protocol::SUCCESS) {
                         printf("TURN GIMBAL OFF Successfully!\n");
-                        sdk.last_time_send = get_time_usec();
                         sdk.state = STATE_SET_GIMBAL_ON;
 
                     } else {
@@ -348,7 +345,6 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                     }
 
                 } else if (onboard.get_gimbal_status().state == Gimbal_Interface::GIMBAL_STATE_OFF) {
-                    sdk.last_time_send = get_time_usec();
                     sdk.state = STATE_SET_GIMBAL_ON;
                 }
             }
@@ -360,7 +356,6 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                     // Turn on gimbal
                     if (onboard.set_gimbal_motor(Gimbal_Interface::TURN_ON) == Gimbal_Protocol::SUCCESS) {
                         printf("TURN GIMBAL ON Sucessfully!\n");
-                        sdk.last_time_send = get_time_usec();
                         sdk.state = STATE_SET_GIMBAL_FOLLOW_MODE;
 
                     } else {
@@ -368,7 +363,6 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                     }
 
                 } else if (onboard.get_gimbal_status().state == Gimbal_Interface::GIMBAL_STATE_ON) {
-                    sdk.last_time_send = get_time_usec();
                     sdk.state = STATE_SET_GIMBAL_FOLLOW_MODE;
                 }
             }
@@ -379,7 +373,6 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
 
                 if (res == Gimbal_Protocol::SUCCESS) {
                     printf("Set gimbal to FOLLOW MODE Successfully!\n");
-                    sdk.last_time_send = get_time_usec();
                     sdk.state = STATE_MOVE_GIMBAL_ANGLE_FOLLOW;
 
                 } else {
@@ -469,7 +462,6 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
 
                 if (res == Gimbal_Protocol::SUCCESS) {
                     printf("Set gimbal to LOCK MODE Successfully!\n");
-                    sdk.last_time_send = get_time_usec();
                     sdk.state = STATE_MOVE_GIMBAL_ANGLE_LOCK;
 
                 } else {
@@ -579,7 +571,6 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
 
                 if (res == Gimbal_Protocol::SUCCESS) {
                     printf("Set gimbal to FOLLOW MODE Successfully!\n");
-                    sdk.last_time_send = get_time_usec();
 
                 } else {
                     fprintf(stderr, "Could not set gimbal to FOLLOW MODE! Result code: %d\n", res);
@@ -611,7 +602,6 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
         case STATE_SET_GIMBAL_REBOOT: {
                 printf("STATE_SET_GIMBAL_REBOOT!\n");
                 if (onboard.set_gimbal_reboot() == Gimbal_Protocol::SUCCESS) {
-                    sdk.last_time_send = get_time_usec();
                     sdk.state = STATE_IDLE;
                 }
             }

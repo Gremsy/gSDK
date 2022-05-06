@@ -64,27 +64,27 @@ public:
      *
      */
     struct time_stamps_t {
-        uint64_t heartbeat          = 0;
-        uint64_t sys_status         = 0;
-        uint64_t mount_status       = 0;
-        uint64_t mount_orientation  = 0;
-        uint64_t attitude_status    = 0;
-        uint64_t raw_imu            = 0;
-        uint64_t gimbal_device_info = 0;
-        uint64_t command_ack        = 0;
-        uint64_t param              = 0;
+        uint64_t heartbeat          = UINT64_MAX;
+        uint64_t sys_status         = UINT64_MAX;
+        uint64_t mount_status       = UINT64_MAX;
+        uint64_t mount_orientation  = UINT64_MAX;
+        uint64_t attitude_status    = UINT64_MAX;
+        uint64_t raw_imu            = UINT64_MAX;
+        uint64_t gimbal_device_info = UINT64_MAX;
+        uint64_t command_ack        = UINT64_MAX;
+        uint64_t param              = UINT64_MAX;
 
         void reset_timestamps()
         {
-            heartbeat          = 0;
-            sys_status         = 0;
-            mount_status       = 0;
-            mount_orientation  = 0;
-            attitude_status    = 0;
-            raw_imu            = 0;
-            gimbal_device_info = 0;
-            command_ack        = 0;
-            param              = 0;
+            heartbeat          = UINT64_MAX;
+            sys_status         = UINT64_MAX;
+            mount_status       = UINT64_MAX;
+            mount_orientation  = UINT64_MAX;
+            attitude_status    = UINT64_MAX;
+            raw_imu            = UINT64_MAX;
+            gimbal_device_info = UINT64_MAX;
+            command_ack        = UINT64_MAX;
+            param              = UINT64_MAX;
         }
     };
 

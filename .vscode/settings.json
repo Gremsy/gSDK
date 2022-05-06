@@ -4,6 +4,17 @@
         "vector": "cpp",
         "*.tcc": "cpp",
         "functional": "cpp",
-        "random": "cpp"
+        "random": "cpp",
+        "istream": "cpp",
+        "cstdlib": "cpp",
+        "algorithm": "cpp",
+        "memory": "cpp",
+        "fstream": "cpp",
+        "initializer_list": "cpp",
+        "numeric": "cpp",
+        "ostream": "cpp",
+        "sstream": "cpp",
+        "streambuf": "cpp",
+        "array": "cpp"
     }
 }

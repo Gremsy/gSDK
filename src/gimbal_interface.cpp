@@ -110,13 +110,13 @@ uint64_t get_time_msec()
 Gimbal_Interface::Gimbal_Interface(Serial_Port *serial_port,
                                    uint8_t sysid /*= 1 */,
                                    uint8_t compid /*= MAV_COMP_ID_ONBOARD_COMPUTER */,
-                                   MAVLINK_PROTO proto /*= MAVLINK_GIMBAL_V2 */) :
-    _serial_port(serial_port)
+                                   MAVLINK_PROTO proto /*= MAVLINK_GIMBAL_V2 */)
 {
     // initialize attributes
     _system.sysid  = sysid;
     _system.compid = compid;
     _proto         = proto;
+    _serial_port   = serial_port;
 
     if (_proto == MAVLINK_GIMBAL_V1) {
         _gimbal_proto = new Gimbal_Protocol_V1(serial_port, _system);
@@ -161,7 +161,6 @@ void Gimbal_Interface::read_messages()
             // Handle Message ID
             switch (message.msgid) {
                 case MAVLINK_MSG_ID_HEARTBEAT: {
-                        // printf("MAVLINK_MSG_ID_HEARTBEAT\n");
                         mavlink_msg_heartbeat_decode(&message, &_messages.heartbeat);
                         _messages.time_stamps.heartbeat = get_time_usec();
 
@@ -174,7 +173,7 @@ void Gimbal_Interface::read_messages()
                                 _gimbal_proto->initialize(_gimbal);
                             }
 
-                            has_detected   = true;
+                            has_detected = true;
                         }
 
                         break;
@@ -226,8 +225,8 @@ void Gimbal_Interface::read_messages()
                         mavlink_msg_gimbal_device_information_decode(&message, &_messages.gimbal_device_info);
                         _messages.time_stamps.gimbal_device_info = get_time_usec();
                         printf("GET GIMBAL DEVICE: \n");
-                        printf("Vendor name: %s", _messages.gimbal_device_info.vendor_name);
-                        printf("Model name: %s", _messages.gimbal_device_info.model_name);
+                        printf("Vendor name: %s\n", _messages.gimbal_device_info.vendor_name);
+                        printf("Model name: %s\n", _messages.gimbal_device_info.model_name);
                         break;
                     }
 
@@ -239,7 +238,7 @@ void Gimbal_Interface::read_messages()
                         if (_gimbal_proto != nullptr) {
                             _gimbal_proto->command_ack_callback(message);
                         }
-                        
+
                         break;
                     }
 
@@ -286,10 +285,8 @@ void Gimbal_Interface::read_messages()
             } // end: switch msgid
         } // end: if read message
 
-        usleep(1000);   // sleep 1ms
+        usleep(100);   // sleep 100us
     } // end: while not received all
-
-    return;
 }
 
 // ------------------------------------------------------------------------------
@@ -413,7 +410,7 @@ void Gimbal_Interface::param_update()
                 if (request_param((param_index_t)i) == Gimbal_Protocol::SUCCESS) {
                     _last_request_ms = tnow_ms;
                     _params_list[i].fetch_attempts++;
-                    break;
+                    return;
                 }
             }
         }
@@ -426,7 +423,7 @@ void Gimbal_Interface::param_update()
                 _params_list[i].state = PARAM_STATE_FETCH_AGAIN;
                 _params_list[i].seen  = false;
                 _last_set_ms = tnow_ms;
-                break;
+                return;
             }
         }
     }
@@ -455,13 +452,15 @@ void Gimbal_Interface::param_process(void)
             reset_params();
             printf("GIMBAL_STATE_NOT_PRESENT\n");
 
-            if (request_param_list() == Gimbal_Protocol::SUCCESS) {
+            if (get_connection() && request_param_list() == Gimbal_Protocol::SUCCESS) {
                 _state = GIMBAL_STATE_PRESENT_IDLING;
             }
 
             break;
 
         case GIMBAL_STATE_PRESENT_IDLING:
+            printf("GIMBAL_STATE_PRESENT_IDLING\n");
+
             if (get_time_usec() - _messages.time_stamps.param > 500000) {
                 _state = GIMBAL_STATE_PRESENT_INITIALIZING;
             }
@@ -469,6 +468,7 @@ void Gimbal_Interface::param_process(void)
             break;
 
         case GIMBAL_STATE_PRESENT_INITIALIZING:
+            printf("GIMBAL_STATE_PRESENT_INITIALIZING\n");
             param_update();
 
             // // parameters done initializing,
@@ -483,10 +483,10 @@ void Gimbal_Interface::param_process(void)
             break;
 
         case GIMBAL_STATE_PRESENT_ALIGNING:
+            printf("GIMBAL_STATE_PRESENT_ALIGNING\n");
             param_update();
 
             if (_messages.sys_status.errors_count2 == 0x00) {
-                printf("GIMBAL_STATE_PRESENT_RUNNING\n");
                 _state = GIMBAL_STATE_PRESENT_RUNNING;
 
             } else {
@@ -1411,6 +1411,8 @@ void Gimbal_Interface::write_heartbeat(void)
     mavlink_message_t message = { 0 };
     mavlink_msg_heartbeat_encode(_system.sysid, _system.compid, &message, &heartbeat);
 
+    printf("HEARTBEAT\n");
+
     // --------------------------------------------------------------------------
     //   WRITE
     // --------------------------------------------------------------------------
@@ -1433,8 +1435,8 @@ void Gimbal_Interface::start()
             fprintf(stderr, "ERROR: serial port not open\n");
             throw 1;
         }
-    } {
 
+    } else {
         fprintf(stderr, "ERROR: serial port not exist\n");
         throw 1;
     }
@@ -1480,7 +1482,6 @@ void Gimbal_Interface::start()
     // We know the gimbal is sending messages
     printf("\n");
     // Done!
-    return;
 }
 
 // ------------------------------------------------------------------------------
@@ -1564,7 +1565,7 @@ bool Gimbal_Interface::get_connection(void)
 
 bool Gimbal_Interface::present()
 {
-    uint32_t timeout = get_time_usec() - _messages.time_stamps.heartbeat;
+    uint64_t timeout = get_time_usec() - _messages.time_stamps.heartbeat;
 
     // Check time out
     if (_state != GIMBAL_STATE_NOT_PRESENT && timeout > _TIME_LOST_CONNECT) {
@@ -1583,12 +1584,7 @@ bool Gimbal_Interface::present()
 void Gimbal_Interface::read_thread(void)
 {
     reading_status = true;
-
-    while (!time_to_exit) {
-        read_messages();
-        usleep(1000); // Read batches at 1kHz
-    }
-
+    read_messages();
     reading_status = false;
 }
 
@@ -1598,30 +1594,31 @@ void Gimbal_Interface::read_thread(void)
 void Gimbal_Interface::write_thread(void)
 {
     writing_status = true;
-    uint32_t tnow_ms = 0;
-    uint32_t time_send_param = 0, time_send_heartbeat = 0;
+    uint64_t tnow_ms = 0;
+    uint64_t time_send_param_ms = 0, time_send_heartbeat_ms = 0;
 
     // Blocking wait for new data
     while (!time_to_exit) {
-        tnow_ms = get_time_usec();
-        // signal startup
-        writing_status = true;
+        tnow_ms = get_time_msec();
 
-        if (tnow_ms - time_send_heartbeat > 1000000) {
-            time_send_heartbeat = get_time_usec();
+        if (tnow_ms - time_send_heartbeat_ms > 1000) {
+            time_send_heartbeat_ms = get_time_msec();
             // write a message and signal writing
             write_heartbeat();
 
-        } else if (tnow_ms - time_send_param > 500000) {
-            time_send_param = get_time_usec();
+        } else if (tnow_ms - time_send_param_ms > 500) {
+            time_send_param_ms = get_time_msec();
             // Process check param
             param_process();
         }
 
-        // signal end
-        writing_status = false;
-        usleep(500000);
+        // fprintf(stderr, "\t tnow %ld, t_heartbeat %ld, t_param %ld\n", tnow_ms, time_send_heartbeat_ms, time_send_param_ms);
+
+        usleep(1000);
     }
+
+    // signal end
+    writing_status = false;
 }
 
 // End Gimbal_Interface

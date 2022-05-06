@@ -37,10 +37,10 @@
 
 Gimbal_Protocol::Gimbal_Protocol(Serial_Port *serial_port,
                                  const mavlink_system_t &system) :
-    _serial_port(serial_port),
     _system(system),
     _attitude()
 {
+    _serial_port = serial_port;
     pthread_mutex_init(&_mutex, NULL);
     pthread_cond_init(&_condition, NULL);
 }

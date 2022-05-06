@@ -51,6 +51,7 @@
 //   Includes
 // ------------------------------------------------------------------------------
 
+#include <sys/ioctl.h> //ioctl() call defenitions
 #include "serial_port.h"
 
 // ----------------------------------------------------------------------------------
@@ -101,8 +102,8 @@ void Serial_Port::initialize_defaults()
 int Serial_Port::read_message(mavlink_message_t &message)
 {
     uint8_t          cp;
-    mavlink_status_t status      = { 0 };
-    uint8_t          msgReceived = false;
+    static  mavlink_status_t status = { 0 };
+    uint8_t msgReceived             = false;
     // --------------------------------------------------------------------------
     //   READ FROM PORT
     // --------------------------------------------------------------------------
@@ -168,7 +169,7 @@ int Serial_Port::read_message(mavlink_message_t &message)
 // ------------------------------------------------------------------------------
 int Serial_Port::write_message(const mavlink_message_t &message)
 {
-    char buf[MAVLINK_MAX_PACKET_LEN] = { 0 };
+    char buf[300] = { 0 };
     // Translate message to buffer
     unsigned len = mavlink_msg_to_send_buffer((uint8_t *)buf, &message);
     // Write buffer to serial port, locks port while writing
@@ -219,6 +220,21 @@ void Serial_Port::open_serial()
     // --------------------------------------------------------------------------
     printf("Connected to %s with %d baud, 8 data bits, no parity, 1 stop bit (8N1)\n", uart_name, baudrate);
     lastStatus.packet_rx_drop_count = 0;
+    // --------------------------------------------------------------------------
+    //   CONTROL DTR & RTS
+    // --------------------------------------------------------------------------
+    int RTS_flag;
+    int DTR_flag;
+    RTS_flag = TIOCM_RTS;
+    DTR_flag = TIOCM_DTR;
+    ioctl(fd, TIOCMBIS, &DTR_flag); //Set DTR pin
+    ioctl(fd, TIOCMBIC, &RTS_flag); //clear RTS pin
+    //getchar();
+    usleep(1000000);
+    ioctl(fd, TIOCMBIC, &DTR_flag); //Clear DTR pin
+    // --------------------------------------------------------------------------
+    //   FOOTER
+    // --------------------------------------------------------------------------
     status = true;
     printf("\n");
     return;
