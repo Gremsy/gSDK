@@ -60,10 +60,10 @@ class Gimbal_Interface
 public:
 
     /**
-     * @brief Messages time stamps
+     * @brief Messages timestamps
      *
      */
-    struct time_stamps_t {
+    struct timestamps_t {
         uint64_t heartbeat          = UINT64_MAX;
         uint64_t sys_status         = UINT64_MAX;
         uint64_t mount_status       = UINT64_MAX;
@@ -324,11 +324,11 @@ public:
     attitude<int16_t> get_gimbal_encoder(void);
 
     /**
-     * @brief  This function get gimbal time stamps
+     * @brief  This function get gimbal timestamps
      * @param: None
      * @ret: Gimbal status
      */
-    time_stamps_t get_gimbal_time_stamps(void);
+    timestamps_t get_gimbal_timestamps(void);
 
     /**
      * @brief  This function get the firmware version from gimbal
@@ -591,12 +591,12 @@ private:
         // Raw IMU
         mavlink_raw_imu_t raw_imu = { 0 };
 
-        // Time Stamps
-        time_stamps_t time_stamps;
+        // timestamps
+        timestamps_t timestamps;
 
         void reset_timestamps()
         {
-            time_stamps.reset_timestamps();
+            timestamps.reset_timestamps();
         }
     };
 

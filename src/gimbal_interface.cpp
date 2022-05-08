@@ -84,16 +84,16 @@ enum status2_t {
 // ------------------- ---------------------------------------------------------------
 uint64_t get_time_usec()
 {
-    static struct timeval _time_stamp;
-    gettimeofday(&_time_stamp, NULL);
-    return _time_stamp.tv_sec * 1000000 + _time_stamp.tv_usec;
+    static struct timeval _timestamp;
+    gettimeofday(&_timestamp, NULL);
+    return _timestamp.tv_sec * 1000000 + _timestamp.tv_usec;
 }
 
 uint64_t get_time_msec()
 {
-    static struct timeval _time_stamp;
-    gettimeofday(&_time_stamp, NULL);
-    return _time_stamp.tv_sec * 1000 + _time_stamp.tv_usec / 1000;
+    static struct timeval _timestamp;
+    gettimeofday(&_timestamp, NULL);
+    return _timestamp.tv_sec * 1000 + _timestamp.tv_usec / 1000;
 }
 
 // ------------------------------------------------------------------------------
@@ -162,7 +162,7 @@ void Gimbal_Interface::read_messages()
             switch (message.msgid) {
                 case MAVLINK_MSG_ID_HEARTBEAT: {
                         mavlink_msg_heartbeat_decode(&message, &_messages.heartbeat);
-                        _messages.time_stamps.heartbeat = get_time_usec();
+                        _messages.timestamps.heartbeat = get_time_usec();
 
                         if (has_detected == false) {
                             // Store message sysid and compid.
@@ -181,19 +181,19 @@ void Gimbal_Interface::read_messages()
 
                 case MAVLINK_MSG_ID_SYS_STATUS: {
                         mavlink_msg_sys_status_decode(&message, &_messages.sys_status);
-                        _messages.time_stamps.sys_status = get_time_usec();
+                        _messages.timestamps.sys_status = get_time_usec();
                         break;
                     }
 
                 case MAVLINK_MSG_ID_MOUNT_STATUS: {
                         mavlink_msg_mount_status_decode(&message, &_messages.mount_status);
-                        _messages.time_stamps.mount_status = get_time_usec();
+                        _messages.timestamps.mount_status = get_time_usec();
                         break;
                     }
 
                 case MAVLINK_MSG_ID_MOUNT_ORIENTATION: {
                         mavlink_msg_mount_orientation_decode(&message, &_messages.mount_orientation);
-                        _messages.time_stamps.mount_orientation = get_time_usec();
+                        _messages.timestamps.mount_orientation = get_time_usec();
 
                         if (_gimbal_proto != nullptr) {
                             _gimbal_proto->update_attitude(_messages.mount_orientation.pitch,
@@ -206,7 +206,7 @@ void Gimbal_Interface::read_messages()
 
                 case MAVLINK_MSG_ID_GIMBAL_DEVICE_ATTITUDE_STATUS: {
                         mavlink_msg_gimbal_device_attitude_status_decode(&message, &_messages.atttitude_status);
-                        _messages.time_stamps.attitude_status = get_time_usec();
+                        _messages.timestamps.attitude_status = get_time_usec();
 
                         if (_gimbal_proto != nullptr) {
                             _gimbal_proto->update_attitude(_messages.atttitude_status.q);
@@ -217,13 +217,13 @@ void Gimbal_Interface::read_messages()
 
                 case MAVLINK_MSG_ID_RAW_IMU: {
                         mavlink_msg_raw_imu_decode(&message, &_messages.raw_imu);
-                        _messages.time_stamps.raw_imu = get_time_usec();
+                        _messages.timestamps.raw_imu = get_time_usec();
                         break;
                     }
 
                 case MAVLINK_MSG_ID_GIMBAL_DEVICE_INFORMATION: {
                         mavlink_msg_gimbal_device_information_decode(&message, &_messages.gimbal_device_info);
-                        _messages.time_stamps.gimbal_device_info = get_time_usec();
+                        _messages.timestamps.gimbal_device_info = get_time_usec();
                         printf("GET GIMBAL DEVICE: \n");
                         printf("Vendor name: %s\n", _messages.gimbal_device_info.vendor_name);
                         printf("Model name: %s\n", _messages.gimbal_device_info.model_name);
@@ -233,7 +233,7 @@ void Gimbal_Interface::read_messages()
                 case MAVLINK_MSG_ID_COMMAND_ACK: {
                         mavlink_command_ack_t packet = { 0 };
                         mavlink_msg_command_ack_decode(&message, &packet);
-                        _messages.time_stamps.command_ack = get_time_usec();
+                        _messages.timestamps.command_ack = get_time_usec();
 
                         if (_gimbal_proto != nullptr) {
                             _gimbal_proto->command_ack_callback(message);
@@ -245,7 +245,7 @@ void Gimbal_Interface::read_messages()
                 case MAVLINK_MSG_ID_PARAM_VALUE: {
                         mavlink_param_value_t packet = { 0 };
                         mavlink_msg_param_value_decode(&message, &packet);
-                        _messages.time_stamps.param = get_time_usec();
+                        _messages.timestamps.param = get_time_usec();
 
                         for (uint8_t i = 0; i < GIMBAL_NUM_TRACKED_PARAMS; i++) {
                             // Compare the index from gimbal with the param list
@@ -461,7 +461,7 @@ void Gimbal_Interface::param_process(void)
         case GIMBAL_STATE_PRESENT_IDLING:
             printf("GIMBAL_STATE_PRESENT_IDLING\n");
 
-            if (get_time_usec() - _messages.time_stamps.param > 500000) {
+            if (get_time_usec() - _messages.timestamps.param > 500000) {
                 _state = GIMBAL_STATE_PRESENT_INITIALIZING;
             }
 
@@ -961,9 +961,9 @@ Gimbal_Interface::gimbal_config_axis_t Gimbal_Interface::get_gimbal_config_roll_
 Gimbal_Interface::gimbal_status_t Gimbal_Interface::get_gimbal_status(void)
 {
     /* Check gimbal status has changed*/
-    if (_messages.time_stamps.sys_status) {
-        /* Reset time stamps */
-        _messages.time_stamps.sys_status = 0;
+    if (_messages.timestamps.sys_status) {
+        /* Reset timestamps */
+        _messages.timestamps.sys_status = 0;
         // Get gimbal status
         uint16_t errors_count1 = _messages.sys_status.errors_count1;
         uint16_t errors_count2 = _messages.sys_status.errors_count2;
@@ -1028,9 +1028,9 @@ Gimbal_Interface::gimbal_status_t Gimbal_Interface::get_gimbal_status(void)
 Gimbal_Interface::imu_t Gimbal_Interface::get_gimbal_raw_imu(void)
 {
     /* Check gimbal imu value has changed*/
-    if (_messages.time_stamps.raw_imu) {
-        /* Reset time stamps */
-        _messages.time_stamps.raw_imu = 0;
+    if (_messages.timestamps.raw_imu) {
+        /* Reset timestamps */
+        _messages.timestamps.raw_imu = 0;
         const mavlink_raw_imu_t &raw = _messages.raw_imu;
         return imu_t(vector3<int16_t>(raw.xacc, raw.yacc, raw.zacc), vector3<int16_t>(raw.xgyro, raw.ygyro, raw.zgyro));
     }
@@ -1047,18 +1047,18 @@ attitude<float> Gimbal_Interface::get_gimbal_attitude(void)
 {
     if (_proto == MAVLINK_GIMBAL_V1) {
         /* Check gimbal status has changed*/
-        if (_messages.time_stamps.mount_orientation) {
-            /* Reset time stamps */
-            _messages.time_stamps.mount_orientation = 0;
+        if (_messages.timestamps.mount_orientation) {
+            /* Reset timestamps */
+            _messages.timestamps.mount_orientation = 0;
             const mavlink_mount_orientation_t &orient = _messages.mount_orientation;
             return attitude<float>(orient.roll, orient.pitch, orient.yaw);
         }
 
     } else {
         /* Check gimbal status has changed*/
-        if (_messages.time_stamps.attitude_status) {
-            /* Reset time stamps */
-            _messages.time_stamps.attitude_status = 0;
+        if (_messages.timestamps.attitude_status) {
+            /* Reset timestamps */
+            _messages.timestamps.attitude_status = 0;
             const mavlink_gimbal_device_attitude_status_t &status = _messages.atttitude_status;
             attitude<float> attitude;
             mavlink_quaternion_to_euler(status.q, &attitude.roll, &attitude.pitch, &attitude.yaw);
@@ -1077,9 +1077,9 @@ attitude<float> Gimbal_Interface::get_gimbal_attitude(void)
 attitude<int16_t> Gimbal_Interface::get_gimbal_encoder(void)
 {
     /* Check gimbal encoder value has changed*/
-    if (_messages.time_stamps.mount_status) {
-        /* Reset time stamps */
-        _messages.time_stamps.mount_status = 0;
+    if (_messages.timestamps.mount_status) {
+        /* Reset timestamps */
+        _messages.timestamps.mount_status = 0;
         const mavlink_mount_status_t &mount = _messages.mount_status;
         return attitude<int16_t>(mount.pointing_b, mount.pointing_a, mount.pointing_c);
     }
@@ -1088,13 +1088,13 @@ attitude<int16_t> Gimbal_Interface::get_gimbal_encoder(void)
 }
 
 /**
- * @brief  This function get gimbal time stamps
+ * @brief  This function get gimbal timestamps
  * @param: None
  * @ret: Gimbal status
  */
-Gimbal_Interface::time_stamps_t Gimbal_Interface::get_gimbal_time_stamps(void)
+Gimbal_Interface::timestamps_t Gimbal_Interface::get_gimbal_timestamps(void)
 {
-    return _messages.time_stamps;
+    return _messages.timestamps;
 }
 
 /**
@@ -1551,7 +1551,7 @@ bool Gimbal_Interface::get_flag_exit(void)
 
 bool Gimbal_Interface::get_connection(void)
 {
-    uint64_t timeout = get_time_usec() - _messages.time_stamps.heartbeat;
+    uint64_t timeout = get_time_usec() - _messages.timestamps.heartbeat;
 
     // Check heartbeat from gimbal
     if (!has_detected && timeout > _TIME_LOST_CONNECT) {
@@ -1565,7 +1565,7 @@ bool Gimbal_Interface::get_connection(void)
 
 bool Gimbal_Interface::present()
 {
-    uint64_t timeout = get_time_usec() - _messages.time_stamps.heartbeat;
+    uint64_t timeout = get_time_usec() - _messages.timestamps.heartbeat;
 
     // Check time out
     if (_state != GIMBAL_STATE_NOT_PRESENT && timeout > _TIME_LOST_CONNECT) {
@@ -1575,7 +1575,7 @@ bool Gimbal_Interface::present()
         return false;
     }
 
-    return (_state != GIMBAL_STATE_NOT_PRESENT) && (_state == GIMBAL_STATE_PRESENT_RUNNING);
+    return _state == GIMBAL_STATE_PRESENT_RUNNING;
 }
 
 // ------------------------------------------------------------------------------
