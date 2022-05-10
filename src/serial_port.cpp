@@ -70,9 +70,9 @@ Serial_Port::Serial_Port(const char *uart_name_, int baudrate_)
 
 Serial_Port::Serial_Port()
 {
+    initialize_defaults();
     uart_name = (char *)"/dev/ttyUSB0";
     baudrate  = 115200;
-    initialize_defaults();
 }
 
 Serial_Port::~Serial_Port()
@@ -101,9 +101,9 @@ void Serial_Port::initialize_defaults()
 // ------------------------------------------------------------------------------
 int Serial_Port::read_message(mavlink_message_t &message)
 {
-    uint8_t          cp;
-    static  mavlink_status_t status = { 0 };
-    uint8_t msgReceived             = false;
+    uint8_t          cp          = 0;
+    mavlink_status_t mav_status      = { 0 };
+    uint8_t          msgReceived = false;
     // --------------------------------------------------------------------------
     //   READ FROM PORT
     // --------------------------------------------------------------------------
@@ -115,16 +115,16 @@ int Serial_Port::read_message(mavlink_message_t &message)
     // --------------------------------------------------------------------------
     if (result > 0) {
         // the parsing
-        msgReceived = mavlink_parse_char(MAVLINK_COMM_1, cp, &message, &status);
+        msgReceived = mavlink_parse_char(MAVLINK_COMM_1, cp, &message, &mav_status);
 
         // check for dropped packets
-        if ( (lastStatus.packet_rx_drop_count != status.packet_rx_drop_count) && debug ) {
-            printf("ERROR: DROPPED %d PACKETS\n", status.packet_rx_drop_count);
+        if ( (lastStatus.packet_rx_drop_count != mav_status.packet_rx_drop_count) && debug ) {
+            printf("ERROR: DROPPED %d PACKETS\n", mav_status.packet_rx_drop_count);
             unsigned char v = cp;
             fprintf(stderr, "%02x ", v);
         }
 
-        lastStatus = status;
+        lastStatus = mav_status;
     }
 
     // Couldn't read from port
@@ -223,21 +223,20 @@ void Serial_Port::open_serial()
     // --------------------------------------------------------------------------
     //   CONTROL DTR & RTS
     // --------------------------------------------------------------------------
-    int RTS_flag;
-    int DTR_flag;
-    RTS_flag = TIOCM_RTS;
-    DTR_flag = TIOCM_DTR;
-    ioctl(fd, TIOCMBIS, &DTR_flag); //Set DTR pin
-    ioctl(fd, TIOCMBIC, &RTS_flag); //clear RTS pin
-    //getchar();
-    usleep(1000000);
-    ioctl(fd, TIOCMBIC, &DTR_flag); //Clear DTR pin
+    // int RTS_flag;
+    // int DTR_flag;
+    // RTS_flag = TIOCM_RTS;
+    // DTR_flag = TIOCM_DTR;
+    // ioctl(fd, TIOCMBIS, &DTR_flag); //Set DTR pin
+    // ioctl(fd, TIOCMBIC, &RTS_flag); //clear RTS pin
+    // //getchar();
+    // usleep(1000000);
+    // ioctl(fd, TIOCMBIC, &DTR_flag); //Clear DTR pin
     // --------------------------------------------------------------------------
     //   FOOTER
     // --------------------------------------------------------------------------
-    status = true;
+    status = SERIAL_PORT_OPEN;
     printf("\n");
-    return;
 }
 
 // ------------------------------------------------------------------------------
@@ -252,7 +251,7 @@ void Serial_Port::close_serial()
         fprintf(stderr, "WARNING: Error on port close (%i)\n", result );
     }
 
-    status = false;
+    status = SERIAL_PORT_CLOSED;
     printf("\n");
 }
 
@@ -455,10 +454,10 @@ bool Serial_Port::_setup_port(int baud, int data_bits, int stop_bits, bool parit
 int Serial_Port::_read_port(uint8_t &cp)
 {
     // Lock
-    pthread_mutex_lock(&lock);
+    // pthread_mutex_lock(&lock);
     int result = read(fd, &cp, 1);
     // Unlock
-    pthread_mutex_unlock(&lock);
+    // pthread_mutex_unlock(&lock);
     return result;
 }
 
@@ -468,12 +467,12 @@ int Serial_Port::_read_port(uint8_t &cp)
 int Serial_Port::_write_port(const char *buf, unsigned len)
 {
     // Lock
-    pthread_mutex_lock(&lock);
+    // pthread_mutex_lock(&lock);
     // Write packet via serial link
     const int bytesWritten = static_cast<int>(write(fd, buf, len));
     // Wait until all data has been written
     tcdrain(fd);
     // Unlock
-    pthread_mutex_unlock(&lock);
+    // pthread_mutex_unlock(&lock);
     return bytesWritten;
 }

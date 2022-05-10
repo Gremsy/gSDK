@@ -81,9 +81,9 @@
 
 
 // Status flags
-#define SERIAL_PORT_OPEN   1;
-#define SERIAL_PORT_CLOSED 0;
-#define SERIAL_PORT_ERROR -1;
+#define SERIAL_PORT_OPEN   1
+#define SERIAL_PORT_CLOSED 0
+#define SERIAL_PORT_ERROR -1
 
 
 // ------------------------------------------------------------------------------

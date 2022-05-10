@@ -198,6 +198,30 @@ public:
             accel(_a), gyro(_g) {};
     };
 
+    /**
+     * @brief Gimbal remote controller type
+     * 
+     */
+    enum rc_type_t {
+        RC_TYPE_SBUS_FASST = 1,
+        RC_TYPE_SBUS_SFHSS = 13,
+
+        RC_TYPE_JOY        = 2,
+
+        RC_TYPE_JR_11BIT   = 4,
+        RC_TYPE_JR_10BIT   = 5,
+
+        RC_TYPE_PPM        = 6,
+
+        RC_TYPE_SYNC       = 7,
+        RC_TYPE_SYNC2      = 12,
+
+        RC_TYPE_LB2_SINGLE = 10,
+        RC_TYPE_LB2_NORMAL = 11,
+
+        RC_TYPE_HERELINK   = 14,
+    };
+
     Gimbal_Interface() = delete;
 
     /**
@@ -551,6 +575,14 @@ public:
      */
     limit_angle_t get_limit_angle_roll(void);
 
+    /**
+     * @brief Set the external RC type
+     * @param type rc type
+     * 
+     * @return Gimbal_Protocol::result_t 
+     */
+    Gimbal_Protocol::result_t set_rc_type(rc_type_t type);
+
 private:
 
     /**
@@ -598,6 +630,12 @@ private:
         {
             timestamps.reset_timestamps();
         }
+    };
+
+    enum serial_thread_status_t {
+        THREAD_NOT_INIT = 0,
+        THREAD_RUNNING,
+        THREAD_IDLING,        
     };
 
     /**
@@ -673,6 +711,8 @@ private:
         GMB_PARAM_MIN_LIMIT_ANGLE_YAW,
         GMB_PARAM_MAX_LIMIT_ANGLE_YAW,
 
+        GMB_PARAM_RC_TYPE,
+
         GIMBAL_NUM_TRACKED_PARAMS
     };
 
@@ -690,8 +730,8 @@ private:
     pthread_t read_tid  = 0;
     pthread_t write_tid = 0;
 
-    bool reading_status = false;
-    bool writing_status = false;
+    volatile serial_thread_status_t reading_status = THREAD_NOT_INIT;
+    volatile serial_thread_status_t writing_status = THREAD_NOT_INIT;
 
     void read_messages();
     int write_message(const mavlink_message_t &message);
@@ -792,57 +832,59 @@ private:
     } _params_list[GIMBAL_NUM_TRACKED_PARAMS] = {
 
         // Gimbal version
-        {0, "VERSION_X", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {67, "VERSION_Y", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {68, "VERSION_Z", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        { 0, "VERSION_X", 0, PARAM_STATE_NOT_YET_READ, 0, false },
+        { 67, "VERSION_Y", 0, PARAM_STATE_NOT_YET_READ, 0, false },
+        { 68, "VERSION_Z", 0, PARAM_STATE_NOT_YET_READ, 0, false },
 
         // Gimbal stiffness
-        {2, "PITCH_P", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {5, "ROLL_P", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {8, "YAW_P", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        { 2, "PITCH_P", 0, PARAM_STATE_NOT_YET_READ, 0, false },
+        { 5, "ROLL_P", 0, PARAM_STATE_NOT_YET_READ, 0, false },
+        { 8, "YAW_P", 0, PARAM_STATE_NOT_YET_READ, 0, false },
 
         // Gimbal hold strength
-        {11, "PITCH_POWER", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {12, "ROLL_POWER", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {13, "YAW_POWER", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        { 11, "PITCH_POWER", 0, PARAM_STATE_NOT_YET_READ, 0, false },
+        { 12, "ROLL_POWER", 0, PARAM_STATE_NOT_YET_READ, 0, false },
+        { 13, "YAW_POWER", 0, PARAM_STATE_NOT_YET_READ, 0, false },
 
-        {9, "YAW_I", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {29, "GYRO_LPF", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {3, "PITCH_I", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        { 9, "YAW_I", 0, PARAM_STATE_NOT_YET_READ, 0, false },
+        { 29, "GYRO_LPF", 0, PARAM_STATE_NOT_YET_READ, 0, false },
+        { 3, "PITCH_I", 0, PARAM_STATE_NOT_YET_READ, 0, false },
 
         // Gimbal speed follow
-        {14, "PITCH_FOLLOW", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {16, "YAW_FOLLOW", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        { 14, "PITCH_FOLLOW", 0, PARAM_STATE_NOT_YET_READ, 0, false },
+        { 16, "YAW_FOLLOW", 0, PARAM_STATE_NOT_YET_READ, 0, false },
 
         // Gimbal follow filter
-        {17, "PITCH_FILTER", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {19, "YAW_FILTER", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        { 17, "PITCH_FILTER", 0, PARAM_STATE_NOT_YET_READ, 0, false },
+        { 19, "YAW_FILTER", 0, PARAM_STATE_NOT_YET_READ, 0, false },
 
         // Gimbal follow windown
-        {57, "TILT_WINDOW", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {58, "PAN_WINDOW", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        { 57, "TILT_WINDOW", 0, PARAM_STATE_NOT_YET_READ, 0, false },
+        { 58, "PAN_WINDOW", 0, PARAM_STATE_NOT_YET_READ, 0, false },
 
         // Gimbal speed control
-        {60, "RC_PITCH_SPEED", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {61, "RC_ROLL_SPEED", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {62, "RC_YAW_SPEED", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        { 60, "RC_PITCH_SPEED", 0, PARAM_STATE_NOT_YET_READ, 0, false },
+        { 61, "RC_ROLL_SPEED", 0, PARAM_STATE_NOT_YET_READ, 0, false },
+        { 62, "RC_YAW_SPEED", 0, PARAM_STATE_NOT_YET_READ, 0, false },
 
         // Gimbal smooth control
-        {36, "RC_PITCH_LPF", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {37, "RC_ROLL_LPF", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {38, "RC_YAW_LPF", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        { 36, "RC_PITCH_LPF", 0, PARAM_STATE_NOT_YET_READ, 0, false },
+        { 37, "RC_ROLL_LPF", 0, PARAM_STATE_NOT_YET_READ, 0, false },
+        { 38, "RC_YAW_LPF", 0, PARAM_STATE_NOT_YET_READ, 0, false },
 
         // Direction
-        {63, "JOY_AXIS", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        { 63, "JOY_AXIS", 0, PARAM_STATE_NOT_YET_READ, 0, false },
 
-        {75, "ENC_TYPE_SEND", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        { 75, "ENC_TYPE_SEND", 0, PARAM_STATE_NOT_YET_READ, 0, false },
 
-        {30, "TRAVEL_MIN_PIT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {31, "TRAVEL_MAX_PIT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {32, "TRAVEL_MIN_ROLL", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {33, "TRAVEL_MAX_ROLL", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {69, "TRAVEL_MIN_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {70, "TRAVEL_MAX_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        { 30, "TRAVEL_MIN_PIT", 0, PARAM_STATE_NOT_YET_READ, 0, false },
+        { 31, "TRAVEL_MAX_PIT", 0, PARAM_STATE_NOT_YET_READ, 0, false },
+        { 32, "TRAVEL_MIN_ROLL", 0, PARAM_STATE_NOT_YET_READ, 0, false },
+        { 33, "TRAVEL_MAX_ROLL", 0, PARAM_STATE_NOT_YET_READ, 0, false },
+        { 69, "TRAVEL_MIN_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false },
+        { 70, "TRAVEL_MAX_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false },
+
+        { 28, "RADIO_TYPE", 0, PARAM_STATE_NOT_YET_READ, 0, false },
     };
 
     uint64_t _last_request_ms;

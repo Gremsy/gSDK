@@ -150,18 +150,17 @@ void Gimbal_Protocol::command_ack_callback(const mavlink_message_t &message)
         return;
     }
 
-    // Lock mutex
-    pthread_mutex_lock(&_mutex);
     // Reset ack
     memset(&_ack, 0, sizeof(mavlink_command_ack_t));
     mavlink_msg_command_ack_decode(&message, &_ack);
 
     if (_ack.target_system == _system.sysid && _ack.target_component == _system.compid) {
+        // Lock mutex
+        pthread_mutex_lock(&_mutex);
         pthread_cond_signal(&_condition);
+        // Unlock mutex
+        pthread_mutex_unlock(&_mutex);
     }
-
-    // Unlock mutex
-    pthread_mutex_unlock(&_mutex);
 }
 
 /**

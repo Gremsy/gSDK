@@ -15,6 +15,10 @@
         "ostream": "cpp",
         "sstream": "cpp",
         "streambuf": "cpp",
-        "array": "cpp"
+        "array": "cpp",
+        "bit": "cpp",
+        "deque": "cpp",
+        "string": "cpp",
+        "unordered_map": "cpp"
     }
 }

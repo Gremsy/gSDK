@@ -34,7 +34,7 @@
 /* Private define-------------------------------------------------------------*/
 
 /* Uncomment line below to use MAVLink Gimbal Protocol V1 */
-// #define _USE_MAVLINK_GIMBAL_V1
+#define _USE_MAVLINK_GIMBAL_V1
 
 /* Private Typedef------------------------------------------------------------*/
 
@@ -291,11 +291,11 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
         case STATE_SETTING_GIMBAL: {
                 // Setting axis for control. see the struct gimbal_config_axis_t
                 Gimbal_Interface::gimbal_config_axis_t config = { 0 };
-                config = { Gimbal_Interface::DIR_CCW, 50, 20, 100, 20, 2 };   // Tilt
+                config = { Gimbal_Interface::DIR_CW, 50, 20, 100, 20, 2 };   // Tilt
                 onboard.set_gimbal_config_tilt_axis(config);
-                config = { Gimbal_Interface::DIR_CCW, 50, 20, 0, 0, 2 };    // Roll
+                config = { Gimbal_Interface::DIR_CW, 50, 20, 0, 0, 2 };    // Roll
                 onboard.set_gimbal_config_roll_axis(config);
-                config = { Gimbal_Interface::DIR_CCW, 50, 20, 100, 20, 2 };  // Yaw
+                config = { Gimbal_Interface::DIR_CW, 50, 20, 100, 20, 2 };  // Yaw
                 onboard.set_gimbal_config_pan_axis(config);
                 // Motor control likes: Stiffness, holdstrength, gyro filter, output filter and gain
                 // Uncomment block below to configure gimbal motor
@@ -321,14 +321,9 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                 onboard.set_msg_raw_imu_rate(imu_rate);
                 printf("Set gimbal send raw encoder value.\n");
                 onboard.set_gimbal_encoder_type_send(true);
-
-                if (onboard.request_gimbal_device_info() == Gimbal_Protocol::SUCCESS) {
-                    printf("Request gimbal device information successfully!\n");
-                    sdk.state = STATE_SET_GIMBAL_OFF;
-
-                } else {
-                    fprintf(stderr, "Could not request gimbal device information!\n");
-                }
+                printf("Request gimbal device information.\n");
+                onboard.request_gimbal_device_info();
+                sdk.state = STATE_SET_GIMBAL_FOLLOW_MODE;
             }
             break;
 
@@ -356,6 +351,12 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                     // Turn on gimbal
                     if (onboard.set_gimbal_motor(Gimbal_Interface::TURN_ON) == Gimbal_Protocol::SUCCESS) {
                         printf("TURN GIMBAL ON Sucessfully!\n");
+
+                        /* Wait for gimbal stablizing */
+                        while (onboard.get_gimbal_status().mode != Gimbal_Interface::GIMBAL_STATE_FOLLOW_MODE) {
+                            usleep(1000);
+                        }
+
                         sdk.state = STATE_SET_GIMBAL_FOLLOW_MODE;
 
                     } else {
@@ -412,46 +413,52 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
         case STATE_MOVE_GIMBAL_RATE_FOLLOW: {
                 attitude<float> attitude;
                 printf("\tReturn home\n");
-                Gimbal_Protocol::result_t res = onboard.set_gimbal_reset_mode(Gimbal_Protocol::GIMBAL_RESET_MODE_PITCH_AND_YAW);
+                Gimbal_Protocol::result_t res = Gimbal_Protocol::UNKNOWN;
 
-                if (res == Gimbal_Protocol::SUCCESS) {
-                    /* Wait for returning home */
-                    do {
-                        usleep(500000);
-                    } while (fabsf(attitude.pitch) > 0.1f &&
-                             fabsf(attitude.roll) > 0.1f &&
-                             fabsf(attitude.yaw) > 0.1f);
-
-                } else {
+                do {
+                    usleep(500000);
+                    res = onboard.set_gimbal_reset_mode(Gimbal_Protocol::GIMBAL_RESET_MODE_PITCH_AND_YAW);
                     fprintf(stderr, "\tCoudld not return home! Result code: %d\n", res);
-                    break;
-                }
+                } while (res != Gimbal_Protocol::SUCCESS);
 
-                float pitch_rate = 1.f;
+                /* Wait for returning home */
+                do {
+                    usleep(500000);
+                } while (fabsf(attitude.pitch) > 0.1f &&
+                            fabsf(attitude.roll) > 0.1f &&
+                            fabsf(attitude.yaw) > 0.1f);
+                
+                float pitch_rate = 10.f;
                 printf("\tGimbal pitch up at rate %.2fdeg/s\n", pitch_rate);
-                res = onboard.set_gimbal_rotation_rate_sync(pitch_rate, 0.f, 0.f);
 
-                if (res == Gimbal_Protocol::SUCCESS) {
-                    usleep(5000000);    // Move in 5s
-                    onboard.set_gimbal_rotation_rate_sync(0.f, 0.f, 0.f);   // Stop
+                /* Send command move */
+                do {
+                    usleep(500000);
+                    res = onboard.set_gimbal_rotation_rate_sync(pitch_rate, 0.f, 0.f);
+                } while (res != Gimbal_Protocol::SUCCESS);
 
-                } else {
-                    fprintf(stderr, "\tCoudld not control pitch rate! Result code: %d\n", res);
-                    break;
-                }
+                usleep(5000000);    // Move in 5s
 
-                float yaw_rate = 1.f;
+                /* Stop moving */
+                do {
+                    usleep(500000);
+                    res = onboard.set_gimbal_rotation_rate_sync(0.f, 0.f, 0.f);
+                } while (res != Gimbal_Protocol::SUCCESS);
+                
+                float yaw_rate = 10.f;
                 printf("\tGimbal yaw right at rate %.2fdeg/s\n", yaw_rate);
-                res = onboard.set_gimbal_rotation_rate_sync(0.f, 0.f, yaw_rate);
+                
+                /* Send command move */
+                do {
+                    usleep(500000);
+                    res = onboard.set_gimbal_rotation_rate_sync(0.f, 0.f, yaw_rate);
+                } while (res != Gimbal_Protocol::SUCCESS);
 
-                if (res == Gimbal_Protocol::SUCCESS) {
-                    usleep(5000000);    // Move in 5s
-                    onboard.set_gimbal_rotation_rate_sync(0.f, 0.f, 0.f);   // Stop
-
-                } else {
-                    fprintf(stderr, "\tCoudld not control yaw rate! Result code: %d\n", res);
-                    break;
-                }
+                /* Stop moving */
+                do {
+                    usleep(500000);
+                    res = onboard.set_gimbal_rotation_rate_sync(0.f, 0.f, 0.f);
+                } while (res != Gimbal_Protocol::SUCCESS);
 
                 sdk.state = STATE_SET_GIMBAL_LOCK_MODE;
             }
@@ -501,46 +508,52 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
         case STATE_MOVE_GIMBAL_RATE_LOCK: {
                 attitude<float> attitude;
                 printf("\tReturn home\n");
-                Gimbal_Protocol::result_t res = onboard.set_gimbal_reset_mode(Gimbal_Protocol::GIMBAL_RESET_MODE_PITCH_AND_YAW);
+                Gimbal_Protocol::result_t res = Gimbal_Protocol::UNKNOWN;
 
-                if (res == Gimbal_Protocol::SUCCESS) {
-                    /* Wait for returning home */
-                    do {
-                        usleep(500000);
-                    } while (fabsf(attitude.pitch) > 0.1f &&
-                             fabsf(attitude.roll) > 0.1f &&
-                             fabsf(attitude.yaw) > 0.1f);
-
-                } else {
+                do {
+                    usleep(500000);
+                    res = onboard.set_gimbal_reset_mode(Gimbal_Protocol::GIMBAL_RESET_MODE_PITCH_AND_YAW);
                     fprintf(stderr, "\tCoudld not return home! Result code: %d\n", res);
-                    break;
-                }
+                } while (res != Gimbal_Protocol::SUCCESS);
 
-                float pitch_rate = 1.f;
+                /* Wait for returning home */
+                do {
+                    usleep(500000);
+                } while (fabsf(attitude.pitch) > 0.1f &&
+                            fabsf(attitude.roll) > 0.1f &&
+                            fabsf(attitude.yaw) > 0.1f);
+                
+                float pitch_rate = 10.f;
                 printf("\tGimbal pitch up at rate %.2fdeg/s\n", pitch_rate);
-                res = onboard.set_gimbal_rotation_rate_sync(pitch_rate, 0.f, 0.f);
 
-                if (res == Gimbal_Protocol::SUCCESS) {
-                    usleep(5000000);    // Move in 5s
-                    onboard.set_gimbal_rotation_rate_sync(0.f, 0.f, 0.f);   // Stop
+                /* Send command move */
+                do {
+                    usleep(500000);
+                    res = onboard.set_gimbal_rotation_rate_sync(pitch_rate, 0.f, 0.f);
+                } while (res != Gimbal_Protocol::SUCCESS);
 
-                } else {
-                    fprintf(stderr, "\tCoudld not control pitch rate! Result code: %d\n", res);
-                    break;
-                }
+                usleep(5000000);    // Move in 5s
 
-                float yaw_rate = 1.f;
+                /* Stop moving */
+                do {
+                    usleep(500000);
+                    res = onboard.set_gimbal_rotation_rate_sync(0.f, 0.f, 0.f);
+                } while (res != Gimbal_Protocol::SUCCESS);
+                
+                float yaw_rate = 10.f;
                 printf("\tGimbal yaw to East at rate %.2fdeg/s\n", yaw_rate);
-                res = onboard.set_gimbal_rotation_rate_sync(0.f, 0.f, yaw_rate);
+                
+                /* Send command move */
+                do {
+                    usleep(500000);
+                    res = onboard.set_gimbal_rotation_rate_sync(0.f, 0.f, yaw_rate);
+                } while (res != Gimbal_Protocol::SUCCESS);
 
-                if (res == Gimbal_Protocol::SUCCESS) {
-                    usleep(5000000);    // Move in 5s
-                    onboard.set_gimbal_rotation_rate_sync(0.f, 0.f, 0.f);   // Stop
-
-                } else {
-                    fprintf(stderr, "\tCoudld not control yaw rate! Result code: %d\n", res);
-                    break;
-                }
+                /* Stop moving */
+                do {
+                    usleep(500000);
+                    res = onboard.set_gimbal_rotation_rate_sync(0.f, 0.f, 0.f);
+                } while (res != Gimbal_Protocol::SUCCESS);
 
                 sdk.state = STATE_MOVE_TO_ZERO;
             }
@@ -602,6 +615,7 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
         case STATE_SET_GIMBAL_REBOOT: {
                 printf("STATE_SET_GIMBAL_REBOOT!\n");
                 if (onboard.set_gimbal_reboot() == Gimbal_Protocol::SUCCESS) {
+                    usleep(5000000);    // Sleep 5s
                     sdk.state = STATE_IDLE;
                 }
             }

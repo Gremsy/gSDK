@@ -1,1 +1,0 @@
-/usr/bin/c++  -g   CMakeFiles/gSDK.dir/mavlink_control.cpp.o CMakeFiles/gSDK.dir/src/gimbal_interface.cpp.o CMakeFiles/gSDK.dir/src/gimbal_protocol.cpp.o CMakeFiles/gSDK.dir/src/gimbal_protocol_v1.cpp.o CMakeFiles/gSDK.dir/src/gimbal_protocol_v2.cpp.o CMakeFiles/gSDK.dir/src/serial_port.cpp.o  -o gSDK  -lpthread 
