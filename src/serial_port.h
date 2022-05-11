@@ -120,7 +120,7 @@ public:
     int  baudrate;
     int  status;
 
-    int read_message(mavlink_message_t &message);
+    int read_message(char *buf, uint16_t len);
     int write_message(const mavlink_message_t &message);
 
     void open_serial();
@@ -139,7 +139,7 @@ private:
 
     int  _open_port(const char *port);
     bool _setup_port(int baud, int data_bits, int stop_bits, bool parity, bool hardware_control);
-    int  _read_port(uint8_t &cp);
+    int  _read_port(char *buf, uint16_t len);
     int _write_port(const char *buf, unsigned len);
 
 };

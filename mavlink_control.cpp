@@ -41,6 +41,8 @@
 enum sdk_process_state_t {
     STATE_IDLE,
 
+    STATE_SET_GIMBAL_REBOOT,
+
     STATE_CHECK_FIRMWARE_VERSION,
     STATE_SETTING_GIMBAL,
     STATE_SETTING_MAVLINK_MESSAGE,
@@ -60,8 +62,6 @@ enum sdk_process_state_t {
     STATE_CONTROL_WITH_RC,
 
     STATE_MOVE_TO_ZERO,
-
-    STATE_SET_GIMBAL_REBOOT,
 
     STATE_DONE
 };
@@ -267,7 +267,16 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
 {
     switch (sdk.state) {
         case STATE_IDLE: {
-                sdk.state = STATE_CHECK_FIRMWARE_VERSION;
+                sdk.state = STATE_SET_GIMBAL_REBOOT;
+            }
+            break;
+
+        case STATE_SET_GIMBAL_REBOOT: {
+                printf("STATE_SET_GIMBAL_REBOOT!\n");
+                if (onboard.set_gimbal_reboot() == Gimbal_Protocol::SUCCESS) {
+                    usleep(5000000);    // Sleep 5s
+                    sdk.state = STATE_CHECK_FIRMWARE_VERSION;
+                }
             }
             break;
 
@@ -397,11 +406,12 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                     do {
                         attitude = onboard.get_gimbal_attitude();
                         printf("\tGimbal attitude Pitch - Roll - Yaw: %.2f - %.2f - %.2f\n", attitude.pitch, attitude.roll, attitude.yaw);
-                        usleep(500000);
-                    } while (fabsf(attitude.pitch - setpoint_pitch) > 0.1f &&
-                             fabsf(attitude.roll - setpoint_roll) > 0.1f &&
-                             fabsf(attitude.yaw - setpoint_yaw) > 0.1f);
+                        usleep(200000);
+                    } while ((fabsf(attitude.pitch - setpoint_pitch) > 0.1f) &&
+                            (fabsf(attitude.roll - setpoint_roll) > 0.1f) &&
+                            (fabsf(attitude.yaw - setpoint_yaw) > 0.1f));
 
+                    printf("\tGimbal attitude Pitch - Roll - Yaw: %.2f - %.2f - %.2f\n", attitude.pitch, attitude.roll, attitude.yaw);
                     sdk.state = STATE_MOVE_GIMBAL_RATE_FOLLOW;
 
                 } else {
@@ -454,6 +464,8 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                     res = onboard.set_gimbal_rotation_rate_sync(0.f, 0.f, yaw_rate);
                 } while (res != Gimbal_Protocol::SUCCESS);
 
+                usleep(5000000);    // Move in 5s
+
                 /* Stop moving */
                 do {
                     usleep(500000);
@@ -493,10 +505,11 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                         attitude = onboard.get_gimbal_attitude();
                         printf("\tGimbal attitude Pitch - Roll - Yaw: %.2f - %.2f - %.2f\n", attitude.pitch, attitude.roll, attitude.yaw);
                         usleep(500000);
-                    } while (fabsf(attitude.pitch - setpoint_pitch) > 0.1f &&
-                             fabsf(attitude.roll - setpoint_roll) > 0.1f &&
-                             fabsf(attitude.yaw - setpoint_yaw) > 0.1f);
+                    } while ((fabsf(attitude.pitch - setpoint_pitch) > 0.1f) &&
+                            (fabsf(attitude.roll - setpoint_roll) > 0.1f) &&
+                            (fabsf(attitude.yaw - setpoint_yaw) > 0.1f));
 
+                    printf("\tGimbal attitude Pitch - Roll - Yaw: %.2f - %.2f - %.2f\n", attitude.pitch, attitude.roll, attitude.yaw);
                     sdk.state = STATE_MOVE_GIMBAL_RATE_LOCK;
 
                 } else {
@@ -548,6 +561,8 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                     usleep(500000);
                     res = onboard.set_gimbal_rotation_rate_sync(0.f, 0.f, yaw_rate);
                 } while (res != Gimbal_Protocol::SUCCESS);
+
+                usleep(5000000);    // Move in 5s
 
                 /* Stop moving */
                 do {
@@ -603,20 +618,11 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                              fabsf(attitude.roll) > 0.1f &&
                              fabsf(attitude.yaw) > 0.1f);
 
-                    sdk.state = STATE_SET_GIMBAL_REBOOT;
+                    sdk.state = STATE_SETTING_GIMBAL;
 
                 } else {
                     fprintf(stderr, "\tCoudld not return home! Result code: %d\n", res);
                     break;
-                }
-            }
-            break;
-
-        case STATE_SET_GIMBAL_REBOOT: {
-                printf("STATE_SET_GIMBAL_REBOOT!\n");
-                if (onboard.set_gimbal_reboot() == Gimbal_Protocol::SUCCESS) {
-                    usleep(5000000);    // Sleep 5s
-                    sdk.state = STATE_IDLE;
                 }
             }
             break;

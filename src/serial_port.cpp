@@ -99,69 +99,13 @@ void Serial_Port::initialize_defaults()
 // ------------------------------------------------------------------------------
 //   Read from Serial
 // ------------------------------------------------------------------------------
-int Serial_Port::read_message(mavlink_message_t &message)
+int Serial_Port::read_message(char *buf, uint16_t len)
 {
-    uint8_t          cp          = 0;
-    mavlink_status_t mav_status      = { 0 };
-    uint8_t          msgReceived = false;
     // --------------------------------------------------------------------------
     //   READ FROM PORT
     // --------------------------------------------------------------------------
     // this function locks the port during read
-    int result = _read_port(cp);
-
-    // --------------------------------------------------------------------------
-    //   PARSE MESSAGE
-    // --------------------------------------------------------------------------
-    if (result > 0) {
-        // the parsing
-        msgReceived = mavlink_parse_char(MAVLINK_COMM_1, cp, &message, &mav_status);
-
-        // check for dropped packets
-        if ( (lastStatus.packet_rx_drop_count != mav_status.packet_rx_drop_count) && debug ) {
-            printf("ERROR: DROPPED %d PACKETS\n", mav_status.packet_rx_drop_count);
-            unsigned char v = cp;
-            fprintf(stderr, "%02x ", v);
-        }
-
-        lastStatus = mav_status;
-    }
-
-    // Couldn't read from port
-    else {
-        fprintf(stderr, "ERROR: Could not read from fd %d\n", fd);
-    }
-
-    // --------------------------------------------------------------------------
-    //   DEBUGGING REPORTS
-    // --------------------------------------------------------------------------
-    if (msgReceived && debug) {
-        // Report info
-        printf("Received message from serial with ID #%d (sys:%d|comp:%d):\n", message.msgid, message.sysid, message.compid);
-        fprintf(stderr, "Received serial data: ");
-        unsigned int i;
-        uint8_t buffer[MAVLINK_MAX_PACKET_LEN] = { 0 };
-        // check message is write length
-        unsigned int messageLength = mavlink_msg_to_send_buffer(buffer, &message);
-
-        // message length error
-        if (messageLength > MAVLINK_MAX_PACKET_LEN) {
-            fprintf(stderr, "\nFATAL ERROR: MESSAGE LENGTH IS LARGER THAN BUFFER SIZE\n");
-        }
-
-        // print out the buffer
-        else {
-            for (i = 0; i < messageLength; i++) {
-                unsigned char v = buffer[i];
-                fprintf(stderr, "%02x ", v);
-            }
-
-            fprintf(stderr, "\n");
-        }
-    }
-
-    // Done!
-    return msgReceived;
+    return _read_port(buf, 256);
 }
 
 // ------------------------------------------------------------------------------
@@ -169,7 +113,7 @@ int Serial_Port::read_message(mavlink_message_t &message)
 // ------------------------------------------------------------------------------
 int Serial_Port::write_message(const mavlink_message_t &message)
 {
-    char buf[300] = { 0 };
+    char buf[MAVLINK_MAX_PACKET_LEN] = { 0 };
     // Translate message to buffer
     unsigned len = mavlink_msg_to_send_buffer((uint8_t *)buf, &message);
     // Write buffer to serial port, locks port while writing
@@ -451,11 +395,11 @@ bool Serial_Port::_setup_port(int baud, int data_bits, int stop_bits, bool parit
 // ------------------------------------------------------------------------------
 //   Read Port with Lock
 // ------------------------------------------------------------------------------
-int Serial_Port::_read_port(uint8_t &cp)
+int Serial_Port::_read_port(char *buf, uint16_t len)
 {
     // Lock
     // pthread_mutex_lock(&lock);
-    int result = read(fd, &cp, 1);
+    int result = read(fd, buf, len);
     // Unlock
     // pthread_mutex_unlock(&lock);
     return result;

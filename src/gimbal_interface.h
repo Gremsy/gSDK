@@ -733,7 +733,7 @@ private:
     volatile serial_thread_status_t reading_status = THREAD_NOT_INIT;
     volatile serial_thread_status_t writing_status = THREAD_NOT_INIT;
 
-    void read_messages();
+    void messages_handler(const mavlink_message_t &message);
     int write_message(const mavlink_message_t &message);
 
     void read_thread(void);
