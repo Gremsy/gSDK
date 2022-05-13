@@ -602,6 +602,8 @@ private:
      *
      */
     struct messages_t {
+        pthread_mutex_t mutex;
+
         // Heartbeat
         mavlink_heartbeat_t heartbeat = { 0 };
 
@@ -625,6 +627,16 @@ private:
 
         // timestamps
         timestamps_t timestamps;
+
+        messages_t()
+        {
+            pthread_mutex_init(&mutex, NULL);
+        }
+
+        ~messages_t()
+        {
+            pthread_mutex_destroy(&mutex);
+        }
 
         void reset_timestamps()
         {

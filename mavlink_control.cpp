@@ -59,6 +59,7 @@ enum sdk_process_state_t {
     STATE_MOVE_GIMBAL_RATE_LOCK,
 
     STATE_SWITCH_TO_RC,
+    STATE_SELECT_RC,
     STATE_CONTROL_WITH_RC,
 
     STATE_MOVE_TO_ZERO,
@@ -267,14 +268,16 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
 {
     switch (sdk.state) {
         case STATE_IDLE: {
-                sdk.state = STATE_SET_GIMBAL_REBOOT;
+                sdk.state = STATE_CHECK_FIRMWARE_VERSION;
             }
             break;
 
         case STATE_SET_GIMBAL_REBOOT: {
                 printf("STATE_SET_GIMBAL_REBOOT!\n");
                 if (onboard.set_gimbal_reboot() == Gimbal_Protocol::SUCCESS) {
-                    usleep(5000000);    // Sleep 5s
+                    while (onboard.get_gimbal_status().state != Gimbal_Interface::GIMBAL_STATE_ON)
+                        usleep(500000);
+
                     sdk.state = STATE_CHECK_FIRMWARE_VERSION;
                 }
             }
@@ -333,6 +336,7 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                 printf("Request gimbal device information.\n");
                 onboard.request_gimbal_device_info();
                 sdk.state = STATE_SET_GIMBAL_FOLLOW_MODE;
+                // sdk.state = STATE_SWITCH_TO_RC;
             }
             break;
 
@@ -406,10 +410,11 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                     do {
                         attitude = onboard.get_gimbal_attitude();
                         printf("\tGimbal attitude Pitch - Roll - Yaw: %.2f - %.2f - %.2f\n", attitude.pitch, attitude.roll, attitude.yaw);
-                        usleep(200000);
-                    } while ((fabsf(attitude.pitch - setpoint_pitch) > 0.1f) &&
-                            (fabsf(attitude.roll - setpoint_roll) > 0.1f) &&
-                            (fabsf(attitude.yaw - setpoint_yaw) > 0.1f));
+                        onboard.set_gimbal_rotation_sync(setpoint_pitch, setpoint_roll, setpoint_yaw);
+                        usleep(500000);
+                    } while ((fabsf(attitude.pitch - setpoint_pitch) > 0.5f) ||
+                            (fabsf(attitude.roll - setpoint_roll) > 0.5f) ||
+                            (fabsf(attitude.yaw - setpoint_yaw) > 0.5f));
 
                     printf("\tGimbal attitude Pitch - Roll - Yaw: %.2f - %.2f - %.2f\n", attitude.pitch, attitude.roll, attitude.yaw);
                     sdk.state = STATE_MOVE_GIMBAL_RATE_FOLLOW;
@@ -434,9 +439,9 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                 /* Wait for returning home */
                 do {
                     usleep(500000);
-                } while (fabsf(attitude.pitch) > 0.1f &&
-                            fabsf(attitude.roll) > 0.1f &&
-                            fabsf(attitude.yaw) > 0.1f);
+                } while (fabsf(attitude.pitch) > 0.5f ||
+                            fabsf(attitude.roll) > 0.5f ||
+                            fabsf(attitude.yaw) > 0.5f);
                 
                 float pitch_rate = 10.f;
                 printf("\tGimbal pitch up at rate %.2fdeg/s\n", pitch_rate);
@@ -504,10 +509,11 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                     do {
                         attitude = onboard.get_gimbal_attitude();
                         printf("\tGimbal attitude Pitch - Roll - Yaw: %.2f - %.2f - %.2f\n", attitude.pitch, attitude.roll, attitude.yaw);
+                        onboard.set_gimbal_rotation_sync(setpoint_pitch, setpoint_roll, setpoint_yaw);
                         usleep(500000);
-                    } while ((fabsf(attitude.pitch - setpoint_pitch) > 0.1f) &&
-                            (fabsf(attitude.roll - setpoint_roll) > 0.1f) &&
-                            (fabsf(attitude.yaw - setpoint_yaw) > 0.1f));
+                    } while ((fabsf(attitude.pitch - setpoint_pitch) > 0.5f) ||
+                            (fabsf(attitude.roll - setpoint_roll) > 0.5f) ||
+                            (fabsf(attitude.yaw - setpoint_yaw) > 0.5f));
 
                     printf("\tGimbal attitude Pitch - Roll - Yaw: %.2f - %.2f - %.2f\n", attitude.pitch, attitude.roll, attitude.yaw);
                     sdk.state = STATE_MOVE_GIMBAL_RATE_LOCK;
@@ -532,9 +538,9 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                 /* Wait for returning home */
                 do {
                     usleep(500000);
-                } while (fabsf(attitude.pitch) > 0.1f &&
-                            fabsf(attitude.roll) > 0.1f &&
-                            fabsf(attitude.yaw) > 0.1f);
+                } while (fabsf(attitude.pitch) > 0.5f ||
+                            fabsf(attitude.roll) > 0.5f ||
+                            fabsf(attitude.yaw) > 0.5f);
                 
                 float pitch_rate = 10.f;
                 printf("\tGimbal pitch up at rate %.2fdeg/s\n", pitch_rate);
@@ -579,10 +585,22 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
 
                 if (res == Gimbal_Protocol::SUCCESS) {
                     printf("Set Gimbal to RC Input mode Successfully!\n");
-                    sdk.state = STATE_CONTROL_WITH_RC;
+                    sdk.state = STATE_SELECT_RC;
 
                 } else {
                     fprintf(stderr, "\tCoudld not switch Gimbal to RC Input mode! Result code: %d\n", res);
+                }
+            }
+            break;
+
+        case STATE_SELECT_RC: {
+                Gimbal_Protocol::result_t res = onboard.set_rc_type(Gimbal_Interface::RC_TYPE_SBUS_FASST);
+
+                if (res == Gimbal_Protocol::SUCCESS) {
+                    printf("Select RC Type Sbus FASST Successfully!\n");
+                    sdk.state = STATE_CONTROL_WITH_RC;
+                } else {
+                    fprintf(stderr, "\tCoudld not select RC Type Sbus FASST! Result code: %d\n", res);
                 }
             }
             break;
@@ -614,9 +632,9 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                     do {
                         attitude = onboard.get_gimbal_attitude();
                         usleep(500000);
-                    } while (fabsf(attitude.pitch) > 0.1f &&
-                             fabsf(attitude.roll) > 0.1f &&
-                             fabsf(attitude.yaw) > 0.1f);
+                    } while (fabsf(attitude.pitch) > 0.5f ||
+                             fabsf(attitude.roll) > 0.5f ||
+                             fabsf(attitude.yaw) > 0.5f);
 
                     sdk.state = STATE_SETTING_GIMBAL;
 
