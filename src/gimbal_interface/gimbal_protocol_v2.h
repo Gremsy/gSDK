@@ -1,7 +1,7 @@
 /*******************************************************************************
- * @file    gimbal_protocol_v1.h
+ * @file    gimbal_protocol_v2.h
  * @author  The GremsyCo
- * @version V1.0.0
+ * @version V2.0.0
  * @date    August-21-2018
  * @brief   This file contains API for gimbal interface
  *
@@ -27,8 +27,8 @@
  *
  ******************************************************************************/
 
-#ifndef GIMBAL_PROTOCOL_V1_H_
-#define GIMBAL_PROTOCOL_V1_H_
+#ifndef GIMBAL_PROTOCOL_V2_H_
+#define GIMBAL_PROTOCOL_V2_H_
 
 // ------------------------------------------------------------------------------
 //   Includes
@@ -37,48 +37,53 @@
 #include "gimbal_protocol.h"
 
 // ----------------------------------------------------------------------------------
-//   Gimbal Protocol V1 Class
+//   Gimbal Protocol V2 Class
 // ----------------------------------------------------------------------------------
 /*
- * Gimbal Protocol Class V1
+ * Gimbal Protocol Class V2
  *
- * This class implement class for Gimbal Protocol V1
+ * This class implement class for Gimbal Protocol V2
  */
-class Gimbal_Protocol_V1 : public Gimbal_Protocol
+namespace GSDK
 {
-public:
-    Gimbal_Protocol_V1(Serial_Port *serial_port,
-                       const mavlink_system_t &system);
-    ~Gimbal_Protocol_V1() = default;
+    class Gimbal_Protocol_V2 : public Gimbal_Protocol
+    {
+    public:
+        Gimbal_Protocol_V2(Serial_Port *serial_port,
+                        const mavlink_system_t &system);
+        ~Gimbal_Protocol_V2() = default;
 
-    /**
-     * @brief  This function set gimbal mode
-     * @param: type see control_mode_t
-     * @ret: result
-     */
-    result_t set_gimbal_mode_sync(control_mode_t mode) override;
+        /**
+         * @brief  This function set gimbal mode
+         * @param: type see control_mode_t
+         * @ret: result
+         */
+        result_t set_gimbal_mode_sync(control_mode_t mode) override;
 
-    /**
-     * @brief  This function reset gimbal with some mode
-     * @param: type see gimbal_reset_mode_t
-     * @ret: result
-     */
-    result_t set_gimbal_reset_mode(gimbal_reset_mode_t reset_mode) override;
+        /**
+         * @brief  This function reset gimbal with some mode
+         * @param: type see gimbal_reset_mode_t
+         * @ret: result
+         */
+        result_t set_gimbal_reset_mode(gimbal_reset_mode_t reset_mode) override;
 
-    /**
-     * @brief Set the gimbal move sync
-     *
-     * @param pitch control pitch value
-     * @param roll control roll value
-     * @param yaw control yaw value
-     * @param mode see input_mode_t
-     * @return result_t
-     */
-    result_t set_gimbal_move_sync(float pitch, float roll, float yaw,
-                                  input_mode_t mode) override;
+        /**
+         * @brief Set the gimbal move sync
+         *
+         * @param pitch control pitch value
+         * @param roll control roll value
+         * @param yaw control yaw value
+         * @param mode see input_mode_t
+         * @return result_t
+         */
+        result_t set_gimbal_move_sync(float pitch, float roll, float yaw,
+                                    input_mode_t mode) override;
 
-private:
+    private:
 
-};
+        control_mode_t _control_mode = GIMBAL_FOLLOW_MODE;
+    };
 
-#endif // GIMBAL_PROTOCOL_V1_H_
+} // GSDK
+
+#endif // GIMBAL_PROTOCOL_V2_H_

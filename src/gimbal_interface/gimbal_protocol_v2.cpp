@@ -109,7 +109,7 @@ Gimbal_Protocol_V2::result_t Gimbal_Protocol_V2::set_gimbal_reset_mode(gimbal_re
 Gimbal_Protocol::result_t Gimbal_Protocol_V2::set_gimbal_move_sync(float pitch, float roll, float yaw,
         input_mode_t mode)
 {
-    if (_serial_port == nullptr) {
+    if (_serial == nullptr) {
         fprintf(stderr, "ERROR: serial port not exist\n");
         throw 1;
     }
@@ -151,5 +151,5 @@ Gimbal_Protocol::result_t Gimbal_Protocol_V2::set_gimbal_move_sync(float pitch, 
     // --------------------------------------------------------------------------
     //   WRITE
     // --------------------------------------------------------------------------
-    return (_serial_port->write_message(message) > 0) ? SUCCESS : ERROR;
+    return (_serial->write_message(message) > 0) ? SUCCESS : ERROR;
 }

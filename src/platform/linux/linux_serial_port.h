@@ -35,7 +35,7 @@
  ****************************************************************************/
 
 /**
- * @file serial_port.h
+ * @file linux_serial_port.h
  *
  * @brief Serial interface definition
  *
@@ -47,8 +47,8 @@
  *
  */
 
-#ifndef SERIAL_PORT_H_
-#define SERIAL_PORT_H_
+#ifndef LINUX_SERIAL_PORT_H_
+#define LINUX_SERIAL_PORT_H_
 
 // ------------------------------------------------------------------------------
 //   Includes
@@ -59,11 +59,8 @@
 #include <unistd.h>  // UNIX standard function definitions
 #include <fcntl.h>   // File control definitions
 #include <termios.h> // POSIX terminal control definitions
-#include <pthread.h> // This uses POSIX Threads
-#include <signal.h>
 
-// #include <common/mavlink.h>
-#include <ardupilotmega/mavlink.h>
+#include "gsdk_serial_manager.h"
 
 // ------------------------------------------------------------------------------
 //   Defines
@@ -79,69 +76,44 @@
     #define B921600 921600
 #endif
 
-
-// Status flags
-#define SERIAL_PORT_OPEN   1
-#define SERIAL_PORT_CLOSED 0
-#define SERIAL_PORT_ERROR -1
-
-
-// ------------------------------------------------------------------------------
-//   Prototypes
-// ------------------------------------------------------------------------------
-
-//class Serial_Port;
-
-
-
-// ----------------------------------------------------------------------------------
-//   Serial Port Manager Class
-// ----------------------------------------------------------------------------------
-/*
- * Serial Port Class
- *
- * This object handles the opening and closing of the offboard computer's
- * serial port over which we'll communicate.  It also has methods to write
- * a byte stream buffer.  MAVlink is not used in this object yet, it's just
- * a serialization interface.  To help with read and write pthreading, it
- * gaurds any port operation with a pthread mutex.
- */
-class Serial_Port
+namespace GSDK
 {
-public:
+    namespace HAL
+    {
+        class Linux_Serial_Port : public gSDK_Serial_Manager
+        {
+        public:
+            Linux_Serial_Port(const char *device, uint32_t baudrate);
+            ~Linux_Serial_Port() override;
 
-    Serial_Port();
-    Serial_Port(const char *uart_name_, int baudrate_);
-    void initialize_defaults();
-    ~Serial_Port();
+            void start() override;
+            void stop() override;
 
-    bool debug;
-    const char *uart_name;
-    int  baudrate;
-    int  status;
+            size_t serial_write(const uint8_t *buf, size_t len) override;
+            size_t serial_read(uint8_t *buf, size_t maxlen) override;
 
-    int read_message(char *buf, uint16_t len);
-    int write_message(const mavlink_message_t &message);
+            bool get_device_status() const override
+            {
+                return _device_status;
+            }
 
-    void open_serial();
-    void close_serial();
+        private:
+            const char *_device;
+            uint32_t _baudrate;
 
-    void start();
-    void stop();
+            int _fd;
+            
+            bool _device_status = false;
 
-    void handle_quit( int sig );
+            int _open_port(const char *port);
+            void _close_port();
+            void _start_port();
+            bool _setup_port(int baud, int data_bits, int stop_bits, bool parity, bool hardware_control);
 
-private:
+            int _write_port(const uint8_t *buf, size_t len);
+            int _read_port(uint8_t *buf, size_t maxlen);
+        };        
+    }
+}
 
-    int  fd;
-    mavlink_status_t lastStatus;
-    pthread_mutex_t  lock;
-
-    int  _open_port(const char *port);
-    bool _setup_port(int baud, int data_bits, int stop_bits, bool parity, bool hardware_control);
-    int  _read_port(char *buf, uint16_t len);
-    int _write_port(const char *buf, unsigned len);
-
-};
-
-#endif // SERIAL_PORT_H_
+#endif // LINUX_SERIAL_PORT_H_

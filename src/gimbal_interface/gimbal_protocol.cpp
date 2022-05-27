@@ -40,7 +40,7 @@ Gimbal_Protocol::Gimbal_Protocol(Serial_Port *serial_port,
     _system(system),
     _attitude()
 {
-    _serial_port = serial_port;
+    _serial = serial_port;
     pthread_mutex_init(&_mutex, NULL);
     pthread_cond_init(&_condition, NULL);
 }
@@ -72,7 +72,7 @@ void Gimbal_Protocol::initialize(const mavlink_system_t &gimbal)
  */
 Gimbal_Protocol::result_t Gimbal_Protocol::send_command_long(uint16_t command, const float param[7])
 {
-    if (_serial_port == nullptr) {
+    if (_serial == nullptr) {
         fprintf(stderr, "ERROR: serial port not exist\n");
         throw 1;
     }
@@ -96,7 +96,7 @@ Gimbal_Protocol::result_t Gimbal_Protocol::send_command_long(uint16_t command, c
     // --------------------------------------------------------------------------
     //   WRITE
     // --------------------------------------------------------------------------
-    return (_serial_port->write_message(message) > 0) ? SUCCESS : ERROR;
+    return (_serial->write_message(message) > 0) ? SUCCESS : ERROR;
 }
 
 /**

@@ -35,7 +35,7 @@
  ****************************************************************************/
 
 /**
- * @file serial_port.cpp
+ * @file linux_serial_port.cpp
  *
  * @brief Serial interface functions
  *
@@ -51,190 +51,95 @@
 //   Includes
 // ------------------------------------------------------------------------------
 
-#include <sys/ioctl.h> //ioctl() call defenitions
-#include "serial_port.h"
+#include <sys/ioctl.h> // ioctl() call defenitions
+#include "linux_serial_port.h"
 
-// ----------------------------------------------------------------------------------
-//   Serial Port Manager Class
-// ----------------------------------------------------------------------------------
+using namespace GSDK::HAL;
 
 // ------------------------------------------------------------------------------
 //   Con/De structors
 // ------------------------------------------------------------------------------
-Serial_Port::Serial_Port(const char *uart_name_, int baudrate_)
+Linux_Serial_Port::Linux_Serial_Port(const char *device, uint32_t baudrate)
 {
-    initialize_defaults();
-    uart_name = uart_name_;
-    baudrate  = baudrate_;
+    _device   = device;
+    _baudrate = baudrate;
 }
 
-Serial_Port::Serial_Port()
+Linux_Serial_Port::~Linux_Serial_Port()
 {
-    initialize_defaults();
-    uart_name = (char *)"/dev/ttyUSB0";
-    baudrate  = 115200;
+    _close_port();
 }
 
-Serial_Port::~Serial_Port()
+size_t Linux_Serial_Port::serial_read(uint8_t *buf, size_t maxlen)
 {
-    // destroy mutex
-    pthread_mutex_destroy(&lock);
+    return _read_port(buf, maxlen);
 }
 
-void Serial_Port::initialize_defaults()
+size_t Linux_Serial_Port::serial_write(const uint8_t *buf, size_t len)
 {
-    // Initialize attributes
-    debug  = false;
-    fd     = -1;
-    status = SERIAL_PORT_CLOSED;
-    // Start mutex
-    int result = pthread_mutex_init(&lock, NULL);
-
-    if (result != 0) {
-        printf("\n mutex init failed\n");
-        throw 1;
-    }
+    return _write_port(buf, len);
 }
 
-// ------------------------------------------------------------------------------
-//   Read from Serial
-// ------------------------------------------------------------------------------
-int Serial_Port::read_message(char *buf, uint16_t len)
+void Linux_Serial_Port::start()
 {
-    // --------------------------------------------------------------------------
-    //   READ FROM PORT
-    // --------------------------------------------------------------------------
-    // this function locks the port during read
-    return _read_port(buf, 256);
+    _start_port();
 }
 
-// ------------------------------------------------------------------------------
-//   Write to Serial
-// ------------------------------------------------------------------------------
-int Serial_Port::write_message(const mavlink_message_t &message)
+void Linux_Serial_Port::stop()
 {
-    char buf[MAVLINK_MAX_PACKET_LEN] = { 0 };
-    // Translate message to buffer
-    unsigned len = mavlink_msg_to_send_buffer((uint8_t *)buf, &message);
-    // Write buffer to serial port, locks port while writing
-    int bytesWritten = _write_port(buf, len);
-    return bytesWritten;
+    _close_port();
 }
 
-// ------------------------------------------------------------------------------
-//   Open Serial Port
-// ------------------------------------------------------------------------------
-/**
- * throws EXIT_FAILURE if could not open the port
- */
-void Serial_Port::open_serial()
+void Linux_Serial_Port::_start_port()
 {
-    // --------------------------------------------------------------------------
-    //   OPEN PORT
-    // --------------------------------------------------------------------------
     printf("OPEN PORT\n");
-    fd = _open_port(uart_name);
+    _fd = _open_port(_device);
 
     // Check success
-    if (fd == -1) {
-        printf("failure, could not open port.\n");
+    if (_fd == -1) {
+        fprintf(stderr, "failure, could not open port.\n");
         throw EXIT_FAILURE;
     }
 
-    // --------------------------------------------------------------------------
-    //   SETUP PORT
-    // --------------------------------------------------------------------------
-    bool success = _setup_port(baudrate, 8, 1, false, false);
-
-    // --------------------------------------------------------------------------
-    //   CHECK STATUS
-    // --------------------------------------------------------------------------
-    if (!success) {
-        printf("failure, could not configure port.\n");
+    if (!_setup_port(_baudrate, 8, 1, false, false)) {
+        fprintf(stderr, "failure, could not configure port.\n");
+        _close_port();
         throw EXIT_FAILURE;
     }
 
-    if (fd <= 0) {
-        printf("Connection attempt to port %s with %d baud, 8N1 failed, exiting.\n", uart_name, baudrate);
+    if (_fd <= 0) {
+        fprintf(stderr, "Connection attempt to port %s with %d baud, 8N1 failed, exiting.\n", _device, _baudrate);
+        _close_port();
         throw EXIT_FAILURE;
     }
 
-    // --------------------------------------------------------------------------
-    //   CONNECTED!
-    // --------------------------------------------------------------------------
-    printf("Connected to %s with %d baud, 8 data bits, no parity, 1 stop bit (8N1)\n", uart_name, baudrate);
-    lastStatus.packet_rx_drop_count = 0;
-    // --------------------------------------------------------------------------
-    //   CONTROL DTR & RTS
-    // --------------------------------------------------------------------------
-    // int RTS_flag;
-    // int DTR_flag;
-    // RTS_flag = TIOCM_RTS;
-    // DTR_flag = TIOCM_DTR;
-    // ioctl(fd, TIOCMBIS, &DTR_flag); //Set DTR pin
-    // ioctl(fd, TIOCMBIC, &RTS_flag); //clear RTS pin
-    // //getchar();
-    // usleep(1000000);
-    // ioctl(fd, TIOCMBIC, &DTR_flag); //Clear DTR pin
-    // --------------------------------------------------------------------------
-    //   FOOTER
-    // --------------------------------------------------------------------------
-    status = SERIAL_PORT_OPEN;
-    printf("\n");
+    printf("Connected to %s with %d baud, 8 data bits, no parity, 1 stop bit (8N1).\n\n", _device, _baudrate);
+    _device_status = true;
 }
 
-// ------------------------------------------------------------------------------
-//   Close Serial Port
-// ------------------------------------------------------------------------------
-void Serial_Port::close_serial()
+void Linux_Serial_Port::_close_port()
 {
     printf("CLOSE PORT\n");
-    int result = close(fd);
 
-    if ( result ) {
-        fprintf(stderr, "WARNING: Error on port close (%i)\n", result );
+    if (close(_fd)) {
+        fprintf(stderr, "WARNING: Error on port close.\n");
     }
 
-    status = SERIAL_PORT_CLOSED;
+    _device_status = false;
+    _fd            = -1;
     printf("\n");
-}
-
-// ------------------------------------------------------------------------------
-//   Convenience Functions
-// ------------------------------------------------------------------------------
-void Serial_Port::start()
-{
-    open_serial();
-}
-
-void Serial_Port::stop()
-{
-    close_serial();
-}
-
-// ------------------------------------------------------------------------------
-//   Quit Handler
-// ------------------------------------------------------------------------------
-void Serial_Port::handle_quit( int sig )
-{
-    try {
-        stop();
-
-    } catch (int error) {
-        fprintf(stderr, "Warning, could not stop serial port\n");
-    }
 }
 
 // ------------------------------------------------------------------------------
 //   Helper Function - Open Serial Port File Descriptor
 // ------------------------------------------------------------------------------
 // Where the actual port opening happens, returns file descriptor 'fd'
-int Serial_Port::_open_port(const char *port)
+int Linux_Serial_Port::_open_port(const char *port)
 {
     // Open serial port
     // O_RDWR - Read and write
     // O_NOCTTY - Ignore special chars like CTRL-C
-    fd = open(port, O_RDWR | O_NOCTTY | O_NDELAY);
+    int fd = open(port, O_RDWR | O_NOCTTY | O_NDELAY);
 
     // Check for Errors
     if (fd == -1) {
@@ -255,19 +160,19 @@ int Serial_Port::_open_port(const char *port)
 //   Helper Function - Setup Serial Port
 // ------------------------------------------------------------------------------
 // Sets configuration, flags, and baud rate
-bool Serial_Port::_setup_port(int baud, int data_bits, int stop_bits, bool parity, bool hardware_control)
+bool Linux_Serial_Port::_setup_port(int baud, int data_bits, int stop_bits, bool parity, bool hardware_control)
 {
     // Check file descriptor
-    if (!isatty(fd)) {
-        fprintf(stderr, "\nERROR: file descriptor %d is NOT a serial port\n", fd);
+    if (!isatty(_fd)) {
+        fprintf(stderr, "\nERROR: file descriptor %d is NOT a serial port\n", _fd);
         return false;
     }
 
     // Read file descritor configuration
     struct termios config;
 
-    if (tcgetattr(fd, &config) < 0) {
-        fprintf(stderr, "\nERROR: could not read configuration of fd %d\n", fd);
+    if (tcgetattr(_fd, &config) < 0) {
+        fprintf(stderr, "\nERROR: could not read configuration of fd %d\n", _fd);
         return false;
     }
 
@@ -383,8 +288,8 @@ bool Serial_Port::_setup_port(int baud, int data_bits, int stop_bits, bool parit
     }
 
     // Finally, apply the configuration
-    if (tcsetattr(fd, TCSAFLUSH, &config) < 0) {
-        fprintf(stderr, "\nERROR: could not set configuration of fd %d\n", fd);
+    if (tcsetattr(_fd, TCSAFLUSH, &config) < 0) {
+        fprintf(stderr, "\nERROR: could not set configuration of fd %d\n", _fd);
         return false;
     }
 
@@ -393,30 +298,17 @@ bool Serial_Port::_setup_port(int baud, int data_bits, int stop_bits, bool parit
 }
 
 // ------------------------------------------------------------------------------
-//   Read Port with Lock
+//   Read Port
 // ------------------------------------------------------------------------------
-int Serial_Port::_read_port(char *buf, uint16_t len)
+int Linux_Serial_Port::_read_port(uint8_t *buf, size_t maxlen)
 {
-    // Lock
-    // pthread_mutex_lock(&lock);
-    int result = read(fd, buf, len);
-    // Unlock
-    // pthread_mutex_unlock(&lock);
-    return result;
+    return read(_fd, buf, maxlen);
 }
 
 // ------------------------------------------------------------------------------
-//   Write Port with Lock
+//   Write Port
 // ------------------------------------------------------------------------------
-int Serial_Port::_write_port(const char *buf, unsigned len)
+int Linux_Serial_Port::_write_port(const uint8_t *buf, size_t len)
 {
-    // Lock
-    // pthread_mutex_lock(&lock);
-    // Write packet via serial link
-    const int bytesWritten = static_cast<int>(write(fd, buf, len));
-    // Wait until all data has been written
-    tcdrain(fd);
-    // Unlock
-    // pthread_mutex_unlock(&lock);
-    return bytesWritten;
+    return write(_fd, buf, len);
 }

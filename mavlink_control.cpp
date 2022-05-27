@@ -331,8 +331,8 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                 onboard.set_msg_attitude_status_rate(orien_rate);
                 printf("Set raw imu messgaes rate: %dHz\n", imu_rate);
                 onboard.set_msg_raw_imu_rate(imu_rate);
-                printf("Set gimbal send raw encoder value.\n");
-                onboard.set_gimbal_encoder_type_send(true);
+                // printf("Set gimbal send raw encoder value.\n");
+                // onboard.set_gimbal_encoder_type_send(true);
                 printf("Request gimbal device information.\n");
                 onboard.request_gimbal_device_info();
                 sdk.state = STATE_SET_GIMBAL_FOLLOW_MODE;

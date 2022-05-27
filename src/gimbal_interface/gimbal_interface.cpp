@@ -148,6 +148,7 @@ void Gimbal_Interface::messages_handler(const mavlink_message_t &message)
                     pthread_mutex_lock(&_messages.mutex);
                     mavlink_msg_heartbeat_decode(&message, &_messages.heartbeat);
                     _messages.timestamps.heartbeat = get_time_usec();
+                    pthread_mutex_unlock(&_messages.mutex);
 
                     if (has_detected == false) {
                         // Store message sysid and compid.
@@ -161,7 +162,6 @@ void Gimbal_Interface::messages_handler(const mavlink_message_t &message)
                         has_detected = true;
                     }
 
-                    pthread_mutex_unlock(&_messages.mutex);
                     break;
                 }
 
@@ -185,14 +185,15 @@ void Gimbal_Interface::messages_handler(const mavlink_message_t &message)
                     pthread_mutex_lock(&_messages.mutex);
                     mavlink_msg_mount_orientation_decode(&message, &_messages.mount_orientation);
                     _messages.timestamps.mount_orientation = get_time_usec();
+                    float pitch = _messages.mount_orientation.pitch;
+                    float roll  = _messages.mount_orientation.roll;
+                    float yaw   = _messages.mount_orientation.yaw;
+                    pthread_mutex_unlock(&_messages.mutex);
 
                     if (_gimbal_proto != nullptr) {
-                        _gimbal_proto->update_attitude(_messages.mount_orientation.pitch,
-                                                       _messages.mount_orientation.roll,
-                                                       _messages.mount_orientation.yaw);
+                        _gimbal_proto->update_attitude(pitch, roll, yaw);
                     }
 
-                    pthread_mutex_unlock(&_messages.mutex);
                     break;
                 }
 
@@ -200,12 +201,15 @@ void Gimbal_Interface::messages_handler(const mavlink_message_t &message)
                     pthread_mutex_lock(&_messages.mutex);
                     mavlink_msg_gimbal_device_attitude_status_decode(&message, &_messages.atttitude_status);
                     _messages.timestamps.attitude_status = get_time_usec();
+                    float q[4] = { 0 };
+                    memcpy(q, _messages.atttitude_status.q, 4 * sizeof(float));
+                    pthread_mutex_unlock(&_messages.mutex);
 
                     if (_gimbal_proto != nullptr) {
-                        _gimbal_proto->update_attitude(_messages.atttitude_status.q);
+                        _gimbal_proto->update_attitude(q);
                     }
 
-                    pthread_mutex_unlock(&_messages.mutex);
+                    
                     break;
                 }
 
@@ -969,8 +973,10 @@ Gimbal_Interface::gimbal_status_t Gimbal_Interface::get_gimbal_status(void)
         /* Reset timestamps */
         _messages.timestamps.sys_status = 0;
         // Get gimbal status
-        uint16_t errors_count1 = _messages.sys_status.errors_count1;
-        uint16_t errors_count2 = _messages.sys_status.errors_count2;
+        const uint16_t errors_count1 = _messages.sys_status.errors_count1;
+        const uint16_t errors_count2 = _messages.sys_status.errors_count2;
+
+        pthread_mutex_unlock(&_messages.mutex);
 
         /* Check gimbal's motor */
         if (errors_count1 & STATUS1_MOTORS) {
@@ -1021,12 +1027,12 @@ Gimbal_Interface::gimbal_status_t Gimbal_Interface::get_gimbal_status(void)
         }
 
     } else {
+        pthread_mutex_unlock(&_messages.mutex);
         /* Timeout status msg, reset */
         _status.state = GIMBAL_STATE_OFF;
         _status.mode  = GIMBAL_STATE_OFF;
     }
 
-    pthread_mutex_unlock(&_messages.mutex);
     return _status;
 }
 
@@ -1044,6 +1050,7 @@ Gimbal_Interface::imu_t Gimbal_Interface::get_gimbal_raw_imu(void)
         /* Reset timestamps */
         _messages.timestamps.raw_imu = 0;
         const mavlink_raw_imu_t &raw = _messages.raw_imu;
+        pthread_mutex_unlock(&_messages.mutex);
         return imu_t(vector3<int16_t>(raw.xacc, raw.yacc, raw.zacc), vector3<int16_t>(raw.xgyro, raw.ygyro, raw.zgyro));
     }
 
@@ -1058,16 +1065,12 @@ Gimbal_Interface::imu_t Gimbal_Interface::get_gimbal_raw_imu(void)
  */
 attitude<float> Gimbal_Interface::get_gimbal_attitude(void)
 {
-    uint64_t timestamps = 0;
+    pthread_mutex_lock(&_messages.mutex);
 
     if (_proto == MAVLINK_GIMBAL_V1) {
-        pthread_mutex_lock(&_messages.mutex);
-        timestamps = _messages.timestamps.mount_orientation;
-        pthread_mutex_unlock(&_messages.mutex);
 
         /* Check gimbal status has changed*/
-        if (timestamps) {
-            pthread_mutex_lock(&_messages.mutex);
+        if (_messages.timestamps.mount_orientation) {
             /* Reset timestamps */
             _messages.timestamps.mount_orientation = 0;
             const mavlink_mount_orientation_t &orient = _messages.mount_orientation;
@@ -1076,13 +1079,9 @@ attitude<float> Gimbal_Interface::get_gimbal_attitude(void)
         }
 
     } else {
-        pthread_mutex_lock(&_messages.mutex);
-        timestamps = _messages.timestamps.attitude_status;
-        pthread_mutex_unlock(&_messages.mutex);
 
         /* Check gimbal status has changed*/
         if (_messages.timestamps.attitude_status) {
-            pthread_mutex_lock(&_messages.mutex);
             /* Reset timestamps */
             _messages.timestamps.attitude_status = 0;
             const mavlink_gimbal_device_attitude_status_t &status = _messages.atttitude_status;
@@ -1093,6 +1092,7 @@ attitude<float> Gimbal_Interface::get_gimbal_attitude(void)
         }
     }
 
+    pthread_mutex_unlock(&_messages.mutex);
     return attitude<float>();
 }
 
@@ -1103,13 +1103,10 @@ attitude<float> Gimbal_Interface::get_gimbal_attitude(void)
  */
 attitude<int16_t> Gimbal_Interface::get_gimbal_encoder(void)
 {
-    pthread_mutex_lock(&_messages.mutex);
-    uint64_t timestamps = _messages.timestamps.mount_status;
-    pthread_mutex_unlock(&_messages.mutex);
+    pthread_mutex_lock(&_messages.mutex);    
 
     /* Check gimbal encoder value has changed*/
-    if (timestamps) {
-        pthread_mutex_lock(&_messages.mutex);
+    if (_messages.timestamps.mount_status) {
         /* Reset timestamps */
         _messages.timestamps.mount_status = 0;
         const mavlink_mount_status_t &mount = _messages.mount_status;
@@ -1118,6 +1115,7 @@ attitude<int16_t> Gimbal_Interface::get_gimbal_encoder(void)
         return encoder;
     }
 
+    pthread_mutex_unlock(&_messages.mutex);
     return attitude<int16_t>();
 }
 
@@ -1647,8 +1645,8 @@ void Gimbal_Interface::read_thread(void)
             // ----------------------------------------------------------------------
             //   READ MESSAGE
             // ----------------------------------------------------------------------
-            char buf[256] = { 0 };
-            int result = _serial_port->read_message(buf, 256);
+            char buf[1024] = { 0 };
+            int result = _serial_port->read_message(buf, 1024);
 
             // --------------------------------------------------------------------------
             //   PARSE MESSAGE
