@@ -33,16 +33,17 @@
 
 #include "gimbal_protocol_v1.h"
 
-Gimbal_Protocol_V1::Gimbal_Protocol_V1(Serial_Port *serial_port,
-                                       const mavlink_system_t &system) :
-    Gimbal_Protocol(serial_port, system) {}
+using namespace GSDK;
+
+Gimbal_Protocol_V1::Gimbal_Protocol_V1(HAL::gSDK_Serial_Manager *serial, const mavlink_system_t &system) :
+    Gimbal_Protocol(serial, system) {}
 
 /**
  * @brief  This function set gimbal mode
  * @param: type see control_mode_t
  * @ret: result
  */
-Gimbal_Protocol::result_t Gimbal_Protocol_V1::set_gimbal_mode_sync(control_mode_t mode)
+result_t Gimbal_Protocol_V1::set_gimbal_mode_sync(control_mode_t mode)
 {
     const float param[7] = {
         0,
@@ -61,7 +62,7 @@ Gimbal_Protocol::result_t Gimbal_Protocol_V1::set_gimbal_mode_sync(control_mode_
  * @param: type see gimbal_reset_mode_t
  * @ret: result
  */
-Gimbal_Protocol::result_t Gimbal_Protocol_V1::set_gimbal_reset_mode(gimbal_reset_mode_t reset_mode)
+result_t Gimbal_Protocol_V1::set_gimbal_reset_mode(gimbal_reset_mode_t reset_mode)
 {
     const float param[7] = {
         0,
@@ -84,7 +85,7 @@ Gimbal_Protocol::result_t Gimbal_Protocol_V1::set_gimbal_reset_mode(gimbal_reset
  * @param mode see input_mode_t
  * @return result_t
  */
-Gimbal_Protocol::result_t Gimbal_Protocol_V1::set_gimbal_move_sync(float pitch, float roll, float yaw,
+result_t Gimbal_Protocol_V1::set_gimbal_move_sync(float pitch, float roll, float yaw,
         input_mode_t mode)
 {
     const float param[7] = {

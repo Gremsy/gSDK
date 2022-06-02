@@ -49,8 +49,7 @@ namespace GSDK
     class Gimbal_Protocol_V1 : public Gimbal_Protocol
     {
     public:
-        Gimbal_Protocol_V1(Serial_Port *serial_port,
-                        const mavlink_system_t &system);
+        Gimbal_Protocol_V1(HAL::gSDK_Serial_Manager *serial, const mavlink_system_t &system);
         ~Gimbal_Protocol_V1() = default;
 
         /**
@@ -76,8 +75,7 @@ namespace GSDK
          * @param mode see input_mode_t
          * @return result_t
          */
-        result_t set_gimbal_move_sync(float pitch, float roll, float yaw,
-                                    input_mode_t mode) override;
+        result_t set_gimbal_move_sync(float pitch, float roll, float yaw, input_mode_t mode) override;
 
     private:
 

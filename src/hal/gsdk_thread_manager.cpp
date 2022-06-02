@@ -28,3 +28,37 @@
  ******************************************************************************/
 
 /* Includes ------------------------------------------------------------------*/
+
+#include "gsdk_thread_manager.h"
+
+using namespace GSDK::HAL;
+
+gSDK_Thread::gSDK_Thread()
+{
+
+}
+
+gSDK_Thread::~gSDK_Thread()
+{
+
+}
+
+gSDK_Event::gSDK_Event()
+{
+
+}
+
+gSDK_Event::~gSDK_Event()
+{
+
+}
+
+gSDK_Mutex::gSDK_Mutex()
+{
+
+}
+
+gSDK_Mutex::~gSDK_Mutex()
+{
+    
+}

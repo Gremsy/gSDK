@@ -31,24 +31,30 @@
 //   Includes
 // ------------------------------------------------------------------------------
 
+#include <cstdio>
 #include <errno.h>
 
 #include "gimbal_protocol.h"
 
-Gimbal_Protocol::Gimbal_Protocol(Serial_Port *serial_port,
-                                 const mavlink_system_t &system) :
+using namespace GSDK;
+
+Gimbal_Protocol::Gimbal_Protocol(HAL::gSDK_Serial_Manager *serial, const mavlink_system_t &system) :
+    _serial(serial),
     _system(system),
     _attitude()
 {
-    _serial = serial_port;
-    pthread_mutex_init(&_mutex, NULL);
-    pthread_cond_init(&_condition, NULL);
+    _event = HAL::gSDK_Platform_Manager::get_platform().create_event();
+
+    if (_event == nullptr) {
+        fprintf(stderr, "Failed to create Event Instance.\n");
+    }
 }
 
 Gimbal_Protocol::~Gimbal_Protocol()
 {
-    pthread_mutex_destroy(&_mutex);
-    pthread_cond_destroy(&_condition);
+    if (_event != nullptr) {
+        delete _event;
+    }
 }
 
 /**
@@ -70,7 +76,7 @@ void Gimbal_Protocol::initialize(const mavlink_system_t &gimbal)
  * @param param param1 -> param7
  * @return result_t SUCCESS if send command successfully
  */
-Gimbal_Protocol::result_t Gimbal_Protocol::send_command_long(uint16_t command, const float param[7])
+result_t Gimbal_Protocol::send_command_long(uint16_t command, const float param[7])
 {
     if (_serial == nullptr) {
         fprintf(stderr, "ERROR: serial port not exist\n");
@@ -96,7 +102,7 @@ Gimbal_Protocol::result_t Gimbal_Protocol::send_command_long(uint16_t command, c
     // --------------------------------------------------------------------------
     //   WRITE
     // --------------------------------------------------------------------------
-    return (_serial->write_message(message) > 0) ? SUCCESS : ERROR;
+    return _serial->write_message(message) ? SUCCESS : ERROR;
 }
 
 /**
@@ -106,33 +112,45 @@ Gimbal_Protocol::result_t Gimbal_Protocol::send_command_long(uint16_t command, c
  * @param param param1 -> param7
  * @return result_t ack response from gimbal
  */
-Gimbal_Protocol::result_t Gimbal_Protocol::send_command_long_sync(uint16_t command, const float param[7])
+result_t Gimbal_Protocol::send_command_long_sync(uint16_t command, const float param[7])
 {
     if (send_command_long(command, param) == SUCCESS) {
-        struct timespec time_wait;
-        int rt = 0;
+        // struct timespec time_wait;
+        // int rt = 0;
+        // result_t result = UNKNOWN;
+        // // get current time
+        // clock_gettime(CLOCK_REALTIME, &time_wait);
+        // // Wait for 1 sec timeout
+        // time_wait.tv_sec += 1;
+        // // Lock mutex
+        // pthread_mutex_lock(&_mutex);
+        // // Wait for ack reply
+        // rt = pthread_cond_timedwait(&_condition, &_mutex, &time_wait);
+
         result_t result = UNKNOWN;
-        // get current time
-        clock_gettime(CLOCK_REALTIME, &time_wait);
-        // Wait for 1 sec timeout
-        time_wait.tv_sec += 1;
-        // Lock mutex
-        pthread_mutex_lock(&_mutex);
-        // Wait for ack reply
-        rt = pthread_cond_timedwait(&_condition, &_mutex, &time_wait);
 
-        // check result
-        if (rt == ETIMEDOUT) {
-            result = TIMEOUT;
-
-        } else {
+        // Wait for 1s
+        if (_event->wait_ms(1000)) {
             if (_ack.command == command) {
                 result = from_mav_result((MAV_RESULT)_ack.result);
             }
+
+        } else {
+            result = TIMEOUT;
         }
 
-        // Unlock mutex
-        pthread_mutex_unlock(&_mutex);
+        // // check result
+        // if (rt == ETIMEDOUT) {
+        //     result = TIMEOUT;
+
+        // } else {
+        //     if (_ack.command == command) {
+        //         result = from_mav_result((MAV_RESULT)_ack.result);
+        //     }
+        // }
+
+        // // Unlock mutex
+        // pthread_mutex_unlock(&_mutex);
         return result;
     }
 
@@ -155,11 +173,13 @@ void Gimbal_Protocol::command_ack_callback(const mavlink_message_t &message)
     mavlink_msg_command_ack_decode(&message, &_ack);
 
     if (_ack.target_system == _system.sysid && _ack.target_component == _system.compid) {
-        // Lock mutex
-        pthread_mutex_lock(&_mutex);
-        pthread_cond_signal(&_condition);
-        // Unlock mutex
-        pthread_mutex_unlock(&_mutex);
+        // // Lock mutex
+        // pthread_mutex_lock(&_mutex);
+        // pthread_cond_signal(&_condition);
+        // // Unlock mutex
+        // pthread_mutex_unlock(&_mutex);
+
+        _event->notify();
     }
 }
 
@@ -169,7 +189,7 @@ void Gimbal_Protocol::command_ack_callback(const mavlink_message_t &message)
  * @param res
  * @return result_t
  */
-Gimbal_Protocol::result_t Gimbal_Protocol::from_mav_result(MAV_RESULT res)
+result_t Gimbal_Protocol::from_mav_result(MAV_RESULT res)
 {
     switch (res) {
         case MAV_RESULT_ACCEPTED:

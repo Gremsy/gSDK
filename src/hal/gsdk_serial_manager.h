@@ -1,8 +1,8 @@
 /*******************************************************************************
  * @file    gsdk_serial_manager.h
  * @author  The GremsyCo
- * @version V1.1.0
- * @date    August-21-2018
+ * @version V1.0.0
+ * @date    May-25-2022
  * @brief   This file contains API for gimbal interface
  *
  *  @Copyright (c) 2018 Gremsy
@@ -36,6 +36,10 @@
 
 #include <cstdlib>
 #include <cstdint>
+
+#include "ardupilotmega/mavlink.h"
+
+#include "gsdk_types.h"
 
 // ----------------------------------------------------------------------------------
 //   Serial Manager Class
@@ -87,6 +91,7 @@ namespace GSDK
             virtual void start() = 0;
             virtual void stop() = 0;
 
+            bool write_message(const mavlink_message_t &message);
             virtual size_t serial_write(const uint8_t *buf, size_t len) = 0;
             virtual size_t serial_read(uint8_t *buf, size_t maxlen) = 0;
 

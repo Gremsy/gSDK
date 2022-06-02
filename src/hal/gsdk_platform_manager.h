@@ -1,8 +1,8 @@
 /*******************************************************************************
- * @file    gimbal_protocol_v2.h
+ * @file    gsdk_platform_manager.h
  * @author  The GremsyCo
- * @version V2.0.0
- * @date    August-21-2018
+ * @version V1.0.0
+ * @date    May-30-2022
  * @brief   This file contains API for gimbal interface
  *
  *  @Copyright (c) 2018 Gremsy
@@ -27,61 +27,55 @@
  *
  ******************************************************************************/
 
-#ifndef GIMBAL_PROTOCOL_V2_H_
-#define GIMBAL_PROTOCOL_V2_H_
+#ifndef GSDK_PLATFORM_MANAGER_H_
+#define GSDK_PLATFORM_MANAGER_H_
 
 // ------------------------------------------------------------------------------
 //   Includes
 // ------------------------------------------------------------------------------
 
-#include "gimbal_protocol.h"
+#include "gsdk_types.h"
+#include "gsdk_serial_manager.h"
+#include "gsdk_thread_manager.h"
 
 // ----------------------------------------------------------------------------------
-//   Gimbal Protocol V2 Class
+//   Platform Manager Class
 // ----------------------------------------------------------------------------------
-/*
- * Gimbal Protocol Class V2
- *
- * This class implement class for Gimbal Protocol V2
- */
 namespace GSDK
 {
-    class Gimbal_Protocol_V2 : public Gimbal_Protocol
+    // Forward declaration
+    class Gimbal_Interface;
+
+    namespace HAL
     {
-    public:
-        Gimbal_Protocol_V2(HAL::gSDK_Serial_Manager *serial, const mavlink_system_t &system);
-        ~Gimbal_Protocol_V2() = default;
+        class gSDK_Platform_Manager
+        {
+        public:
+            gSDK_Platform_Manager(gSDK_Platform_Manager const&) = delete;
+            void operator=(gSDK_Platform_Manager const&) = delete;
 
-        /**
-         * @brief  This function set gimbal mode
-         * @param: type see control_mode_t
-         * @ret: result
-         */
-        result_t set_gimbal_mode_sync(control_mode_t mode) override;
+            static gSDK_Platform_Manager &get_platform()
+            {
+                static gSDK_Platform_Manager _instance;
+                return _instance;
+            }
 
-        /**
-         * @brief  This function reset gimbal with some mode
-         * @param: type see gimbal_reset_mode_t
-         * @ret: result
-         */
-        result_t set_gimbal_reset_mode(gimbal_reset_mode_t reset_mode) override;
+            gSDK_Thread *add_thread(Gimbal_Interface *gimbal, thread_type_t type);
+            gSDK_Serial_Manager *add_serial(const char *device, uint32_t baudrate);
+            gSDK_Mutex *create_mutex();
+            gSDK_Event *create_event();
 
-        /**
-         * @brief Set the gimbal move sync
-         *
-         * @param pitch control pitch value
-         * @param roll control roll value
-         * @param yaw control yaw value
-         * @param mode see input_mode_t
-         * @return result_t
-         */
-        result_t set_gimbal_move_sync(float pitch, float roll, float yaw, input_mode_t mode) override;
+        private:
+            gSDK_Platform_Manager() {}
 
-    private:
+        };
 
-        control_mode_t _control_mode = GIMBAL_FOLLOW_MODE;
-    };
+        uint64_t get_time_usec();
+        uint64_t get_time_msec();
 
-} // GSDK
+    } // namespace HAL
+        
+} // namespace GSDK
 
-#endif // GIMBAL_PROTOCOL_V2_H_
+
+#endif // GSDK_PLATFORM_MANAGER_H_

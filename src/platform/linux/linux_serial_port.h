@@ -55,7 +55,7 @@
 // ------------------------------------------------------------------------------
 
 #include <cstdlib>
-#include <stdio.h>   // Standard input/output definitions
+#include <cstdio>   // Standard input/output definitions
 #include <unistd.h>  // UNIX standard function definitions
 #include <fcntl.h>   // File control definitions
 #include <termios.h> // POSIX terminal control definitions
@@ -76,44 +76,42 @@
     #define B921600 921600
 #endif
 
-namespace GSDK
+namespace Linux
 {
-    namespace HAL
+    class Linux_Serial_Port : public GSDK::HAL::gSDK_Serial_Manager
     {
-        class Linux_Serial_Port : public gSDK_Serial_Manager
+    public:
+        Linux_Serial_Port(const char *device, uint32_t baudrate);
+        ~Linux_Serial_Port() override;
+
+        void start() override;
+        void stop() override;
+
+        size_t serial_write(const uint8_t *buf, size_t len) override;
+        size_t serial_read(uint8_t *buf, size_t maxlen) override;
+
+        bool get_device_status() const override
         {
-        public:
-            Linux_Serial_Port(const char *device, uint32_t baudrate);
-            ~Linux_Serial_Port() override;
+            return _device_status;
+        }
 
-            void start() override;
-            void stop() override;
+    private:
+        const char *_device;
+        uint32_t _baudrate;
 
-            size_t serial_write(const uint8_t *buf, size_t len) override;
-            size_t serial_read(uint8_t *buf, size_t maxlen) override;
+        int _fd;
+        
+        bool _device_status = false;
 
-            bool get_device_status() const override
-            {
-                return _device_status;
-            }
+        int _open_port(const char *port);
+        void _close_port();
+        void _start_port();
+        bool _setup_port(int baud, int data_bits, int stop_bits, bool parity, bool hardware_control);
 
-        private:
-            const char *_device;
-            uint32_t _baudrate;
+        int _write_port(const uint8_t *buf, size_t len);
+        int _read_port(uint8_t *buf, size_t maxlen);
+    };
 
-            int _fd;
-            
-            bool _device_status = false;
-
-            int _open_port(const char *port);
-            void _close_port();
-            void _start_port();
-            bool _setup_port(int baud, int data_bits, int stop_bits, bool parity, bool hardware_control);
-
-            int _write_port(const uint8_t *buf, size_t len);
-            int _read_port(uint8_t *buf, size_t maxlen);
-        };        
-    }
-}
+} // Linux
 
 #endif // LINUX_SERIAL_PORT_H_

@@ -35,15 +35,7 @@
 // ------------------------------------------------------------------------------
 
 #include "gimbal_protocol.h"
-
-// ------------------------------------------------------------------------------
-//   Prototypes
-// ------------------------------------------------------------------------------
-// Helper functions
-uint64_t get_time_usec();
-uint64_t get_time_msec();
-void *start_gimbal_interface_read_thread(void *args);
-void *start_gimbal_interface_write_thread(void *args);
+#include "gsdk_types.h"
 
 // ------------------------------------------------------------------------------
 //   Gimbal Interface Class
@@ -56,7 +48,7 @@ void *start_gimbal_interface_write_thread(void *args);
  * attribute. The write thread at the moment only streams a heartbeat 1hz
  */
 namespace GSDK
-{    
+{
     class Gimbal_Interface
     {
     public:
@@ -90,100 +82,29 @@ namespace GSDK
             }
         };
 
-        /**
-         * @brief Firmware version
-         *
-         */
-        struct fw_version_t {
-            uint8_t x;
-            uint8_t y;
-            uint8_t z;
-            const char *type;
-        };
-
-        /**
-         * @brief Gimbal Status
-         */
-        struct gimbal_status_t {
-            uint16_t load;			  /*< [ms] Maximum usage the mainloop time. Values: [0-1000] - should always be below 1000*/
-            uint16_t voltage_battery; /*< [V] Battery voltage*/
-            uint8_t sensor;			  /*< Specific sensor occur error (encorder, imu) refer sensor_state_t*/
-            uint8_t state;			  /* System state of gimbal. Refer interface_state_t*/
-            uint8_t mode;
-        };
-
-        /**
-         * @brief gimbal_config_axis_t
-         * This structure will contain the gimbal configuration related to speed, smooth, direction
-         */
-        struct gimbal_config_axis_t {
-            int8_t dir;
-            uint8_t speed_control;
-            uint8_t smooth_control;
-
-            uint8_t speed_follow;
-            uint8_t smooth_follow;
-            uint8_t window_follow;
-        };
-
-        /**
-         * @brief gimbal_motor_control_t
-         * stifness: Stiffness setting has a significant impact on the performance of the Gimbal.
-         *			This setting adjusts the degrees to which the gimbal tries to correct
-        *			for unwanted camera movement and hold the camera stable.
-        * 			The higher you can run the setting without vibration or oscillation, the better.
-        * Holdstrength: Power level required for the corresponding axis.
-        *				This option is only recommended for advanced users. Set 40 as defaults
-        */
-        struct gimbal_motor_control_t {
-            uint8_t stiffness;
-            uint8_t holdstrength;
-        };
-
-        /**
-         * @brief Limit angle data structure
-         */
-        struct limit_angle_t {
-            int16_t angle_min;
-            int16_t angle_max;
-        };
-
-        /**
-         * @brief imu data type
-         *
-         */
-        struct imu_t {
-            vector3<int16_t> accel;
-            vector3<int16_t> gyro;
-
-            imu_t() : accel(0), gyro(0) {};
-            imu_t(const vector3<int16_t> &_a, const vector3<int16_t> &_g) :
-                accel(_a), gyro(_g) {};
-        };
-
         Gimbal_Interface() = delete;
 
         /**
          * @brief Construct a new Gimbal_Interface object
          *
-         * @param serial_port serial object handle low level communication
+         * @param serial serial object handle low level communication
+         * @param use_serial_thread if true SDK will create 2 threads to handle low-level read, write serial
+         *                          if false, user have to call messages_handler() and write_thread periodically
          * @param sysid mavlink sysid of this system
          * @param compid mavlink compid of this system
          * @param proto MAVLink Gimbal Protocol version
          */
-        Gimbal_Interface(Serial_Port *serial_port,
-                        uint8_t sysid = 1,
-                        uint8_t compid = MAV_COMP_ID_ONBOARD_COMPUTER,
-                        MAVLINK_PROTO proto = MAVLINK_GIMBAL_V2);
+        Gimbal_Interface(HAL::gSDK_Serial_Manager *serial,
+                         bool use_serial_thread = true,
+                         uint8_t sysid = 1,
+                         uint8_t compid = MAV_COMP_ID_ONBOARD_COMPUTER,
+                         MAVLINK_PROTO proto = MAVLINK_GIMBAL_V2);
         ~Gimbal_Interface();
 
         void start();
         void stop();
 
-        void start_read_thread();
-        void start_write_thread(void);
-
-        void handle_quit(int sig);
+        void handle_quit();
 
         bool get_flag_exit(void);
 
@@ -196,49 +117,49 @@ namespace GSDK
          * @param: NONE
          * @ret: result
          */
-        Gimbal_Protocol::result_t set_gimbal_reboot(void);
+        result_t set_gimbal_reboot(void);
 
         /**
          * @brief  This function set gimbal to rc input mode and block to wait for gimbal response
          * @param: NONE
          * @ret: result
          */
-        Gimbal_Protocol::result_t set_gimbal_rc_input_sync(void);
+        result_t set_gimbal_rc_input_sync(void);
 
         /**
          * @brief  This function set gimbal motor ON/OFF
          * @param: type see control_motor_t
          * @ret: result
          */
-        Gimbal_Protocol::result_t set_gimbal_motor(control_motor_t type);
+        result_t set_gimbal_motor(control_motor_t type);
 
         /**
          * @brief  This function get gimbal mode
          * @param: type see gimbal_mode_t
          * @ret: gimbal_mode_t
          */
-        Gimbal_Protocol::control_mode_t get_gimbal_mode(void);
+        control_mode_t get_gimbal_mode(void);
 
         /**
          * @brief  This function reset gimbal with some mode
          * @param: type see gimbal_reset_mode_t
          * @ret: result
          */
-        Gimbal_Protocol::result_t set_gimbal_reset_mode(Gimbal_Protocol::gimbal_reset_mode_t reset_mode);
+        result_t set_gimbal_reset_mode(gimbal_reset_mode_t reset_mode);
 
         /**
          * @brief  This function set gimbal lock mode
          * @param: NONE
          * @ret: result
          */
-        Gimbal_Protocol::result_t set_gimbal_lock_mode_sync(void);
+        result_t set_gimbal_lock_mode_sync(void);
 
         /**
          * @brief  This function set gimbal follow mode
          * @param: NONE
          * @ret: result
          */
-        Gimbal_Protocol::result_t set_gimbal_follow_mode_sync(void);
+        result_t set_gimbal_follow_mode_sync(void);
 
         /**
          * @brief  This function rotate to target angle (deg)
@@ -247,7 +168,7 @@ namespace GSDK
          * @param: yaw control yaw value (-180; 180)
          * @ret: result
          */
-        Gimbal_Protocol::result_t set_gimbal_rotation_sync(float pitch, float roll, float yaw);
+        result_t set_gimbal_rotation_sync(float pitch, float roll, float yaw);
 
         /**
          * @brief  This function rotate target rate (deg/s)
@@ -256,7 +177,7 @@ namespace GSDK
          * @param: yaw control yaw value
          * @ret: result
          */
-        Gimbal_Protocol::result_t set_gimbal_rotation_rate_sync(float pitch, float roll, float yaw);
+        result_t set_gimbal_rotation_rate_sync(float pitch, float roll, float yaw);
 
         /**
          * @brief  This function get gimbal status
@@ -329,7 +250,7 @@ namespace GSDK
         *			then reduce the setting until the oscillation subsides.
         * @ret: result
         */
-        Gimbal_Protocol::result_t set_gimbal_config_tilt_axis(const gimbal_config_axis_t &config);
+        result_t set_gimbal_config_tilt_axis(const gimbal_config_axis_t &config);
 
         /**
          * @brief  This function get the config of tilt axis
@@ -346,7 +267,7 @@ namespace GSDK
         *			then reduce the setting until the oscillation subsides.
         * @ret: result
         */
-        Gimbal_Protocol::result_t set_gimbal_config_roll_axis(const gimbal_config_axis_t &config);
+        result_t set_gimbal_config_roll_axis(const gimbal_config_axis_t &config);
 
         /**
          * @brief  This function get the config of roll axis
@@ -363,7 +284,7 @@ namespace GSDK
         *			then reduce the setting until the oscillation subsides.
         * @ret: result
         */
-        Gimbal_Protocol::result_t set_gimbal_config_pan_axis(const gimbal_config_axis_t &config);
+        result_t set_gimbal_config_pan_axis(const gimbal_config_axis_t &config);
 
         /**
          * @brief  This function get the config of pan axis
@@ -388,10 +309,10 @@ namespace GSDK
         *					40 		40 		40
         * 	GAIN 			120		120		120
         */
-        Gimbal_Protocol::result_t set_gimbal_motor_control(const gimbal_motor_control_t &tilt,
-                const gimbal_motor_control_t &roll,
-                const gimbal_motor_control_t &pan,
-                uint8_t gyro_filter, uint8_t output_filter, uint8_t gain);
+        result_t set_gimbal_motor_control(const gimbal_motor_control_t &tilt,
+                                          const gimbal_motor_control_t &roll,
+                                          const gimbal_motor_control_t &pan,
+                                          uint8_t gyro_filter, uint8_t output_filter, uint8_t gain);
 
         /**
          * @brief  This function get motor controls setting
@@ -409,10 +330,10 @@ namespace GSDK
         *					40 		40 		40
         * 	GAIN 			120		120		120
         */
-        Gimbal_Protocol::result_t get_gimbal_motor_control(gimbal_motor_control_t &tilt,
-                gimbal_motor_control_t &roll,
-                gimbal_motor_control_t &pan,
-                uint8_t &gyro_filter, uint8_t &output_filter, uint8_t &gain);
+        result_t get_gimbal_motor_control(gimbal_motor_control_t &tilt,
+                                          gimbal_motor_control_t &roll,
+                                          gimbal_motor_control_t &pan,
+                                          uint8_t &gyro_filter, uint8_t &output_filter, uint8_t &gain);
 
         /**
          * @brief  This function set the configuration the message mavink with rate
@@ -423,10 +344,10 @@ namespace GSDK
          * @NOTE The range [0 - 200Hz]. 0 will disable that message. Only set 1 msg rate higher than 50Hz
          * @ret: None
          */
-        Gimbal_Protocol::result_t set_msg_encoder_rate(uint8_t rate);
-        Gimbal_Protocol::result_t set_msg_mnt_orient_rate(uint8_t rate);
-        Gimbal_Protocol::result_t set_msg_attitude_status_rate(uint8_t rate);
-        Gimbal_Protocol::result_t set_msg_raw_imu_rate(uint8_t rate);
+        result_t set_msg_encoder_rate(uint8_t rate);
+        result_t set_msg_mnt_orient_rate(uint8_t rate);
+        result_t set_msg_attitude_status_rate(uint8_t rate);
+        result_t set_msg_raw_imu_rate(uint8_t rate);
 
         /**
          * @brief Set the gimbal encoder type send
@@ -434,14 +355,14 @@ namespace GSDK
          *         false send encoder angle
          * @return result_t
          */
-        Gimbal_Protocol::result_t set_gimbal_encoder_type_send(bool type);
+        result_t set_gimbal_encoder_type_send(bool type);
 
         /**
          * @brief reuqest gimbal device info message
-         * 
-         * @return Gimbal_Protocol::result_t 
+         *
+         * @return result_t
          */
-        Gimbal_Protocol::result_t request_gimbal_device_info(void);
+        result_t request_gimbal_device_info(void);
 
         /**
          * @brief Get the gimbal encoder type send
@@ -458,7 +379,7 @@ namespace GSDK
          * @param: flag - enable/disable the recude drift of the gimbal by combining attitude from the aircraft
          * @ret: None
          */
-        Gimbal_Protocol::result_t set_gimbal_combine_attitude(bool flag);
+        result_t set_gimbal_combine_attitude(bool flag);
 
         /**
          * @brief Set limit angle for pitch.
@@ -467,7 +388,7 @@ namespace GSDK
          * @param limitAngle: limit angle.
          * @return None
          */
-        Gimbal_Protocol::result_t set_limit_angle_pitch(const limit_angle_t &limit_angle);
+        result_t set_limit_angle_pitch(const limit_angle_t &limit_angle);
 
         /**
          * @brief Get limit angle for pitch.
@@ -485,7 +406,7 @@ namespace GSDK
          * @param limitAngle: limit angle.
          * @return None
          */
-        Gimbal_Protocol::result_t set_limit_angle_yaw(const limit_angle_t &limit_angle);
+        result_t set_limit_angle_yaw(const limit_angle_t &limit_angle);
 
         /**
          * @brief Get limit angle for yaw.
@@ -503,7 +424,7 @@ namespace GSDK
          * @param limitAngle: limit angle.
          * @return None
          */
-        Gimbal_Protocol::result_t set_limit_angle_roll(const limit_angle_t &limit_angle);
+        result_t set_limit_angle_roll(const limit_angle_t &limit_angle);
 
         /**
          * @brief Get limit angle for roll.
@@ -517,10 +438,21 @@ namespace GSDK
         /**
          * @brief Set the external RC type
          * @param type rc type
-         * 
-         * @return Gimbal_Protocol::result_t 
+         *
+         * @return result_t
          */
-        Gimbal_Protocol::result_t set_rc_type(rc_type_t type);
+        result_t set_rc_type(rc_type_t type);
+
+        /**
+         * @brief This function should be called periodically
+         *
+         * @param message
+         */
+        void messages_handler(const mavlink_message_t &message);
+
+        void read_thread(void);
+        void write_thread(void);
+        void param_process(void);
 
     private:
 
@@ -541,7 +473,7 @@ namespace GSDK
          *
          */
         struct messages_t {
-            pthread_mutex_t mutex;
+            HAL::gSDK_Mutex *mutex;
 
             // Heartbeat
             mavlink_heartbeat_t heartbeat = { 0 };
@@ -567,26 +499,37 @@ namespace GSDK
             // timestamps
             timestamps_t timestamps;
 
-            messages_t()
-            {
-                pthread_mutex_init(&mutex, NULL);
-            }
+            messages_t() : mutex(HAL::gSDK_Platform_Manager::get_platform().create_mutex()) {}
 
             ~messages_t()
             {
-                pthread_mutex_destroy(&mutex);
+                delete mutex;
             }
+
+            void lock()
+            {
+                if (mutex != nullptr) {
+                    mutex->lock();
+                }
+            }
+
+            void free()
+            {
+                if (mutex != nullptr) {
+                    mutex->free();
+                }
+            }
+
+            // messages_t();
+            // ~messages_t();
+
+            // void lock();
+            // void free();
 
             void reset_timestamps()
             {
                 timestamps.reset_timestamps();
             }
-        };
-
-        enum serial_thread_status_t {
-            THREAD_NOT_INIT = 0,
-            THREAD_RUNNING,
-            THREAD_IDLING,        
         };
 
         /**
@@ -667,9 +610,12 @@ namespace GSDK
             GIMBAL_NUM_TRACKED_PARAMS
         };
 
-        Serial_Port *_serial_port;
+        HAL::gSDK_Serial_Manager *_serial             = nullptr;
+        HAL::gSDK_Thread          *_read_thr          = nullptr;
+        HAL::gSDK_Thread          *_write_thr         = nullptr;
+        HAL::gSDK_Thread          *_param_process_thr = nullptr;
 
-        Gimbal_Protocol *_gimbal_proto;
+        Gimbal_Protocol *_gimbal_proto = nullptr;
         MAVLINK_PROTO _proto;
 
         mavlink_system_t _system;
@@ -678,22 +624,10 @@ namespace GSDK
         bool time_to_exit = false;
         bool has_detected = false;
 
-        pthread_t read_tid  = 0;
-        pthread_t write_tid = 0;
-
-        volatile serial_thread_status_t reading_status = THREAD_NOT_INIT;
-        volatile serial_thread_status_t writing_status = THREAD_NOT_INIT;
-
-        void messages_handler(const mavlink_message_t &message);
-        int write_message(const mavlink_message_t &message);
-
-        void read_thread(void);
-        void write_thread(void);
-
+        bool write_message(const mavlink_message_t &message);
         void write_heartbeat(void);
 
         messages_t _messages;
-
         gimbal_status_t _status;
 
         interface_state_t _state = GIMBAL_STATE_NOT_PRESENT;
@@ -717,9 +651,9 @@ namespace GSDK
          *
          * @param msgid
          * @param rate
-         * @return Gimbal_Protocol::result_t
+         * @return result_t
          */
-        Gimbal_Protocol::result_t set_msg_rate(uint32_t msgid, uint8_t rate);
+        result_t set_msg_rate(uint32_t msgid, uint8_t rate);
 
         /**
          * @brief Request msg from gimbal
@@ -727,7 +661,7 @@ namespace GSDK
          * @param msgid
          * @return result_t
          */
-        Gimbal_Protocol::result_t request_msg(uint32_t msgid);
+        result_t request_msg(uint32_t msgid);
 
         // Gimbal params
         void reset_params();
@@ -736,19 +670,19 @@ namespace GSDK
         void fetch_params();
 
         void param_update();
-        void param_process(void);
 
-        const char *get_param_name(param_index_t param)
+        const char *get_param_name(param_index_t param) const
         {
             return _params_list[param].gmb_id;
         }
-        const uint8_t get_gmb_index(param_index_t param)
+
+        const uint8_t get_gmb_index(param_index_t param) const
         {
             return _params_list[param].gmb_idx;
         }
 
-        Gimbal_Protocol::result_t request_param(param_index_t param);
-        Gimbal_Protocol::result_t request_param_list(void);
+        result_t request_param(param_index_t param);
+        result_t request_param_list(void);
 
         /**
          * @brief  This function for user to get gimbal param
@@ -757,7 +691,7 @@ namespace GSDK
          * @param: value - reference to value
          * @ret: None
          */
-        Gimbal_Protocol::result_t get_param(param_index_t param, int16_t &value);
+        result_t get_param(param_index_t param, int16_t &value);
 
         /**
          * @brief  This function for user to set gimbal param
@@ -766,7 +700,7 @@ namespace GSDK
          * @param: value - value to set
          * @ret: None
          */
-        Gimbal_Protocol::result_t set_param(param_index_t param, int16_t value);
+        result_t set_param(param_index_t param, int16_t value);
 
         static constexpr uint32_t _TIME_LOST_CONNECT = 3000000;  // 3s
         static constexpr uint32_t _RETRY_PERIOD      = 100;      // 100ms
@@ -841,7 +775,7 @@ namespace GSDK
         uint64_t _last_request_ms;
         uint64_t _last_set_ms;
     };
-    
+
 } // namespace GSDK
 
 #endif // GIMBAL_INTERFACE_H_

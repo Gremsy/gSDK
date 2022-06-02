@@ -52,16 +52,17 @@
 // ------------------------------------------------------------------------------
 
 #include <sys/ioctl.h> // ioctl() call defenitions
+
 #include "linux_serial_port.h"
 
-using namespace GSDK::HAL;
+using namespace Linux;
 
 // ------------------------------------------------------------------------------
 //   Con/De structors
 // ------------------------------------------------------------------------------
-Linux_Serial_Port::Linux_Serial_Port(const char *device, uint32_t baudrate)
+Linux_Serial_Port::Linux_Serial_Port(const char *device, uint32_t baudrate) :
+    _device(device)
 {
-    _device   = device;
     _baudrate = baudrate;
 }
 

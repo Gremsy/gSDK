@@ -33,16 +33,17 @@
 
 #include "gimbal_protocol_v2.h"
 
-Gimbal_Protocol_V2::Gimbal_Protocol_V2(Serial_Port *serial_port,
-                                       const mavlink_system_t &system) :
-    Gimbal_Protocol(serial_port, system) {}
+using namespace GSDK;
+
+Gimbal_Protocol_V2::Gimbal_Protocol_V2(HAL::gSDK_Serial_Manager *serial, const mavlink_system_t &system) :
+    Gimbal_Protocol(serial, system) {}
 
 /**
  * @brief  This function set gimbal mode
  * @param: type see control_mode_t
  * @ret: result
  */
-Gimbal_Protocol::result_t Gimbal_Protocol_V2::set_gimbal_mode_sync(control_mode_t mode)
+result_t Gimbal_Protocol_V2::set_gimbal_mode_sync(control_mode_t mode)
 {
     if (!_is_init) {
         fprintf(stderr, "ERROR: could not set GIMBAL MODE, gimbal proto has not been initialized\n");
@@ -58,7 +59,7 @@ Gimbal_Protocol::result_t Gimbal_Protocol_V2::set_gimbal_mode_sync(control_mode_
  * @param: type see gimbal_reset_mode_t
  * @ret: result
  */
-Gimbal_Protocol_V2::result_t Gimbal_Protocol_V2::set_gimbal_reset_mode(gimbal_reset_mode_t reset_mode)
+result_t Gimbal_Protocol_V2::set_gimbal_reset_mode(gimbal_reset_mode_t reset_mode)
 {
     float pitch = _attitude.pitch;
     float roll  = _attitude.roll;
@@ -92,6 +93,7 @@ Gimbal_Protocol_V2::result_t Gimbal_Protocol_V2::set_gimbal_reset_mode(gimbal_re
         default:
             break;
     }
+
     /* Switch to follow */
     _control_mode = GIMBAL_FOLLOW_MODE;
     return set_gimbal_move_sync(pitch, roll, yaw, INPUT_ANGLE);
@@ -106,12 +108,12 @@ Gimbal_Protocol_V2::result_t Gimbal_Protocol_V2::set_gimbal_reset_mode(gimbal_re
  * @param mode see input_mode_t
  * @return result_t
  */
-Gimbal_Protocol::result_t Gimbal_Protocol_V2::set_gimbal_move_sync(float pitch, float roll, float yaw,
+result_t Gimbal_Protocol_V2::set_gimbal_move_sync(float pitch, float roll, float yaw,
         input_mode_t mode)
 {
     if (_serial == nullptr) {
         fprintf(stderr, "ERROR: serial port not exist\n");
-        throw 1;
+        return ERROR;
     }
 
     if (!_is_init) {
@@ -123,8 +125,8 @@ Gimbal_Protocol::result_t Gimbal_Protocol_V2::set_gimbal_move_sync(float pitch, 
     mavlink_gimbal_device_set_attitude_t attitude = { 0 };
     attitude.target_system    = _gimbal.sysid;
     attitude.target_component = _gimbal.compid;
-    attitude.flags = GIMBAL_DEVICE_FLAGS_ROLL_LOCK | GIMBAL_DEVICE_FLAGS_PITCH_LOCK |
-                     ((_control_mode == GIMBAL_LOCK_MODE) ? GIMBAL_DEVICE_FLAGS_YAW_LOCK : 0);
+    attitude.flags            = GIMBAL_DEVICE_FLAGS_ROLL_LOCK | GIMBAL_DEVICE_FLAGS_PITCH_LOCK |
+                                ((_control_mode == GIMBAL_LOCK_MODE) ? GIMBAL_DEVICE_FLAGS_YAW_LOCK : 0);
 
     if (mode == INPUT_ANGLE) {
         /* Convert target to quaternion */
@@ -151,5 +153,5 @@ Gimbal_Protocol::result_t Gimbal_Protocol_V2::set_gimbal_move_sync(float pitch, 
     // --------------------------------------------------------------------------
     //   WRITE
     // --------------------------------------------------------------------------
-    return (_serial->write_message(message) > 0) ? SUCCESS : ERROR;
+    return _serial->write_message(message) ? SUCCESS : ERROR;
 }

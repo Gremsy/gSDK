@@ -36,35 +36,57 @@
 
 #include <pthread.h>
 
-#include "gimbal_interface.h"
 #include "gsdk_thread_manager.h"
 
-namespace GSDK
+namespace Linux
 {
-    namespace HAL
+    class Posix_Thread : public GSDK::HAL::gSDK_Thread
     {
-        class Posix_Thread : public gSDK_Thread
-        {
-        public:
-            Posix_Thread(const Gimbal_Interface *gimbal, thread_type_t type);
-            ~Posix_Thread() override;
+    public:
+        Posix_Thread(GSDK::Gimbal_Interface *gimbal, GSDK::HAL::thread_type_t type);
+        ~Posix_Thread() override;
 
-            bool start_thread() override;
-            bool stop_thread() override;
+        bool start_thread() override;
+        bool stop_thread() override;
 
-            void pause_us(uint32_t time_us) override;
-            void pause_ms(uint32_t time_ms) override;
+        void delay_us(uint32_t time_us) override;
+        void delay_ms(uint32_t time_ms) override;
 
-        private:
-            pthread_t _tid;
-            const Gimbal_Interface *_gimbal;
+    private:
+        pthread_t _tid;
 
-            static void *_read_poll(void *arg);
-            static void *_write_poll(void *arg);
-            static void *_param_process(void *arg);
-        };       
-        
-    } // namespace HAL
+        static void *_read_poll(void *arg);
+        static void *_write_poll(void *arg);
+        static void *_param_process(void *arg);
+    };
+
+    class Posix_Mutex : public GSDK::HAL::gSDK_Mutex
+    {
+    public:
+        Posix_Mutex();
+        ~Posix_Mutex() override;
+
+        void lock() override;
+        void free() override;
+
+    private:
+        pthread_mutex_t _mutex;
+    };
+
+    class Posix_Event : public GSDK::HAL::gSDK_Event
+    {
+    public:
+        Posix_Event();
+        ~Posix_Event() override;
+
+        void notify() override;
+        bool wait_ms(uint32_t time_ms) override;
+        void wait() override;
+
+    private:
+        pthread_mutex_t _mutex;
+        pthread_cond_t _condition;
+    };
     
 } // namespace GSDK
 

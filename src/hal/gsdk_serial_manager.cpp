@@ -30,3 +30,27 @@
 /* Includes ------------------------------------------------------------------*/
 
 #include "gsdk_serial_manager.h"
+
+using namespace GSDK::HAL;
+
+gSDK_Serial_Manager::gSDK_Serial_Manager()
+{
+
+}
+
+gSDK_Serial_Manager::~gSDK_Serial_Manager()
+{
+
+}
+
+bool gSDK_Serial_Manager::write_message(const mavlink_message_t &message)
+{
+    if (!get_device_status()) {
+        fprintf(stderr, "Serial device has not been initialized\n");
+        return false;
+    }
+
+    uint8_t buff[MAVLINK_MAX_PACKET_LEN] = { 0 };
+    uint16_t len = mavlink_msg_to_send_buffer(buff, &message);
+    return serial_write(buff, len) == len;
+}

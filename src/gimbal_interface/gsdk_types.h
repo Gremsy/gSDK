@@ -36,12 +36,13 @@
 
 #include <cstdlib>
 #include <cstdint>
+#include <cmath>
 
 namespace GSDK
 {
     /**
      * @brief Enum described function return status
-     * 
+     *
      */
     enum result_t {
         SUCCESS,
@@ -92,7 +93,7 @@ namespace GSDK
 
     /**
      * @brief Gimbal remote controller type
-     * 
+     *
      */
     enum rc_type_t {
         RC_TYPE_SBUS_FASST = 1,
@@ -131,24 +132,24 @@ namespace GSDK
     enum gimbal_reset_mode_t {
         /*! Only reset yaw axis of gimbal. Reset angle of yaw axis to the sum of yaw axis angle of aircraft and fine tune angle
         * of yaw axis of gimbal. */
-            GIMBAL_RESET_MODE_YAW = 1,
-        /*! Reset yaw axis and pitch axis of gimbal. Reset angle of yaw axis to sum of yaw axis angle of aircraft and fine tune 
+        GIMBAL_RESET_MODE_YAW = 1,
+        /*! Reset yaw axis and pitch axis of gimbal. Reset angle of yaw axis to sum of yaw axis angle of aircraft and fine tune
         * angle of yaw axis of gimbal, and reset pitch axis angle to the fine tune angle. */
-            GIMBAL_RESET_MODE_PITCH_AND_YAW = 3,
+        GIMBAL_RESET_MODE_PITCH_AND_YAW = 3,
         /*! Reset yaw axis and pitch axis of gimbal. Reset angle of yaw axis to sum of yaw axis angle of aircraft and fine tune
         * angle of yaw axis of gimbal, and reset pitch axis angle to sum of -90 degree and fine tune angle if gimbal
         * downward, sum of 90 degree and fine tune angle if upward. */
-            GIMBAL_RESET_MODE_PITCH_DOWNWARD_UPWARD_AND_YAW = 11,
+        GIMBAL_RESET_MODE_PITCH_DOWNWARD_UPWARD_AND_YAW = 11,
         /*! Reset pitch axis of gimbal. Reset pitch axis angle to sum of -90 degree and fine tune angle if gimbal downward,
         * sum of 90 degree and fine tune angle if upward. */
-            GIMBAL_RESET_MODE_PITCH_DOWNWARD_UPWARD = 12,
+        GIMBAL_RESET_MODE_PITCH_DOWNWARD_UPWARD = 12,
         /*! Reset pitch axis of gimbal. Reset pitch axis angle to mapping angle */
-            GIMBAL_RESET_MODE_PITCH_MAPPING = 13,
+        GIMBAL_RESET_MODE_PITCH_MAPPING = 13,
     };
 
     /**
      * @brief Input mode control gimbal
-     * 
+     *
      */
     enum input_mode_t {
         INPUT_ANGLE = 1,
@@ -194,6 +195,77 @@ namespace GSDK
         vector3() = default;
         vector3(T val) : x(val), y(val), z(val) {};
         vector3(T _x, T _y, T _z) : x(_x), y(_y), z(_z) {};
+    };
+
+    /**
+     * @brief Firmware version
+     *
+     */
+    struct fw_version_t {
+        uint8_t x;
+        uint8_t y;
+        uint8_t z;
+        const char *type;
+    };
+
+    /**
+     * @brief Gimbal Status
+     */
+    struct gimbal_status_t {
+        uint16_t load;			  /*< [ms] Maximum usage the mainloop time. Values: [0-1000] - should always be below 1000*/
+        uint16_t voltage_battery; /*< [V] Battery voltage*/
+        uint8_t sensor;			  /*< Specific sensor occur error (encorder, imu) refer sensor_state_t*/
+        uint8_t state;			  /* System state of gimbal. Refer interface_state_t*/
+        uint8_t mode;
+    };
+
+    /**
+     * @brief gimbal_config_axis_t
+     * This structure will contain the gimbal configuration related to speed, smooth, direction
+     */
+    struct gimbal_config_axis_t {
+        int8_t dir;
+        uint8_t speed_control;
+        uint8_t smooth_control;
+
+        uint8_t speed_follow;
+        uint8_t smooth_follow;
+        uint8_t window_follow;
+    };
+
+    /**
+     * @brief gimbal_motor_control_t
+     * stifness: Stiffness setting has a significant impact on the performance of the Gimbal.
+     *			This setting adjusts the degrees to which the gimbal tries to correct
+    *			for unwanted camera movement and hold the camera stable.
+    * 			The higher you can run the setting without vibration or oscillation, the better.
+    * Holdstrength: Power level required for the corresponding axis.
+    *				This option is only recommended for advanced users. Set 40 as defaults
+    */
+    struct gimbal_motor_control_t {
+        uint8_t stiffness;
+        uint8_t holdstrength;
+    };
+
+    /**
+     * @brief Limit angle data structure
+     */
+    struct limit_angle_t {
+        int16_t angle_min;
+        int16_t angle_max;
+    };
+
+    /**
+     * @brief imu data type
+     *
+     */
+    struct imu_t {
+        vector3<int16_t> accel;
+        vector3<int16_t> gyro;
+
+        imu_t() : accel(0), gyro(0) {};
+        imu_t(const vector3<int16_t> &_a, const vector3<int16_t> &_g) :
+            accel(_a), gyro(_g) {};
     };
 
 } // GSDK

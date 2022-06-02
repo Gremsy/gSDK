@@ -38,6 +38,7 @@
 #include <sys/time.h>
 
 #include "gimbal_interface.h"
-#include "serial_port.h"
+#include "linux_serial_port.h"
+#include "posix_thread_manager.h"
 
 /************************ (C) COPYRIGHT Gremsy *****END OF FILE****************/

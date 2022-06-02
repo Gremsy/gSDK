@@ -31,12 +31,35 @@
 
 #include <unistd.h>
 #include <string>
+#include <sys/time.h>
 
+#include "gimbal_interface.h"
 #include "posix_thread_manager.h"
 
+using namespace Linux;
 using namespace GSDK::HAL;
 
-Posix_Thread::Posix_Thread(const Gimbal_Interface *gimbal, thread_type_t type)
+namespace GSDK
+{
+    namespace HAL
+    {
+        uint64_t get_time_usec()
+        {
+            struct timeval _timestamp = { 0 };
+            gettimeofday(&_timestamp, NULL);
+            return _timestamp.tv_sec * 1000000 + _timestamp.tv_usec;
+        }
+
+        uint64_t get_time_msec()
+        {
+            struct timeval _timestamp = { 0 };
+            gettimeofday(&_timestamp, NULL);
+            return _timestamp.tv_sec * 1000 + _timestamp.tv_usec / 1000;
+        }
+    }
+}
+
+Posix_Thread::Posix_Thread(GSDK::Gimbal_Interface *gimbal, thread_type_t type)
 {
     _gimbal = gimbal;
     _type   = type;
@@ -103,12 +126,12 @@ bool Posix_Thread::stop_thread()
     return true;
 }
 
-void Posix_Thread::pause_us(uint32_t time_us)
+void Posix_Thread::delay_us(uint32_t time_us)
 {
     usleep(time_us);
 }
 
-void Posix_Thread::pause_ms(uint32_t time_ms)
+void Posix_Thread::delay_ms(uint32_t time_ms)
 {
     usleep(time_ms * 1000);
 }
@@ -120,7 +143,7 @@ void *Posix_Thread::_read_poll(void *arg)
         return NULL;
     }
 
-    const Gimbal_Interface *gimbal = (Gimbal_Interface *)arg;
+    GSDK::Gimbal_Interface *gimbal = (GSDK::Gimbal_Interface *)arg;
     gimbal->read_thread();
     return NULL;
 }
@@ -132,7 +155,7 @@ void *Posix_Thread::_write_poll(void *arg)
         return NULL;
     }
 
-    const Gimbal_Interface *gimbal = (Gimbal_Interface *)arg;
+    GSDK::Gimbal_Interface *gimbal = (GSDK::Gimbal_Interface *)arg;
     gimbal->write_thread();
     return NULL;
 }
@@ -144,7 +167,75 @@ void *Posix_Thread::_param_process(void *arg)
         return NULL;
     }
 
-    const Gimbal_Interface *gimbal = (Gimbal_Interface *)arg;
+    GSDK::Gimbal_Interface *gimbal = (GSDK::Gimbal_Interface *)arg;
     gimbal->param_process();
     return NULL;
+}
+
+Posix_Mutex::Posix_Mutex()
+{
+    pthread_mutex_init(&_mutex, NULL);
+}
+
+Posix_Mutex::~Posix_Mutex()
+{
+    pthread_mutex_destroy(&_mutex);
+}
+
+void Posix_Mutex::lock()
+{
+    pthread_mutex_lock(&_mutex);
+}
+
+void Posix_Mutex::free()
+{
+    pthread_mutex_unlock(&_mutex);
+}
+
+Posix_Event::Posix_Event()
+{
+    pthread_mutex_init(&_mutex, NULL);
+    pthread_cond_init(&_condition, NULL);
+}
+
+Posix_Event::~Posix_Event()
+{
+    pthread_mutex_destroy(&_mutex);
+    pthread_cond_destroy(&_condition);
+}
+
+void Posix_Event::notify()
+{
+    // Lock mutex
+    pthread_mutex_lock(&_mutex);
+    pthread_cond_signal(&_condition);
+    // Unlock mutex
+    pthread_mutex_unlock(&_mutex);
+}
+
+bool Posix_Event::wait_ms(uint32_t time_ms)
+{
+    struct timespec time_wait = { 0 };
+    // get current time
+    clock_gettime(CLOCK_REALTIME, &time_wait);
+    time_wait.tv_nsec += time_ms * 1000000;
+    // Lock mutex
+    pthread_mutex_lock(&_mutex);
+
+    // Wait
+    bool ret = !(pthread_cond_timedwait(&_condition, &_mutex, &time_wait) == ETIMEDOUT);
+
+    // Unlock mutex
+    pthread_mutex_unlock(&_mutex);
+
+    return ret;
+}
+
+void Posix_Event::wait()
+{
+    // Lock mutex
+    pthread_mutex_lock(&_mutex);
+    pthread_cond_wait(&_condition, &_mutex);
+    // Unlock mutex
+    pthread_mutex_unlock(&_mutex);
 }

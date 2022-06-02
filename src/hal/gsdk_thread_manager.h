@@ -2,7 +2,7 @@
  * @file    gsdk_thread_manager.h
  * @author  The GremsyCo
  * @version V1.0.0
- * @date    August-21-2018
+ * @date    May-25-2022
  * @brief   This file contains API for gimbal interface
  *
  *  @Copyright (c) 2018 Gremsy
@@ -37,12 +37,17 @@
 #include <cstdlib>
 #include <cstdint>
 
+#include "gsdk_types.h"
+
 // ----------------------------------------------------------------------------------
 //   THREAD Manager Class
 // ----------------------------------------------------------------------------------
 
 namespace GSDK
 {
+    // Forward declaration
+    class Gimbal_Interface;
+
     namespace HAL
     {
         enum thread_type_t {
@@ -70,8 +75,8 @@ namespace GSDK
             *  bool stop_thread();
             *  @brief After calling this function, gSDK_Thread should stop the thread
             *
-            *  void pause_us(uint32_t time_us);
-            *  void pause_ms(uint32_t time_ms);
+            *  void delay_us(uint32_t time_us);
+            *  void delay_ms(uint32_t time_ms);
             *  @brief After calling this function, current thread should be paused.
             *
             *  @attention
@@ -90,8 +95,8 @@ namespace GSDK
             virtual bool start_thread() = 0;
             virtual bool stop_thread() = 0;
 
-            virtual void pause_us(uint32_t time_us) = 0;
-            virtual void pause_ms(uint32_t time_ms) = 0;
+            virtual void delay_us(uint32_t time_us) = 0;
+            virtual void delay_ms(uint32_t time_ms) = 0;
 
             bool is_thread_stop() const
             {
@@ -104,6 +109,7 @@ namespace GSDK
             }
 
         protected:
+            Gimbal_Interface *_gimbal;
             bool _is_stop = true;
             thread_type_t _type;
         };
