@@ -1105,6 +1105,28 @@ attitude<float> Gimbal_Interface::get_gimbal_attitude(void)
 }
 
 /**
+ * @brief Get the gimbal rate objectThis function get gimbal axis rate (deg/s) in local frame
+ * 
+ * @return vector3<float> 
+ */
+attitude<float> Gimbal_Interface::get_gimbal_rate(void)
+{
+    _messages.lock();
+
+    /* Check gimbal status has changed*/
+    if (_messages.timestamps.attitude_status) {
+        /* Reset timestamps */
+        _messages.timestamps.attitude_status = 0;
+        const mavlink_gimbal_device_attitude_status_t &status = _messages.atttitude_status;
+        _messages.free();
+        return attitude<float>(status.angular_velocity_x, status.angular_velocity_y, status.angular_velocity_z).to_deg();
+    }
+
+    _messages.free();
+    return attitude<float>();
+}
+
+/**
  * @brief  This function get gimbal encoder depends on encoder type send
  * @param: None
  * @ret: Gimbal encoder

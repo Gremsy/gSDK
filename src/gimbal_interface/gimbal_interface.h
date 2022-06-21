@@ -201,6 +201,13 @@ namespace GSDK
         attitude<float> get_gimbal_attitude(void);
 
         /**
+         * @brief Get the gimbal rate objectThis function get gimbal axis rate (deg/s) in local frame
+         * 
+         * @return vector3<float> 
+         */
+        attitude<float> get_gimbal_rate(void);
+
+        /**
          * @brief  This function get gimbal encoder depends on encoder type send
          * @param: None
          * @ret: Gimbal encoder
@@ -519,12 +526,6 @@ namespace GSDK
                     mutex->free();
                 }
             }
-
-            // messages_t();
-            // ~messages_t();
-
-            // void lock();
-            // void free();
 
             void reset_timestamps()
             {
