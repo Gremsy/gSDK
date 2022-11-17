@@ -901,6 +901,9 @@ private:
 
     uint64_t _last_request_ms;
     uint64_t _last_set_ms;
+
+    /// @brief gimbal attitude
+    attitude<float> gimbal_attitude;
 };
 
 #endif // GIMBAL_INTERFACE_H_

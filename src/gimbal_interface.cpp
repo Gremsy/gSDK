@@ -1070,9 +1070,14 @@ attitude<float> Gimbal_Interface::get_gimbal_attitude(void)
             pthread_mutex_lock(&_messages.mutex);
             /* Reset timestamps */
             _messages.timestamps.mount_orientation = 0;
-            const mavlink_mount_orientation_t &orient = _messages.mount_orientation;
+
+            gimbal_attitude.roll    = _messages.mount_orientation.roll;
+            gimbal_attitude.pitch   = _messages.mount_orientation.pitch;
+            gimbal_attitude.yaw     = _messages.mount_orientation.yaw;
+
+            gimbal_attitude.updateCount++;
+
             pthread_mutex_unlock(&_messages.mutex);
-            return attitude<float>(orient.roll, orient.pitch, orient.yaw);
         }
 
     } else {
@@ -1085,15 +1090,20 @@ attitude<float> Gimbal_Interface::get_gimbal_attitude(void)
             pthread_mutex_lock(&_messages.mutex);
             /* Reset timestamps */
             _messages.timestamps.attitude_status = 0;
+
             const mavlink_gimbal_device_attitude_status_t &status = _messages.atttitude_status;
-            attitude<float> attitude;
-            mavlink_quaternion_to_euler(status.q, &attitude.roll, &attitude.pitch, &attitude.yaw);
-            pthread_mutex_unlock(&_messages.mutex);
-            return attitude.to_deg();
+
+            mavlink_quaternion_to_euler(status.q, &gimbal_attitude.roll, &gimbal_attitude.pitch, &gimbal_attitude.yaw);
+
+            gimbal_attitude.updateCount++;
+
+            gimbal_attitude.to_deg();
+
+            pthread_mutex_unlock(&_messages.mutex);   
         }
     }
 
-    return attitude<float>();
+    return gimbal_attitude;
 }
 
 /**

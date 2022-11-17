@@ -64,6 +64,8 @@ enum sdk_process_state_t {
 
     STATE_MOVE_TO_ZERO,
 
+    STATE_GIMBAL_ATTITUDE_TESTING,
+
     STATE_DONE
 };
 
@@ -335,8 +337,8 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                 onboard.set_gimbal_encoder_type_send(true);
                 printf("Request gimbal device information.\n");
                 onboard.request_gimbal_device_info();
-                sdk.state = STATE_SET_GIMBAL_FOLLOW_MODE;
-                // sdk.state = STATE_SWITCH_TO_RC;
+                // sdk.state = STATE_SET_GIMBAL_FOLLOW_MODE;
+                sdk.state = STATE_GIMBAL_ATTITUDE_TESTING;
             }
             break;
 
@@ -644,6 +646,13 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                 }
             }
             break;
+    
+        case STATE_GIMBAL_ATTITUDE_TESTING: {
+                attitude<float> attitude = onboard.get_gimbal_attitude();
+                printf("\tGimbal attitude Pitch - Roll - Yaw - updateCount: [%.2f - %.2f - %.2f]-[%d]\n", attitude.pitch, attitude.roll, attitude.yaw, attitude.updateCount);
+                usleep(20000);
+        }
+        break;
     }
 }
 

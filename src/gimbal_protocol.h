@@ -49,6 +49,8 @@ struct attitude {
     T pitch = 0;
     T yaw   = 0;
 
+    int updateCount = 0;
+
     static constexpr float DEG2RAD = M_PI / 180.f;
     static constexpr float RAD2DEG = 180.f / M_PI;
 
