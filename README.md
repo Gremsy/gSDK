@@ -10,8 +10,8 @@ What's New?
 ===========
 
 Add:
-- [gimbal_interface] attitude.updateCount use count up each time you receive a message (mount_orientation/gimbal_device_attitude_status).
-- [gimbal_interface] attitude<float> gimbal_attitude use save the old value of message (mount_orientation/gimbal_device_attitude_status).
+- [gimbal_interface] attitude.updateCount use count up each time you receive a message (mount_orientation).
+- [gimbal_interface] attitude<float> gimbal_attitude use save the old value of message (mount_orientation).
 
 Note:
 - [mavlink_control] add state STATE_GIMBAL_ATTITUDE_TESTING. form STATE_SETTING_MAVLINK_MESSAGE to STATE_GIMBAL_ATTITUDE_TESTING.
