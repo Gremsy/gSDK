@@ -6,6 +6,16 @@ This is a simple MAVLink to UART interface example for Unix systems that can all
 This example will receive one MAVLink message and send one MAVLink message.
 
 
+What's New?
+===========
+
+Add:
+- [gimbal_interface] attitude.updateCount use count up each time you receive a message (mount_orientation/gimbal_device_attitude_status).
+- [gimbal_interface] attitude<float> gimbal_attitude use save the old value of message (mount_orientation/gimbal_device_attitude_status).
+
+Note:
+- [mavlink_control] add state STATE_GIMBAL_ATTITUDE_TESTING. form STATE_SETTING_MAVLINK_MESSAGE to STATE_GIMBAL_ATTITUDE_TESTING.
+
 Building
 ========
 
