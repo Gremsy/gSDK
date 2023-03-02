@@ -192,6 +192,8 @@ void Gimbal_Interface::messages_handler(const mavlink_message_t &message)
                                                        _messages.mount_orientation.yaw);
                     }
 
+                    // printf("[%f][%f][%f]\n\r", _messages.mount_orientation.pitch, _messages.mount_orientation.roll, _messages.mount_orientation.yaw);
+
                     pthread_mutex_unlock(&_messages.mutex);
                     break;
                 }
@@ -673,6 +675,79 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_rotation_rate_sync(float 
     }
 
     return _gimbal_proto->set_gimbal_move_sync(pitch, roll, yaw, Gimbal_Protocol::INPUT_SPEED);
+}
+
+/**
+ * @brief  This function use for move gimbal follow fight controller
+ * @param: *pitch is pointer manager follow param of pitch axis of gimbal.
+ * @param: *roll is pointer manager follow param of roll axis of gimbal.
+ * @param: *yaw is pointer manager follow param of yaw axis of gimbal.
+ * @ret: result
+ */
+Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_follow_fc_sync(gimbal_follow_param_t *pitch, gimbal_follow_param_t *roll, gimbal_follow_param_t *yaw)
+{
+    float delta[GIMBAL_TOTAL_AXIS]  = {0.f, 0.f, 0.f};
+    float speed[GIMBAL_TOTAL_AXIS]  = {0.f, 0.f, 0.f};
+    attitude<float> attitude;
+
+    if (_gimbal_proto == nullptr) {
+        return Gimbal_Protocol::ERROR;
+    }
+
+    /// get gimbal attitude pitch, roll, yaw
+    attitude = get_gimbal_attitude();
+
+    /// calculator angle delta and speed
+    if(pitch != NULL)
+    {
+        delta[GIMBAL_PITCH_AXIS] = pitch->setPoint - attitude.pitch;
+        speed[GIMBAL_PITCH_AXIS] = pitch->ratio * delta[GIMBAL_PITCH_AXIS];
+    }
+
+    if(roll != NULL)
+    {
+        delta[GIMBAL_ROLL_AXIS] = roll->setPoint - attitude.roll;
+        speed[GIMBAL_ROLL_AXIS] = roll->ratio * delta[GIMBAL_ROLL_AXIS];
+    }
+
+    if(yaw != NULL)
+    {
+        delta[GIMBAL_YAW_AXIS] = yaw->setPoint - attitude.yaw;
+        speed[GIMBAL_YAW_AXIS] = yaw->ratio * delta[GIMBAL_YAW_AXIS];
+    }
+    
+    /// limit speed
+    if(speed[GIMBAL_PITCH_AXIS] > 180.f)
+    {
+        speed[GIMBAL_PITCH_AXIS] = 180.f;
+    }
+    else if(speed[GIMBAL_PITCH_AXIS] < -180.f)
+    {
+        speed[GIMBAL_PITCH_AXIS] = -180.f;
+    }
+
+    if(speed[GIMBAL_ROLL_AXIS] > 180.f)
+    {
+        speed[GIMBAL_ROLL_AXIS] = 180.f;
+    }
+    else if(speed[GIMBAL_ROLL_AXIS] < -180.f)
+    {
+        speed[GIMBAL_ROLL_AXIS] = -180.f;
+    }
+
+    if(speed[GIMBAL_YAW_AXIS] > 180.f)
+    {
+        speed[GIMBAL_YAW_AXIS] = 180.f;
+    }
+    else if(speed[GIMBAL_YAW_AXIS] < -180.f)
+    {
+        speed[GIMBAL_YAW_AXIS] = -180.f;
+    }
+
+    /// set move gimbal
+    set_gimbal_rotation_rate_sync(speed[GIMBAL_PITCH_AXIS], speed[GIMBAL_ROLL_AXIS], speed[GIMBAL_YAW_AXIS]);
+
+    return Gimbal_Protocol::SUCCESS;
 }
 
 /**

@@ -77,11 +77,17 @@ static sdk_process_t sdk;
 static Serial_Port *serial_port_quit;
 static Gimbal_Interface *gimbal_interface_quit;
 
+pthread_t cli_threadId;
+float yaw_angle = 0.f;
+float pitch_angle = 0.f;
+
 /* Private prototype ---------------------------------------------------------*/
 void parse_commandline(int argc, char **argv, char *&uart_name, int &baudrate);
 void quit_handler(int sig);
 void gGimbal_control_sample(Gimbal_Interface &onboard);
 void gGimbal_displays(Gimbal_Interface &api);
+
+void *start_get_cli_thread(void *args);
 
 // ------------------------------------------------------------------------------
 //   Gimbal sample control and get data
@@ -146,6 +152,9 @@ int gGimbal_sample(int argc, char **argv)
      */
     serial_port.start();
     gimbal_interface.start();
+
+    int result = pthread_create(&cli_threadId, NULL, &start_get_cli_thread, 0);
+    if (result) throw result;
 
     /// Process data
     while (!gimbal_interface.get_flag_exit()) {
@@ -311,32 +320,33 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                 onboard.set_gimbal_config_pan_axis(config);
                 // Motor control likes: Stiffness, holdstrength, gyro filter, output filter and gain
                 // Uncomment block below to configure gimbal motor
-                /*                 Gimbal_Interface::gimbal_motor_control_t tilt = { 50, 30 };
-                                Gimbal_Interface::gimbal_motor_control_t roll = { 60, 30 };
-                                Gimbal_Interface::gimbal_motor_control_t pan = { 70, 30 };
-                                onboard.set_gimbal_motor_control( tilt, roll, pan, 2, 3, 120 ); */
+                    Gimbal_Interface::gimbal_motor_control_t tilt = { 30, 20 };
+                    Gimbal_Interface::gimbal_motor_control_t roll = { 150, 40 };
+                    Gimbal_Interface::gimbal_motor_control_t pan = { 100, 45 };
+                    onboard.set_gimbal_motor_control( tilt, roll, pan, 2, 3, 120 );
                 sdk.state = STATE_SETTING_MAVLINK_MESSAGE;
             }
             break;
 
         case STATE_SETTING_MAVLINK_MESSAGE: {
                 uint8_t enc_value_rate = 10;
-                uint8_t orien_rate = 10;
+                uint8_t orien_rate = 100;
                 uint8_t imu_rate = 10;
+                uint8_t attitude_rate = 10;
                 printf("Set encoder messages rate: %dHz\n", enc_value_rate);
                 onboard.set_msg_encoder_rate(enc_value_rate);
                 printf("Set mount orientation messages rate: %dHz\n", orien_rate);
                 onboard.set_msg_mnt_orient_rate(orien_rate);
-                printf("Set gimbal device attitude status messages rate: %dHz\n", orien_rate);
-                onboard.set_msg_attitude_status_rate(orien_rate);
+                printf("Set gimbal device attitude status messages rate: %dHz\n", attitude_rate);
+                onboard.set_msg_attitude_status_rate(attitude_rate);
                 printf("Set raw imu messgaes rate: %dHz\n", imu_rate);
                 onboard.set_msg_raw_imu_rate(imu_rate);
                 printf("Set gimbal send raw encoder value.\n");
                 onboard.set_gimbal_encoder_type_send(true);
                 printf("Request gimbal device information.\n");
                 onboard.request_gimbal_device_info();
-                sdk.state = STATE_SET_GIMBAL_FOLLOW_MODE;
-                // sdk.state = STATE_SWITCH_TO_RC;
+                // sdk.state = STATE_SET_GIMBAL_FOLLOW_MODE;
+                sdk.state = STATE_SET_GIMBAL_LOCK_MODE;
             }
             break;
 
@@ -370,14 +380,16 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                             usleep(1000);
                         }
 
-                        sdk.state = STATE_SET_GIMBAL_FOLLOW_MODE;
+                        // sdk.state = STATE_SET_GIMBAL_FOLLOW_MODE;
+                        sdk.state = STATE_SET_GIMBAL_LOCK_MODE;
 
                     } else {
                         fprintf(stderr, "Could not TURN GIMBAL ON!\n");
                     }
 
                 } else if (onboard.get_gimbal_status().state == Gimbal_Interface::GIMBAL_STATE_ON) {
-                    sdk.state = STATE_SET_GIMBAL_FOLLOW_MODE;
+                    // sdk.state = STATE_SET_GIMBAL_FOLLOW_MODE;
+                    sdk.state = STATE_SET_GIMBAL_LOCK_MODE;
                 }
             }
             break;
@@ -486,7 +498,8 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
 
                 if (res == Gimbal_Protocol::SUCCESS) {
                     printf("Set gimbal to LOCK MODE Successfully!\n");
-                    sdk.state = STATE_MOVE_GIMBAL_ANGLE_LOCK;
+                    // sdk.state = STATE_MOVE_GIMBAL_ANGLE_LOCK;
+                    sdk.state = STATE_MOVE_GIMBAL_RATE_LOCK;
 
                 } else {
                     fprintf(stderr, "Could not set gimbal to LOCK MODE! Result code: %d\n", res);
@@ -525,58 +538,19 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             break;
 
         case STATE_MOVE_GIMBAL_RATE_LOCK: {
+
                 attitude<float> attitude;
-                printf("\tReturn home\n");
-                Gimbal_Protocol::result_t res = Gimbal_Protocol::UNKNOWN;
 
-                do {
-                    usleep(500000);
-                    res = onboard.set_gimbal_reset_mode(Gimbal_Protocol::GIMBAL_RESET_MODE_PITCH_AND_YAW);
-                    fprintf(stderr, "\tCoudld not return home! Result code: %d\n", res);
-                } while (res != Gimbal_Protocol::SUCCESS);
+                Gimbal_Interface::gimbal_follow_param_t yawFollow ;
+                Gimbal_Interface::gimbal_follow_param_t pitchFollow ;
 
-                /* Wait for returning home */
-                do {
-                    usleep(500000);
-                } while (fabsf(attitude.pitch) > 0.5f ||
-                            fabsf(attitude.roll) > 0.5f ||
-                            fabsf(attitude.yaw) > 0.5f);
-                
-                float pitch_rate = 10.f;
-                printf("\tGimbal pitch up at rate %.2fdeg/s\n", pitch_rate);
+                yawFollow.setPoint = yaw_angle; /// set new setpoint for yaw axis
+                yawFollow.ratio = 3.f; /// set speed radio for yaw axis
 
-                /* Send command move */
-                do {
-                    usleep(500000);
-                    res = onboard.set_gimbal_rotation_rate_sync(pitch_rate, 0.f, 0.f);
-                } while (res != Gimbal_Protocol::SUCCESS);
+                pitchFollow.setPoint = pitch_angle; /// set new setpoint for pitch axis
+                pitchFollow.ratio = 3.f; /// set speed radio for pitch axis
 
-                usleep(5000000);    // Move in 5s
-
-                /* Stop moving */
-                do {
-                    usleep(500000);
-                    res = onboard.set_gimbal_rotation_rate_sync(0.f, 0.f, 0.f);
-                } while (res != Gimbal_Protocol::SUCCESS);
-                
-                float yaw_rate = 10.f;
-                printf("\tGimbal yaw to East at rate %.2fdeg/s\n", yaw_rate);
-                
-                /* Send command move */
-                do {
-                    usleep(500000);
-                    res = onboard.set_gimbal_rotation_rate_sync(0.f, 0.f, yaw_rate);
-                } while (res != Gimbal_Protocol::SUCCESS);
-
-                usleep(5000000);    // Move in 5s
-
-                /* Stop moving */
-                do {
-                    usleep(500000);
-                    res = onboard.set_gimbal_rotation_rate_sync(0.f, 0.f, 0.f);
-                } while (res != Gimbal_Protocol::SUCCESS);
-
-                sdk.state = STATE_MOVE_TO_ZERO;
+                onboard.set_gimbal_follow_fc_sync(&pitchFollow, NULL, &yawFollow);
             }
             break;
 
@@ -732,6 +706,28 @@ int main(int argc, char **argv)
         fprintf(stderr, "mavlink_control threw exception %i \n", error);
         return error;
     }
+}
+
+void *start_get_cli_thread(void *args)
+{
+    int next = 0;
+
+    for(;;)
+    {
+        if(sdk.state == STATE_MOVE_GIMBAL_RATE_LOCK)
+        {
+            printf ( "Enter yaw angle set point : \n\r" );
+            scanf("%f", &yaw_angle);
+
+            printf ( "Enter pitch angle set point : \n\r" );
+            scanf("%f", &pitch_angle);
+        }
+
+
+        usleep(10000);
+    }
+
+    return NULL;
 }
 
 

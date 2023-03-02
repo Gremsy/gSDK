@@ -198,6 +198,20 @@ public:
             accel(_a), gyro(_g) {};
     };
 
+    enum E_gimbal_axis
+    {
+        GIMBAL_PITCH_AXIS = 0x00,
+        GIMBAL_ROLL_AXIS,
+        GIMBAL_YAW_AXIS,
+        GIMBAL_TOTAL_AXIS
+    };
+
+    struct gimbal_follow_param_t
+    {
+        float setPoint; /// the new setpoint (angle) each axis of gimbal
+        float ratio; /// speed ratio each axis of gimbal
+    };
+
     /**
      * @brief Gimbal remote controller type
      * 
@@ -318,6 +332,15 @@ public:
      * @ret: result
      */
     Gimbal_Protocol::result_t set_gimbal_rotation_rate_sync(float pitch, float roll, float yaw);
+
+    /**
+    * @brief  This function use for move gimbal follow fight controller
+    * @param: *pitch is pointer manager follow param of pitch axis of gimbal.
+    * @param: *roll is pointer manager follow param of roll axis of gimbal.
+    * @param: *yaw is pointer manager follow param of yaw axis of gimbal.
+    * @ret: result
+    */
+    Gimbal_Protocol::result_t set_gimbal_follow_fc_sync(gimbal_follow_param_t *pitch, gimbal_follow_param_t *roll, gimbal_follow_param_t *yaw);
 
     /**
      * @brief  This function get gimbal status
