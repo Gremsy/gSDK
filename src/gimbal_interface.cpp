@@ -1223,6 +1223,72 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_combine_attitude(bool fla
 }
 
 /**
+ * @brief   This function use set attitude to gimbal
+ * @details When enable feature reduce drift of the gimbal pan axis
+ *  msg will send for gimbal combine attitude and LED status in gimbal is PINK color
+ * @param:  pitchAngle : gimbal pitch angle
+ * rollAngle    : gimbal roll angle
+ * yawAngle     : gimbal yaw angle
+ * pitchSpeed   : gimbal pitch speed
+ * rollSpeed    : gimbal roll speed
+ * yawSpeed     : gimbal yaw speed
+ * @ret: result_t
+ */
+Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_attitude(float pitchAngle
+                                                              , float rollAngle
+                                                              , float yawAngle
+                                                              , float pitchSpeed
+                                                              , float rollSpeed
+                                                              , float yawSpeed)
+{
+    mavlink_attitude_t attitude = {0};
+    int16_t param = 0;
+
+    if (get_param(GMB_PARAM_AXIS_DIR, param) == Gimbal_Protocol::SUCCESS)
+    {
+        if((param & 0x10) == 0x10)
+        {
+            attitude.time_boot_ms = get_time_msec();
+
+            attitude.pitch = pitchAngle;
+            attitude.roll = rollAngle;
+            attitude.yaw = yawAngle;
+
+            attitude.pitchspeed = pitchSpeed;
+            attitude.rollspeed = rollSpeed;
+            attitude.yawspeed = yawSpeed;
+
+            // --------------------------------------------------------------------------
+            //   ENCODE
+            // --------------------------------------------------------------------------
+            mavlink_message_t message = { 0 };
+            mavlink_msg_attitude_encode(_system.sysid, _system.compid, &message, &attitude);
+
+            // --------------------------------------------------------------------------
+            //   WRITE
+            // --------------------------------------------------------------------------
+            // do the write
+            if (write_message(message) <= 0) {
+                fprintf(stderr, "WARNING: could not send msg attitude \n");
+            }
+
+            return Gimbal_Protocol::SUCCESS;
+        }
+        else
+        {
+            fprintf(stderr, "WARNING: feature reduce drift is disable \n");
+        }
+    }
+    else
+    {
+        fprintf(stderr, "WARNING: could not get param %s\n", get_param_name(GMB_PARAM_AXIS_DIR));
+    }
+
+    return Gimbal_Protocol::ERROR;
+
+}
+
+/**
  * @brief Set limit angle for pitch.
  * @details Please refer to Gremsy site <gremsy.com> for
  * details about default limit angle of Gimbal.
@@ -1601,7 +1667,7 @@ bool Gimbal_Interface::get_connection(void)
     uint64_t timeout = get_time_usec() - _messages.timestamps.heartbeat;
     pthread_mutex_unlock(&_messages.mutex);
 
-    // Check heartbeat from gimbal
+    /// Check heartbeat from gimbal
     if (!has_detected && timeout > _TIME_LOST_CONNECT) {
         printf(" Lost Connection!\n");
         // gimbal went away

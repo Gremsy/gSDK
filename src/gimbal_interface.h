@@ -522,6 +522,25 @@ public:
     Gimbal_Protocol::result_t set_gimbal_combine_attitude(bool flag);
 
     /**
+     * @brief   This function use set attitude to gimbal
+     * @details When enable feature reduce drift of the gimbal pan axis
+     *  msg will send for gimbal combine attitude and LED status in gimbal is PINK color
+     * @param:  pitchAngle : gimbal pitch angle
+     * rollAngle    : gimbal roll angle
+     * yawAngle     : gimbal yaw angle
+     * pitchSpeed   : gimbal pitch speed
+     * rollSpeed    : gimbal roll speed
+     * yawSpeed     : gimbal yaw speed
+     * @ret: result_t
+     */
+    Gimbal_Protocol::result_t set_gimbal_attitude(float pitchAngle
+                                                , float rollAngle
+                                                , float yawAngle
+                                                , float pitchSpeed
+                                                , float rollSpeed
+                                                , float yawSpeed);
+
+    /**
      * @brief Set limit angle for pitch.
      * @details Please refer to Gremsy site <gremsy.com> for
      * details about default limit angle of Gimbal.

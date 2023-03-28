@@ -64,6 +64,9 @@ enum sdk_process_state_t {
 
     STATE_MOVE_TO_ZERO,
 
+    STATE_ENABLE_REDUCE_DRIFTING_YAW_AXIS,
+    STATE_PROCESS_REDUCE_DRIFTING_YAW_AXIS,
+
     STATE_DONE
 };
 
@@ -268,7 +271,7 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
 {
     switch (sdk.state) {
         case STATE_IDLE: {
-                sdk.state = STATE_CHECK_FIRMWARE_VERSION;
+                sdk.state = STATE_CHECK_FIRMWARE_VERSION;//STATE_PROCESS_REDUCE_DRIFTING_YAW_AXIS;//
             }
             break;
 
@@ -335,8 +338,8 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                 onboard.set_gimbal_encoder_type_send(true);
                 printf("Request gimbal device information.\n");
                 onboard.request_gimbal_device_info();
-                sdk.state = STATE_SET_GIMBAL_FOLLOW_MODE;
-                // sdk.state = STATE_SWITCH_TO_RC;
+                // sdk.state = STATE_SET_GIMBAL_FOLLOW_MODE;
+                sdk.state = STATE_ENABLE_REDUCE_DRIFTING_YAW_AXIS;
             }
             break;
 
@@ -636,7 +639,7 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                              fabsf(attitude.roll) > 0.5f ||
                              fabsf(attitude.yaw) > 0.5f);
 
-                    sdk.state = STATE_SETTING_GIMBAL;
+                    sdk.state = STATE_ENABLE_REDUCE_DRIFTING_YAW_AXIS;
 
                 } else {
                     fprintf(stderr, "\tCoudld not return home! Result code: %d\n", res);
@@ -644,6 +647,32 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                 }
             }
             break;
+
+        case STATE_ENABLE_REDUCE_DRIFTING_YAW_AXIS:{
+            Gimbal_Protocol::result_t res = onboard.set_gimbal_combine_attitude(true);
+
+            if(res != Gimbal_Protocol::SUCCESS)
+            {
+                usleep(500000);
+                fprintf(stderr, "\tCoudld not set gimbal param ! Result code: %d\n", res);
+            }
+            else
+            {
+                fprintf(stdout, "\tEnable Feature Reduce Drifting Yaw Axis SUCCESS -> Gimbal LED status change to PINK color\r\n");
+
+                sdk.state = STATE_PROCESS_REDUCE_DRIFTING_YAW_AXIS; 
+            }
+        }
+        break;
+
+        case STATE_PROCESS_REDUCE_DRIFTING_YAW_AXIS:{
+            Gimbal_Protocol::result_t res = onboard.set_gimbal_attitude(0.f, 0.f, 0.f, 0.f, 0.f, 0.f);
+            if(res != Gimbal_Protocol::SUCCESS)
+            {
+                fprintf(stderr, "\tCoudld not set gimbal attitude ! Result code: %d\n", res);
+            }
+        }
+        break;
     }
 }
 

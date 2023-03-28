@@ -167,15 +167,17 @@ void Serial_Port::open_serial()
     // --------------------------------------------------------------------------
     //   CONTROL DTR & RTS
     // --------------------------------------------------------------------------
-    // int RTS_flag;
-    // int DTR_flag;
-    // RTS_flag = TIOCM_RTS;
-    // DTR_flag = TIOCM_DTR;
-    // ioctl(fd, TIOCMBIS, &DTR_flag); //Set DTR pin
-    // ioctl(fd, TIOCMBIC, &RTS_flag); //clear RTS pin
-    // //getchar();
-    // usleep(1000000);
-    // ioctl(fd, TIOCMBIC, &DTR_flag); //Clear DTR pin
+    int RTS_flag;
+    int DTR_flag;
+    RTS_flag = TIOCM_RTS;
+    DTR_flag = TIOCM_DTR;
+    ioctl(fd, TIOCMBIS, &DTR_flag); //Set DTR pin
+    ioctl(fd, TIOCMBIC, &RTS_flag); //clear RTS pin
+    //getchar();
+    usleep(1000000);
+    ioctl(fd, TIOCMBIC, &DTR_flag); //Clear DTR pin
+
+        ioctl(fd, TIOCMBIC, &RTS_flag); //Set RTS pin
     // --------------------------------------------------------------------------
     //   FOOTER
     // --------------------------------------------------------------------------
