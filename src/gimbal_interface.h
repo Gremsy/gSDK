@@ -831,7 +831,7 @@ private:
 
     static constexpr uint32_t _TIME_LOST_CONNECT = 60000000;  // 60s
     static constexpr uint32_t _RETRY_PERIOD      = 100;       // 100ms
-    static constexpr uint8_t _MAX_FETCH_TIME     = 5;         // times
+    static constexpr uint8_t _MAX_FETCH_TIME     = 15;         // times
 
     struct {
         const uint8_t gmb_idx;

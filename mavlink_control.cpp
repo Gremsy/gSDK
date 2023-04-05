@@ -149,18 +149,8 @@ int gGimbal_sample(int argc, char **argv)
 
     /// Process data
     while (!gimbal_interface.get_flag_exit()) {
-        if (gimbal_interface.present()) {
-            // Reset time
-            sdk.timeout_ms = get_time_msec();
-            // Sample control
-            gGimbal_control_sample(gimbal_interface);
-            // Uncomment line below to dispay sample value
-            // gGimbal_displays(gimbal_interface);
 
-        } else if (get_time_msec() - sdk.timeout_ms > 2000) {
-            /* Reset state */
-            sdk.state = STATE_IDLE;
-        }
+        gGimbal_control_sample(gimbal_interface);
 
         usleep(1000);   // Run at 1kHz
     }
@@ -268,7 +258,9 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
 {
     switch (sdk.state) {
         case STATE_IDLE: {
-                sdk.state = STATE_CHECK_FIRMWARE_VERSION;
+                sdk.state = STATE_SET_GIMBAL_REBOOT;
+
+                usleep(2000000);
             }
             break;
 
@@ -284,18 +276,23 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
             break;
 
         case STATE_CHECK_FIRMWARE_VERSION: {
-                Gimbal_Interface::fw_version_t fw = onboard.get_gimbal_version();
-                printf("FW Version: %d.%d.%d.%s\n", fw.x, fw.y, fw.z, fw.type);
+                
+                if (onboard.present()){
 
-                // This firmware only apply for the firmware version from v7.x.x or above
-                if (fw.x >= 7 && fw.y >= 5) {
-                    sdk.state = STATE_SETTING_GIMBAL;
+                    Gimbal_Interface::fw_version_t fw = onboard.get_gimbal_version();
+                    printf("FW Version: %d.%d.%d.%s\n", fw.x, fw.y, fw.z, fw.type);
 
-                } else {
-                    printf("DO NOT SUPPORT FUNCTIONS. Please check the firmware version\n");
-                    printf("1. MOTOR CONTROL\n");
-                    printf("2. AXIS CONFIGURATION\n");
-                    printf("3. MAVLINK MSG RATE CONFIGURATION\n");
+                    // This firmware only apply for the firmware version from v7.x.x or above
+                    if (fw.x >= 7 && fw.y >= 5) {
+                        sdk.state = STATE_SETTING_GIMBAL;
+
+                    } else {
+                        printf("DO NOT SUPPORT FUNCTIONS. Please check the firmware version\n");
+                        printf("1. MOTOR CONTROL\n");
+                        printf("2. AXIS CONFIGURATION\n");
+                        printf("3. MAVLINK MSG RATE CONFIGURATION\n");
+                    }
+
                 }
             }
             break;
