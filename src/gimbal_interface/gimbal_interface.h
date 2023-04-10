@@ -28,14 +28,14 @@
  ******************************************************************************/
 
 #ifndef GIMBAL_INTERFACE_H_
-#define GIMBAL_INTERFACE_H_
+    #define GIMBAL_INTERFACE_H_
 
 // ------------------------------------------------------------------------------
 //   Includes
 // ------------------------------------------------------------------------------
 
-#include "gimbal_protocol.h"
-#include "gsdk_types.h"
+    #include "gimbal_protocol.h"
+    #include "gsdk_types.h"
 
 // ------------------------------------------------------------------------------
 //   Gimbal Interface Class
@@ -51,8 +51,7 @@ namespace GSDK
 {
     class Gimbal_Interface
     {
-    public:
-
+       public:
         /**
          * @brief Messages timestamps
          *
@@ -94,11 +93,8 @@ namespace GSDK
          * @param compid mavlink compid of this system
          * @param proto MAVLink Gimbal Protocol version
          */
-        Gimbal_Interface(HAL::gSDK_Serial_Manager *serial,
-                         bool use_serial_thread = true,
-                         uint8_t sysid = 1,
-                         uint8_t compid = MAV_COMP_ID_ONBOARD_COMPUTER,
-                         MAVLINK_PROTO proto = MAVLINK_GIMBAL_V2);
+        Gimbal_Interface(HAL::gSDK_Serial_Manager *serial, bool use_serial_thread = true, uint8_t sysid = 1,
+                         uint8_t compid = MAV_COMP_ID_ONBOARD_COMPUTER, MAVLINK_PROTO proto = MAVLINK_GIMBAL_V2);
         ~Gimbal_Interface();
 
         void start();
@@ -202,8 +198,8 @@ namespace GSDK
 
         /**
          * @brief Get the gimbal rate objectThis function get gimbal axis rate (deg/s) in local frame
-         * 
-         * @return vector3<float> 
+         *
+         * @return vector3<float>
          */
         attitude<float> get_gimbal_rate(void);
 
@@ -228,10 +224,10 @@ namespace GSDK
          */
         fw_version_t get_gimbal_version(void)
         {
-            fw_version_t fw = { 0 };
-            fw.x = _params_list[GMB_PARAM_VERSION_X].value;
-            fw.y = _params_list[GMB_PARAM_VERSION_Y].value;
-            fw.z = (_params_list[GMB_PARAM_VERSION_Z].value & 0x3F);
+            fw_version_t fw = {0};
+            fw.x            = _params_list[GMB_PARAM_VERSION_X].value;
+            fw.y            = _params_list[GMB_PARAM_VERSION_Y].value;
+            fw.z            = (_params_list[GMB_PARAM_VERSION_Z].value & 0x3F);
 
             if ((_params_list[GMB_PARAM_VERSION_Z].value & 0xC0) == FIRMWARE_VERSION_TYPE_ALPHA) {
                 fw.type = alpha;
@@ -254,9 +250,9 @@ namespace GSDK
          * @param: config see  gimbal_config_axis_t structure
          * @note: The smooth starts with a low value of 50
          *			Slowly increase this setting until you feel an oscillation in the pan axis,
-        *			then reduce the setting until the oscillation subsides.
-        * @ret: result
-        */
+         *			then reduce the setting until the oscillation subsides.
+         * @ret: result
+         */
         result_t set_gimbal_config_tilt_axis(const gimbal_config_axis_t &config);
 
         /**
@@ -271,9 +267,9 @@ namespace GSDK
          * @param: config see  gimbal_config_axis_t structure
          * @note: The smooth starts with a low value of 50
          *			Slowly increase this setting until you feel an oscillation in the pan axis,
-        *			then reduce the setting until the oscillation subsides.
-        * @ret: result
-        */
+         *			then reduce the setting until the oscillation subsides.
+         * @ret: result
+         */
         result_t set_gimbal_config_roll_axis(const gimbal_config_axis_t &config);
 
         /**
@@ -288,9 +284,9 @@ namespace GSDK
          * @param: config see  gimbal_config_axis_t structure
          * @note: The smooth starts with a low value of 50
          *			Slowly increase this setting until you feel an oscillation in the pan axis,
-        *			then reduce the setting until the oscillation subsides.
-        * @ret: result
-        */
+         *			then reduce the setting until the oscillation subsides.
+         * @ret: result
+         */
         result_t set_gimbal_config_pan_axis(const gimbal_config_axis_t &config);
 
         /**
@@ -310,16 +306,15 @@ namespace GSDK
          *
          *
          *	GYRO FILTER 	2
-        *	OUTPUT FILTER 	3
-        *
-        *	HOLD STRENGTH 	TILT 	ROLL 	PAN
-        *					40 		40 		40
-        * 	GAIN 			120		120		120
-        */
-        result_t set_gimbal_motor_control(const gimbal_motor_control_t &tilt,
-                                          const gimbal_motor_control_t &roll,
-                                          const gimbal_motor_control_t &pan,
-                                          uint8_t gyro_filter, uint8_t output_filter, uint8_t gain);
+         *	OUTPUT FILTER 	3
+         *
+         *	HOLD STRENGTH 	TILT 	ROLL 	PAN
+         *					40 		40 		40
+         * 	GAIN 			120		120		120
+         */
+        result_t set_gimbal_motor_control(const gimbal_motor_control_t &tilt, const gimbal_motor_control_t &roll,
+                                          const gimbal_motor_control_t &pan, uint8_t gyro_filter,
+                                          uint8_t output_filter);
 
         /**
          * @brief  This function get motor controls setting
@@ -331,16 +326,14 @@ namespace GSDK
          *
          *
          *	GYRO FILTER 	2
-        *	OUTPUT FILTER 	3
-        *
-        *	HOLD STRENGTH 	TILT 	ROLL 	PAN
-        *					40 		40 		40
-        * 	GAIN 			120		120		120
-        */
-        result_t get_gimbal_motor_control(gimbal_motor_control_t &tilt,
-                                          gimbal_motor_control_t &roll,
-                                          gimbal_motor_control_t &pan,
-                                          uint8_t &gyro_filter, uint8_t &output_filter, uint8_t &gain);
+         *	OUTPUT FILTER 	3
+         *
+         *	HOLD STRENGTH 	TILT 	ROLL 	PAN
+         *					40 		40 		40
+         * 	GAIN 			120		120		120
+         */
+        result_t get_gimbal_motor_control(gimbal_motor_control_t &tilt, gimbal_motor_control_t &roll,
+                                          gimbal_motor_control_t &pan, uint8_t &gyro_filter, uint8_t &output_filter);
 
         /**
          * @brief  This function set the configuration the message mavink with rate
@@ -380,7 +373,8 @@ namespace GSDK
         bool get_gimbal_encoder_type_send(void);
 
         /**
-         * @brief  This function set the enable or disable the reduce drift of the gimbal by using attitude of the aircarf
+         * @brief  This function set the enable or disable the reduce drift of the gimbal by using attitude of the
+         * aircarf
          * @details Only enable yaw drift if there is an autopilot mount on top the gimbal and send autopilot's attitude
          * to gimbal at rate 50 - 100Hz
          * @param: flag - enable/disable the recude drift of the gimbal by combining attitude from the aircraft
@@ -461,8 +455,7 @@ namespace GSDK
         void write_thread(void);
         void param_process(void);
 
-    private:
-
+       private:
         /**
          * @brief Gimbal Interface state
          *
@@ -483,35 +476,32 @@ namespace GSDK
             HAL::gSDK_Mutex *mutex;
 
             // Heartbeat
-            mavlink_heartbeat_t heartbeat = { 0 };
+            mavlink_heartbeat_t heartbeat = {0};
 
             // System Status
-            mavlink_sys_status_t sys_status = { 0 };
+            mavlink_sys_status_t sys_status = {0};
 
             // Mount status contains the encoder count value. Resolution 2^16
-            mavlink_mount_status_t mount_status = { 0 };
+            mavlink_mount_status_t mount_status = {0};
 
             // Mount orientation
-            mavlink_mount_orientation_t mount_orientation = { 0 };
+            mavlink_mount_orientation_t mount_orientation = {0};
 
             // Gimbal Attitude status
-            mavlink_gimbal_device_attitude_status_t atttitude_status = { 0 };
+            mavlink_gimbal_device_attitude_status_t atttitude_status = {0};
 
             // Gimbal device info
-            mavlink_gimbal_device_information_t gimbal_device_info = { 0 };
+            mavlink_gimbal_device_information_t gimbal_device_info = {0};
 
             // Raw IMU
-            mavlink_raw_imu_t raw_imu = { 0 };
+            mavlink_raw_imu_t raw_imu = {0};
 
             // timestamps
             timestamps_t timestamps;
 
             messages_t() : mutex(HAL::gSDK_Platform_Manager::get_platform().create_mutex()) {}
 
-            ~messages_t()
-            {
-                delete mutex;
-            }
+            ~messages_t() { delete mutex; }
 
             void lock()
             {
@@ -527,21 +517,18 @@ namespace GSDK
                 }
             }
 
-            void reset_timestamps()
-            {
-                timestamps.reset_timestamps();
-            }
+            void reset_timestamps() { timestamps.reset_timestamps(); }
         };
 
         /**
          * @brief Gimbal's sensor status
          */
         enum sensor_state_t {
-            SENSOR_OK        = 0x00,   /* Gimbal's sensor is healthy */
-            SENSOR_IMU_ERROR = 0x01,   /* IMU error*/
-            SENSOR_EN_TILT   = 0x02,   /* Encoder sensor is error at tilt axis*/
-            SENSOR_EN_ROLL   = 0x03,   /* Encoder sensor is error at roll axis*/
-            SENSOR_EN_PAN    = 0x04,   /* Encoder sensor is error at pan axis*/
+            SENSOR_OK        = 0x00, /* Gimbal's sensor is healthy */
+            SENSOR_IMU_ERROR = 0x01, /* IMU error*/
+            SENSOR_EN_TILT   = 0x02, /* Encoder sensor is error at tilt axis*/
+            SENSOR_EN_ROLL   = 0x03, /* Encoder sensor is error at roll axis*/
+            SENSOR_EN_PAN    = 0x04, /* Encoder sensor is error at pan axis*/
         };
 
         /**
@@ -549,11 +536,11 @@ namespace GSDK
          * Status of param process
          */
         enum param_state_t {
-            PARAM_STATE_NOT_YET_READ      = 0,   // parameter has yet to be initialized
-            PARAM_STATE_FETCH_AGAIN       = 1,   // parameter is being fetched
-            PARAM_STATE_ATTEMPTING_TO_SET = 2,   // parameter is being set
-            PARAM_STATE_CONSISTENT        = 3,   // parameter is consistent
-            PARAM_STATE_NONEXISTANT       = 4    // parameter does not seem to exist
+            PARAM_STATE_NOT_YET_READ      = 0,  // parameter has yet to be initialized
+            PARAM_STATE_FETCH_AGAIN       = 1,  // parameter is being fetched
+            PARAM_STATE_ATTEMPTING_TO_SET = 2,  // parameter is being set
+            PARAM_STATE_CONSISTENT        = 3,  // parameter is consistent
+            PARAM_STATE_NONEXISTANT       = 4   // parameter does not seem to exist
         };
 
         /**
@@ -576,10 +563,6 @@ namespace GSDK
 
             GMB_PARAM_OUTPUT_FILTER,
             GMB_PARAM_GYRO_FILTER,
-            GMB_PARAM_GAIN,
-
-            GMB_PARAM_SPEED_FOLLOW_PITCH,
-            GMB_PARAM_SPEED_FOLLOW_YAW,
 
             GMB_PARAM_SMOOTH_FOLLOW_PITCH,
             GMB_PARAM_SMOOTH_FOLLOW_YAW,
@@ -611,13 +594,13 @@ namespace GSDK
             GIMBAL_NUM_TRACKED_PARAMS
         };
 
-        HAL::gSDK_Serial_Manager *_serial             = nullptr;
-        HAL::gSDK_Thread          *_read_thr          = nullptr;
-        HAL::gSDK_Thread          *_write_thr         = nullptr;
-        HAL::gSDK_Thread          *_param_process_thr = nullptr;
+        HAL::gSDK_Serial_Manager *_serial            = nullptr;
+        HAL::gSDK_Thread         *_read_thr          = nullptr;
+        HAL::gSDK_Thread         *_write_thr         = nullptr;
+        HAL::gSDK_Thread         *_param_process_thr = nullptr;
 
         Gimbal_Protocol *_gimbal_proto = nullptr;
-        MAVLINK_PROTO _proto;
+        MAVLINK_PROTO    _proto;
 
         mavlink_system_t _system;
         mavlink_system_t _gimbal;
@@ -628,7 +611,7 @@ namespace GSDK
         bool write_message(const mavlink_message_t &message);
         void write_heartbeat(void);
 
-        messages_t _messages;
+        messages_t      _messages;
         gimbal_status_t _status;
 
         interface_state_t _state = GIMBAL_STATE_NOT_PRESENT;
@@ -672,15 +655,9 @@ namespace GSDK
 
         void param_update();
 
-        const char *get_param_name(param_index_t param) const
-        {
-            return _params_list[param].gmb_id;
-        }
+        const char *get_param_name(param_index_t param) const { return _params_list[param].gmb_id; }
 
-        const uint8_t get_gmb_index(param_index_t param) const
-        {
-            return _params_list[param].gmb_idx;
-        }
+        const uint8_t get_gmb_index(param_index_t param) const { return _params_list[param].gmb_idx; }
 
         result_t request_param(param_index_t param);
         result_t request_param_list(void);
@@ -705,80 +682,75 @@ namespace GSDK
 
         static constexpr uint32_t _TIME_LOST_CONNECT = 3000000;  // 3s
         static constexpr uint32_t _RETRY_PERIOD      = 100;      // 100ms
-        static constexpr uint8_t _MAX_FETCH_TIME     = 5;        // times
+        static constexpr uint8_t  _MAX_FETCH_TIME    = 5;        // times
 
         struct {
             const uint8_t gmb_idx;
-            const char *gmb_id;
-            int16_t value;
+            const char   *gmb_id;
+            int16_t       value;
 
             volatile param_state_t state;
-            uint8_t fetch_attempts;
-            bool seen;
+            uint8_t                fetch_attempts;
+            bool                   seen;
         } _params_list[GIMBAL_NUM_TRACKED_PARAMS] = {
 
             // Gimbal version
-            { 0, "VERSION_X", 0, PARAM_STATE_NOT_YET_READ, 0, false },
-            { 67, "VERSION_Y", 0, PARAM_STATE_NOT_YET_READ, 0, false },
-            { 68, "VERSION_Z", 0, PARAM_STATE_NOT_YET_READ, 0, false },
+            {0, "VERSION_X", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+            {45, "VERSION_Y", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+            {46, "VERSION_Z", 0, PARAM_STATE_NOT_YET_READ, 0, false},
 
             // Gimbal stiffness
-            { 2, "PITCH_P", 0, PARAM_STATE_NOT_YET_READ, 0, false },
-            { 5, "ROLL_P", 0, PARAM_STATE_NOT_YET_READ, 0, false },
-            { 8, "YAW_P", 0, PARAM_STATE_NOT_YET_READ, 0, false },
+            {2, "STIFF_TILT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+            {4, "STIFF_ROLL", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+            {5, "STIFF_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false},
 
             // Gimbal hold strength
-            { 11, "PITCH_POWER", 0, PARAM_STATE_NOT_YET_READ, 0, false },
-            { 12, "ROLL_POWER", 0, PARAM_STATE_NOT_YET_READ, 0, false },
-            { 13, "YAW_POWER", 0, PARAM_STATE_NOT_YET_READ, 0, false },
+            {8, "PWR_TILT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+            {9, "PWR_ROLL", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+            {10, "PWR_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false},
 
-            { 9, "YAW_I", 0, PARAM_STATE_NOT_YET_READ, 0, false },
-            { 29, "GYRO_LPF", 0, PARAM_STATE_NOT_YET_READ, 0, false },
-            { 3, "PITCH_I", 0, PARAM_STATE_NOT_YET_READ, 0, false },
-
-            // Gimbal speed follow
-            { 14, "PITCH_FOLLOW", 0, PARAM_STATE_NOT_YET_READ, 0, false },
-            { 16, "YAW_FOLLOW", 0, PARAM_STATE_NOT_YET_READ, 0, false },
+            {6, "FILTER_OUT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+            {22, "GYRO_LPF", 0, PARAM_STATE_NOT_YET_READ, 0, false},
 
             // Gimbal follow filter
-            { 17, "PITCH_FILTER", 0, PARAM_STATE_NOT_YET_READ, 0, false },
-            { 19, "YAW_FILTER", 0, PARAM_STATE_NOT_YET_READ, 0, false },
+            {14, "FLW_LPF_TILT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+            {16, "FLW_LPF_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false},
 
             // Gimbal follow windown
-            { 57, "TILT_WINDOW", 0, PARAM_STATE_NOT_YET_READ, 0, false },
-            { 58, "PAN_WINDOW", 0, PARAM_STATE_NOT_YET_READ, 0, false },
+            {39, "FLW_WD_TILT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+            {40, "FLW_WD_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false},
 
             // Gimbal speed control
-            { 60, "RC_PITCH_SPEED", 0, PARAM_STATE_NOT_YET_READ, 0, false },
-            { 61, "RC_ROLL_SPEED", 0, PARAM_STATE_NOT_YET_READ, 0, false },
-            { 62, "RC_YAW_SPEED", 0, PARAM_STATE_NOT_YET_READ, 0, false },
+            {41, "RC_SPD_TILT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+            {42, "RC_SPD_ROLL", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+            {43, "RC_SPD_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false},
 
             // Gimbal smooth control
-            { 36, "RC_PITCH_LPF", 0, PARAM_STATE_NOT_YET_READ, 0, false },
-            { 37, "RC_ROLL_LPF", 0, PARAM_STATE_NOT_YET_READ, 0, false },
-            { 38, "RC_YAW_LPF", 0, PARAM_STATE_NOT_YET_READ, 0, false },
+            {27, "RC_LPF_TILT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+            {28, "RC_LPF_ROLL", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+            {29, "RC_LPF_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false},
 
             // Direction
-            { 63, "JOY_AXIS", 0, PARAM_STATE_NOT_YET_READ, 0, false },
+            {44, "RC_REVERSE_AXIS", 0, PARAM_STATE_NOT_YET_READ, 0, false},
 
-            { 75, "ENC_TYPE_SEND", 0, PARAM_STATE_NOT_YET_READ, 0, false },
+            {52, "MAV_TS_ENCNT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
 
-            { 30, "TRAVEL_MIN_PIT", 0, PARAM_STATE_NOT_YET_READ, 0, false },
-            { 31, "TRAVEL_MAX_PIT", 0, PARAM_STATE_NOT_YET_READ, 0, false },
-            { 32, "TRAVEL_MIN_ROLL", 0, PARAM_STATE_NOT_YET_READ, 0, false },
-            { 33, "TRAVEL_MAX_ROLL", 0, PARAM_STATE_NOT_YET_READ, 0, false },
-            { 69, "TRAVEL_MIN_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false },
-            { 70, "TRAVEL_MAX_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false },
+            {23, "RC_LIM_MIN_TILT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+            {24, "RC_LIM_MAX_TILT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+            {25, "RC_LIM_MIN_ROLL", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+            {26, "RC_LIM_MAX_ROLL", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+            {47, "RC_LIM_MIN_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+            {48, "RC_LIM_MAX_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false},
 
-            { 28, "RADIO_TYPE", 0, PARAM_STATE_NOT_YET_READ, 0, false },
+            {21, "RC_TYPE", 0, PARAM_STATE_NOT_YET_READ, 0, false},
         };
 
         uint64_t _last_request_ms;
         uint64_t _last_set_ms;
     };
 
-} // namespace GSDK
+}  // namespace GSDK
 
-#endif // GIMBAL_INTERFACE_H_
+#endif  // GIMBAL_INTERFACE_H_
 
 /************************ (C) COPYRIGHT Gremsy *****END OF FILE****************/

@@ -41,8 +41,8 @@ $ ls /dev/ttyUSB*
 Run the example executable on the host shell:
 
 ```
-$ cd gSDK/
-$ ./gSDK -d /dev/ttyUSB0
+$ cd gSDK/build/bin
+$ ./gSDK-linux-sample -d /dev/ttyUSB0
 ```
 
 To stop the program, use the key sequence `Ctrl-C`.

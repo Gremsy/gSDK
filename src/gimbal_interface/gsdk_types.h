@@ -228,7 +228,6 @@ namespace GSDK
         uint8_t speed_control;
         uint8_t smooth_control;
 
-        uint8_t speed_follow;
         uint8_t smooth_follow;
         uint8_t window_follow;
     };
