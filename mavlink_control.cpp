@@ -303,11 +303,11 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
         case STATE_SETTING_GIMBAL: {
                 // Setting axis for control. see the struct gimbal_config_axis_t
                 Gimbal_Interface::gimbal_config_axis_t config = { 0 };
-                config = { Gimbal_Interface::DIR_CW, 50, 20, 100, 20, 2 };   // Tilt
+                config = { Gimbal_Interface::DIR_CW, 50, 20, 100, 20 };   // Tilt
                 onboard.set_gimbal_config_tilt_axis(config);
-                config = { Gimbal_Interface::DIR_CW, 50, 20, 0, 0, 2 };    // Roll
+                config = { Gimbal_Interface::DIR_CW, 50, 20, 0, 0 };    // Roll
                 onboard.set_gimbal_config_roll_axis(config);
-                config = { Gimbal_Interface::DIR_CW, 50, 20, 100, 20, 2 };  // Yaw
+                config = { Gimbal_Interface::DIR_CW, 50, 20, 100, 20 };  // Yaw
                 onboard.set_gimbal_config_pan_axis(config);
                 // Motor control likes: Stiffness, holdstrength, gyro filter, output filter and gain
                 // Uncomment block below to configure gimbal motor

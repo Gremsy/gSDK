@@ -146,7 +146,7 @@ int gGimbal_init (int argc, char **argv)
     // open file to write
     myfile.open ("output.txt");
     uint32_t time_display = 0;
-    uint8_t gyro_filter = 0, output_filter = 0, gain = 0;
+    uint8_t gyro_filter = 0, output_filter = 0;
     Gimbal_Interface::gimbal_motor_control_t tilt;
     Gimbal_Interface::gimbal_motor_control_t roll;
     Gimbal_Interface::gimbal_motor_control_t pan;
@@ -156,7 +156,7 @@ int gGimbal_init (int argc, char **argv)
     while (!gimbal_interface.get_flag_exit()) {
         time_display = (uint32_t) (get_time_usec() / 1000);
         // get PARAM_STIFFNESS_PITCH value
-        res = gimbal_interface.get_gimbal_motor_control(tilt, roll, pan, gyro_filter, output_filter, gain);
+        res = gimbal_interface.get_gimbal_motor_control(tilt, roll, pan, gyro_filter, output_filter);
 
         if (res == Gimbal_Protocol::SUCCESS) {
             // print output to console

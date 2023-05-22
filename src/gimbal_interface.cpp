@@ -685,16 +685,15 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_rotation_rate_sync(float 
  *
  *
  *	GYRO FILTER 	2
-    *	OUTPUT FILTER 	3
-    *
-    *	HOLD STRENGTH 	TILT 	ROLL 	PAN
-    *					40 		40 		40
-    * 	GAIN 			120		120		120
-    */
+ *	OUTPUT FILTER 	3
+ *
+ *	HOLD STRENGTH 	TILT 	ROLL 	PAN
+ *					40 		40 		40
+ */
 Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_motor_control(const gimbal_motor_control_t &tilt,
         const gimbal_motor_control_t &roll,
         const gimbal_motor_control_t &pan,
-        uint8_t gyro_filter, uint8_t output_filter, uint8_t gain)
+        uint8_t gyro_filter, uint8_t output_filter)
 {
     return (set_param(GMB_PARAM_STIFFNESS_PITCH, (int16_t)tilt.stiffness) == Gimbal_Protocol::SUCCESS &&
             set_param(GMB_PARAM_HOLDSTRENGTH_PITCH, (int16_t)tilt.holdstrength) == Gimbal_Protocol::SUCCESS &&
@@ -703,8 +702,7 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_motor_control(const gimba
             set_param(GMB_PARAM_STIFFNESS_YAW, (int16_t)pan.stiffness) == Gimbal_Protocol::SUCCESS &&
             set_param(GMB_PARAM_HOLDSTRENGTH_YAW, (int16_t)pan.holdstrength) == Gimbal_Protocol::SUCCESS &&
             set_param(GMB_PARAM_OUTPUT_FILTER, (int16_t)output_filter) == Gimbal_Protocol::SUCCESS &&
-            set_param(GMB_PARAM_GYRO_FILTER, (int16_t)gyro_filter) == Gimbal_Protocol::SUCCESS &&
-            set_param(GMB_PARAM_GAIN, (int16_t)gain) == Gimbal_Protocol::SUCCESS) ? Gimbal_Protocol::SUCCESS : Gimbal_Protocol::ERROR;
+            set_param(GMB_PARAM_GYRO_FILTER, (int16_t)gyro_filter) == Gimbal_Protocol::SUCCESS) ? Gimbal_Protocol::SUCCESS : Gimbal_Protocol::ERROR;
 }
 
 /**
@@ -717,16 +715,15 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_motor_control(const gimba
  *
  *
  *	GYRO FILTER 	2
-    *	OUTPUT FILTER 	3
-    *
-    *	HOLD STRENGTH 	TILT 	ROLL 	PAN
-    *					40 		40 		40
-    * 	GAIN 			120		120		120
-    */
+ *	OUTPUT FILTER 	3
+ *
+ *	HOLD STRENGTH 	TILT 	ROLL 	PAN
+ *					40 		40 		40
+ */
 Gimbal_Protocol::result_t Gimbal_Interface::get_gimbal_motor_control(gimbal_motor_control_t &tilt,
         gimbal_motor_control_t &roll,
         gimbal_motor_control_t &pan,
-        uint8_t &gyro_filter, uint8_t &output_filter, uint8_t &gain)
+        uint8_t &gyro_filter, uint8_t &output_filter)
 {
     int16_t value = 0;
 
@@ -753,9 +750,6 @@ Gimbal_Protocol::result_t Gimbal_Interface::get_gimbal_motor_control(gimbal_moto
 
     if (get_param(GMB_PARAM_GYRO_FILTER, value) == Gimbal_Protocol::SUCCESS)
         gyro_filter	= (uint8_t)value;
-
-    if (get_param(GMB_PARAM_GAIN, value) == Gimbal_Protocol::SUCCESS)
-        gain = (uint8_t)value;
 
     return Gimbal_Protocol::SUCCESS;
 }
@@ -787,7 +781,6 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_config_tilt_axis(const gi
     return (set_param(GMB_PARAM_SMOOTH_CONTROL_PITCH, (int16_t)config.smooth_control) == Gimbal_Protocol::SUCCESS &&
             set_param(GMB_PARAM_SMOOTH_FOLLOW_PITCH, (int16_t)config.smooth_follow) == Gimbal_Protocol::SUCCESS &&
             set_param(GMB_PARAM_WINDOW_FOLLOW_PITCH, (int16_t)config.window_follow) == Gimbal_Protocol::SUCCESS &&
-            set_param(GMB_PARAM_SPEED_FOLLOW_PITCH, (int16_t)config.speed_follow) == Gimbal_Protocol::SUCCESS &&
             set_param(GMB_PARAM_SPEED_CONTROL_PITCH, (int16_t)config.speed_control) == Gimbal_Protocol::SUCCESS &&
             set_param(GMB_PARAM_AXIS_DIR, get_dir) == Gimbal_Protocol::SUCCESS) ? Gimbal_Protocol::SUCCESS : Gimbal_Protocol::ERROR;
 }
@@ -810,9 +803,6 @@ Gimbal_Interface::gimbal_config_axis_t Gimbal_Interface::get_gimbal_config_tilt_
 
     if (get_param(GMB_PARAM_WINDOW_FOLLOW_PITCH, ret) == Gimbal_Protocol::SUCCESS)
         setting.window_follow = (uint8_t)ret;
-
-    if (get_param(GMB_PARAM_SPEED_FOLLOW_PITCH, ret) == Gimbal_Protocol::SUCCESS)
-        setting.speed_follow = (uint8_t)ret;
 
     if (get_param(GMB_PARAM_SPEED_CONTROL_PITCH, ret) == Gimbal_Protocol::SUCCESS)
         setting.speed_control = (uint8_t)ret;
@@ -856,7 +846,6 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_config_pan_axis(const gim
     return (set_param(GMB_PARAM_SMOOTH_CONTROL_YAW, (int16_t)config.smooth_control) == Gimbal_Protocol::SUCCESS &&
             set_param(GMB_PARAM_SMOOTH_FOLLOW_YAW, (int16_t)config.smooth_follow) == Gimbal_Protocol::SUCCESS &&
             set_param(GMB_PARAM_WINDOW_FOLLOW_YAW, (int16_t)config.window_follow) == Gimbal_Protocol::SUCCESS &&
-            set_param(GMB_PARAM_SPEED_FOLLOW_YAW, (int16_t)config.speed_follow) == Gimbal_Protocol::SUCCESS &&
             set_param(GMB_PARAM_SPEED_CONTROL_YAW, (int16_t)config.speed_control) == Gimbal_Protocol::SUCCESS &&
             set_param(GMB_PARAM_AXIS_DIR, get_dir) == Gimbal_Protocol::SUCCESS) ? Gimbal_Protocol::SUCCESS : Gimbal_Protocol::ERROR;
 }
@@ -879,9 +868,6 @@ Gimbal_Interface::gimbal_config_axis_t Gimbal_Interface::get_gimbal_config_pan_a
 
     if (get_param(GMB_PARAM_WINDOW_FOLLOW_YAW, ret) == Gimbal_Protocol::SUCCESS)
         setting.window_follow = (uint8_t)ret;
-
-    if (get_param(GMB_PARAM_SPEED_FOLLOW_YAW, ret) == Gimbal_Protocol::SUCCESS)
-        setting.speed_follow = (uint8_t)ret;
 
     if (get_param(GMB_PARAM_SPEED_CONTROL_YAW, ret) == Gimbal_Protocol::SUCCESS)
         setting.speed_control = (uint8_t)ret;
