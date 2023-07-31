@@ -53,21 +53,21 @@ target_link_libraries(${PROJECT_NAME} ${CMAKE_THREAD_LIBS_INIT} )
 include(CMakePackageConfigHelpers)
 write_basic_package_version_file("gsdk-config-version.cmake" VERSION ${PROJECT_VERSION} COMPATIBILITY SameMajorVersion)
 configure_file(
-  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/gSDKConfig.cmake.in
-  ${CMAKE_CURRENT_BINARY_DIR}/cmake/gSDKConfig.cmake
+  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/gsdk-config.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/cmake/gsdk-config.cmake
   @ONLY)
 
 
-install(TARGETS ${PROJECT_NAME} EXPORT gsdk-targets
+install(TARGETS ${PROJECT_NAME} EXPORT gSDK-targets
         LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/lib ${CMAKE_INSTALL_INCLUDEDIR}/lib/mavlink
+        ARCHIVE DESTINATION lib
+        INCLUDES DESTINATIONS include/mavlink
         )
 install(FILES
-        ${CMAKE_CURRENT_BINARY_DIR}/cmake/gSDKConfig.cmake
+        ${CMAKE_CURRENT_BINARY_DIR}/cmake/gsdk-config.cmake
         ${PROJECT_BINARY_DIR}/gsdk-config-version.cmake
         DESTINATION lib/cmake/${PROJECT_NAME})
-install(EXPORT gsdk-targets
+install(EXPORT gSDK-targets
         NAMESPACE gSDK::
         DESTINATION lib/cmake/${PROJECT_NAME}
 )
