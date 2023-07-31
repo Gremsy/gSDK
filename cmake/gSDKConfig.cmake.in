@@ -1,0 +1,4 @@
+set(_prefix @CMAKE_INSTALL_PREFIX@)
+
+include("${CMAKE_CURRENT_LIST_DIR}/gSDK-targets.cmake")
+
