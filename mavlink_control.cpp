@@ -477,6 +477,14 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                     res = onboard.set_gimbal_rotation_rate_sync(0.f, 0.f, 0.f);
                 } while (res != Gimbal_Protocol::SUCCESS);
 
+                /* move combine pitch and yaw */
+                do {
+                    usleep(500000);
+                    res = onboard.set_gimbal_rotation_rate_sync(pitch_rate, 0.f, yaw_rate);
+                } while (res != Gimbal_Protocol::SUCCESS);
+
+                usleep(1000000);  // Move in 1s
+
                 sdk.state = STATE_SET_GIMBAL_LOCK_MODE;
             }
             break;
@@ -575,6 +583,14 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                     usleep(500000);
                     res = onboard.set_gimbal_rotation_rate_sync(0.f, 0.f, 0.f);
                 } while (res != Gimbal_Protocol::SUCCESS);
+
+                /* move combine pitch and yaw */
+                do {
+                    usleep(500000);
+                    res = onboard.set_gimbal_rotation_rate_sync(pitch_rate, 0.f, yaw_rate);
+                } while (res != Gimbal_Protocol::SUCCESS);
+
+                usleep(1000000);  // Move in 1s
 
                 sdk.state = STATE_MOVE_TO_ZERO;
             }
