@@ -94,8 +94,12 @@ result_t Gimbal_Protocol_V2::set_gimbal_reset_mode(gimbal_reset_mode_t reset_mod
             break;
     }
 
-    /* Switch to follow */
-    _control_mode = GIMBAL_FOLLOW_MODE;
+    if(reset_mode != GIMBAL_RESET_MODE_PITCH_AND_YAW)
+    {
+        /* Switch to follow */
+        _control_mode = GIMBAL_FOLLOW_MODE;
+    }
+
     return set_gimbal_move_sync(pitch, roll, yaw, INPUT_ANGLE);
 }
 

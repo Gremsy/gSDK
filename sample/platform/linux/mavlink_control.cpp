@@ -455,6 +455,12 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                 /* Wait for returning home */
                 do {
                     usleep(500000);
+                    attitude = onboard.get_gimbal_attitude();
+
+                        printf("\tGimbal attitude Pitch - Roll - Yaw: %.2f - %.2f - %.2f\n", attitude.pitch,
+                               attitude.roll, attitude.yaw);
+
+
                 } while (fabsf(attitude.pitch) > 0.5f || fabsf(attitude.roll) > 0.5f || fabsf(attitude.yaw) > 0.5f);
 
                 float pitch_rate = 10.f;
@@ -490,6 +496,14 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                     usleep(500000);
                     res = onboard.set_gimbal_rotation_rate_sync(0.f, 0.f, 0.f);
                 } while (res != SUCCESS);
+
+                /* move combine pitch and yaw */
+                do {
+                    usleep(500000);
+                    res = onboard.set_gimbal_rotation_rate_sync(pitch_rate, 0.f, yaw_rate);
+                } while (res != SUCCESS);
+
+                usleep(1000000);  // Move in 1s
 
                 sdk.state = STATE_SET_GIMBAL_LOCK_MODE;
             }
@@ -558,6 +572,11 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                 /* Wait for returning home */
                 do {
                     usleep(500000);
+                    attitude = onboard.get_gimbal_attitude();
+
+                        printf("\tGimbal attitude Pitch - Roll - Yaw: %.2f - %.2f - %.2f\n", attitude.pitch,
+                               attitude.roll, attitude.yaw);
+
                 } while (fabsf(attitude.pitch) > 0.5f || fabsf(attitude.roll) > 0.5f || fabsf(attitude.yaw) > 0.5f);
 
                 float pitch_rate = 10.f;
@@ -593,6 +612,14 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
                     usleep(500000);
                     res = onboard.set_gimbal_rotation_rate_sync(0.f, 0.f, 0.f);
                 } while (res != SUCCESS);
+
+                /* move combine pitch and yaw */
+                do {
+                    usleep(500000);
+                    res = onboard.set_gimbal_rotation_rate_sync(pitch_rate, 0.f, yaw_rate);
+                } while (res != SUCCESS);
+
+                usleep(1000000);  // Move in 1s
 
                 sdk.state = STATE_MOVE_TO_ZERO;
             }
@@ -636,25 +663,20 @@ void gGimbal_control_sample(Gimbal_Interface &onboard)
 
         case STATE_MOVE_TO_ZERO:
             {
-                result_t res = onboard.set_gimbal_follow_mode_sync();
-
-                if (res == SUCCESS) {
-                    printf("Set gimbal to FOLLOW MODE Successfully!\n");
-
-                } else {
-                    fprintf(stderr, "Could not set gimbal to FOLLOW MODE! Result code: %d\n", res);
-                }
-
                 printf("\tReturn home\n");
-                res = onboard.set_gimbal_reset_mode(GIMBAL_RESET_MODE_PITCH_AND_YAW);
+                result_t res = onboard.set_gimbal_reset_mode(GIMBAL_RESET_MODE_PITCH_AND_YAW);
 
                 if (res == SUCCESS) {
                     attitude<float> attitude;
 
                     /* Wait for returning home */
                     do {
-                        attitude = onboard.get_gimbal_attitude();
                         usleep(500000);
+                        attitude = onboard.get_gimbal_attitude();
+
+                        printf("\tGimbal attitude Pitch - Roll - Yaw: %.2f - %.2f - %.2f\n", attitude.pitch,
+                               attitude.roll, attitude.yaw);
+
                     } while (fabsf(attitude.pitch) > 0.5f || fabsf(attitude.roll) > 0.5f || fabsf(attitude.yaw) > 0.5f);
 
                     sdk.state = STATE_SETTING_GIMBAL;

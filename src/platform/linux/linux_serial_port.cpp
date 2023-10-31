@@ -116,6 +116,19 @@ void Linux_Serial_Port::_start_port()
 
     printf("Connected to %s with %d baud, 8 data bits, no parity, 1 stop bit (8N1).\n\n", _device, _baudrate);
     _device_status = true;
+
+    // --------------------------------------------------------------------------
+    //   CONTROL DTR & RTS
+    // --------------------------------------------------------------------------
+    int RTS_flag;
+    int DTR_flag;
+    RTS_flag = TIOCM_RTS;
+    DTR_flag = TIOCM_DTR;
+    ioctl(_fd, TIOCMBIS, &DTR_flag); //Set DTR pin
+    ioctl(_fd, TIOCMBIC, &RTS_flag); //clear RTS pin
+    //getchar();
+    usleep(1000000);
+    ioctl(_fd, TIOCMBIC, &DTR_flag); //Clear DTR pin
 }
 
 void Linux_Serial_Port::_close_port()
