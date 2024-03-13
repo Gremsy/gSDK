@@ -40,6 +40,21 @@
 
 #include <ardupilotmega/mavlink.h>
 
+#define DEBUG 1
+
+#if (DEBUG == 1)
+# define GSDK_DebugMsg(fmt, args ...)        do {printf("\33[39m" fmt "\n\r",  ## args); } while(0);
+# define GSDK_DebugInfo(fmt, args ...)       do {printf("\33[92m" fmt "\n\r", ## args); } while(0);
+# define GSDK_DebugWarning(fmt, args ...)    do {printf("\33[33m" fmt "\n\r", ## args); } while(0);
+# define GSDK_DebugError(fmt, args ...)      do {printf("\33[91m" fmt "\n\r", ## args); } while(0);
+
+#else
+# define GSDK_DebugMsg(fmt, args ...)
+# define GSDK_DebugInfo(fmt, args ...)
+# define GSDK_DebugWarning(fmt, args ...)
+# define GSDK_DebugError(fmt, args ...)
+#endif
+
 // ------------------------------------------------------------------------------
 //   Data Structures
 // ------------------------------------------------------------------------------
@@ -115,7 +130,9 @@ public:
         GIMBAL_OFF         = 0x00,
         GIMBAL_LOCK_MODE   = 0x01,
         GIMBAL_FOLLOW_MODE = 0x02,
-        GIMBAL_RESET_MODE  = 0x04
+        GIMBAL_RESET_MODE  = 0x04,
+        GIMBAL_MAPPING_MODE = 0x4000,
+        GIMBAL_RESET_HOME   = 0x8000
     };
 
     /**
@@ -148,7 +165,7 @@ public:
         INPUT_SPEED = 2
     };
 
-    Gimbal_Protocol(Serial_Port *serial_port, const mavlink_system_t &system);
+    Gimbal_Protocol(Serial_Port *serial_port, const mavlink_system_t &system, mavlink_channel_t channel);
     virtual ~Gimbal_Protocol();
 
     /**
@@ -245,6 +262,7 @@ protected:
 
     mavlink_system_t _system;
     mavlink_system_t _gimbal = { 0 };
+    mavlink_channel_t _channel = MAVLINK_COMM_0;
     bool             _is_init = false;
 
     mavlink_command_ack_t _ack = { 0 };

@@ -36,11 +36,13 @@
 #include "gimbal_protocol.h"
 
 Gimbal_Protocol::Gimbal_Protocol(Serial_Port *serial_port,
-                                 const mavlink_system_t &system) :
+                                 const mavlink_system_t &system, 
+                                 mavlink_channel_t channel) :
     _system(system),
     _attitude()
 {
     _serial_port = serial_port;
+    _channel     = channel;
     pthread_mutex_init(&_mutex, NULL);
     pthread_cond_init(&_condition, NULL);
 }
@@ -73,12 +75,12 @@ void Gimbal_Protocol::initialize(const mavlink_system_t &gimbal)
 Gimbal_Protocol::result_t Gimbal_Protocol::send_command_long(uint16_t command, const float param[7])
 {
     if (_serial_port == nullptr) {
-        fprintf(stderr, "ERROR: serial port not exist\n");
+        GSDK_DebugError("ERROR: serial port not exist\n");
         throw 1;
     }
 
     if (!_is_init) {
-        fprintf(stderr, "ERROR: could not send COMMAND_LONG, gimbal proto has not been initialized\n");
+        GSDK_DebugError("ERROR: could not send COMMAND_LONG, gimbal proto has not been initialized\n");
         return ERROR;
     }
 
@@ -92,7 +94,8 @@ Gimbal_Protocol::result_t Gimbal_Protocol::send_command_long(uint16_t command, c
     //   ENCODE
     // --------------------------------------------------------------------------
     mavlink_message_t message = { 0 };
-    mavlink_msg_command_long_encode(_system.sysid, _system.compid, &message, &cmd);
+    // mavlink_msg_command_long_encode(_system.sysid, _system.compid, &message, &cmd);
+    mavlink_msg_command_long_encode_chan(_system.sysid, _system.compid, _channel, &message, &cmd);
     // --------------------------------------------------------------------------
     //   WRITE
     // --------------------------------------------------------------------------

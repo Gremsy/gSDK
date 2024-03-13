@@ -34,8 +34,9 @@
 #include "gimbal_protocol_v2.h"
 
 Gimbal_Protocol_V2::Gimbal_Protocol_V2(Serial_Port *serial_port,
-                                       const mavlink_system_t &system) :
-    Gimbal_Protocol(serial_port, system) {}
+                                       const mavlink_system_t &system, 
+                                       mavlink_channel_t channel) :
+    Gimbal_Protocol(serial_port, system, channel) {}
 
 /**
  * @brief  This function set gimbal mode
@@ -45,7 +46,7 @@ Gimbal_Protocol_V2::Gimbal_Protocol_V2(Serial_Port *serial_port,
 Gimbal_Protocol::result_t Gimbal_Protocol_V2::set_gimbal_mode_sync(control_mode_t mode)
 {
     if (!_is_init) {
-        fprintf(stderr, "ERROR: could not set GIMBAL MODE, gimbal proto has not been initialized\n");
+        GSDK_DebugError("ERROR: could not set GIMBAL MODE, gimbal proto has not been initialized\n");
         return ERROR;
     }
 
@@ -93,7 +94,7 @@ Gimbal_Protocol_V2::result_t Gimbal_Protocol_V2::set_gimbal_reset_mode(gimbal_re
             break;
     }
     /* Switch to follow */
-    _control_mode = GIMBAL_FOLLOW_MODE;
+    // _control_mode = GIMBAL_FOLLOW_MODE;
     return set_gimbal_move_sync(pitch, roll, yaw, INPUT_ANGLE);
 }
 
@@ -110,12 +111,12 @@ Gimbal_Protocol::result_t Gimbal_Protocol_V2::set_gimbal_move_sync(float pitch, 
         input_mode_t mode)
 {
     if (_serial_port == nullptr) {
-        fprintf(stderr, "ERROR: serial port not exist\n");
+        GSDK_DebugError("ERROR: serial port not exist\n");
         throw 1;
     }
 
     if (!_is_init) {
-        fprintf(stderr, "ERROR: could not MOVE GIMBAL, gimbal proto has not been initialized\n");
+        GSDK_DebugError("ERROR: could not MOVE GIMBAL, gimbal proto has not been initialized\n");
         return ERROR;
     }
 
@@ -124,7 +125,10 @@ Gimbal_Protocol::result_t Gimbal_Protocol_V2::set_gimbal_move_sync(float pitch, 
     attitude.target_system    = _gimbal.sysid;
     attitude.target_component = _gimbal.compid;
     attitude.flags = GIMBAL_DEVICE_FLAGS_ROLL_LOCK | GIMBAL_DEVICE_FLAGS_PITCH_LOCK |
-                     ((_control_mode == GIMBAL_LOCK_MODE) ? GIMBAL_DEVICE_FLAGS_YAW_LOCK : 0);
+                     ((_control_mode == GIMBAL_OFF)             ? GIMBAL_DEVICE_FLAGS_RETRACT   : 0) |
+                     ((_control_mode == GIMBAL_LOCK_MODE)       ? GIMBAL_DEVICE_FLAGS_YAW_LOCK  : 0) |
+                     ((_control_mode == GIMBAL_MAPPING_MODE)    ? GIMBAL_MAPPING_MODE           : 0) |
+                     ((_control_mode == GIMBAL_RESET_HOME)      ? GIMBAL_DEVICE_FLAGS_NEUTRAL   : 0);
 
     if (mode == INPUT_ANGLE) {
         /* Convert target to quaternion */
@@ -147,7 +151,8 @@ Gimbal_Protocol::result_t Gimbal_Protocol_V2::set_gimbal_move_sync(float pitch, 
     //   ENCODE
     // --------------------------------------------------------------------------
     mavlink_message_t message = { 0 };
-    mavlink_msg_gimbal_device_set_attitude_encode(_system.sysid, _system.compid, &message, &attitude);
+    // mavlink_msg_gimbal_device_set_attitude_encode(_system.sysid, _system.compid, &message, &attitude);
+    mavlink_msg_gimbal_device_set_attitude_encode_chan(_system.sysid, _system.compid, _channel, &message, &attitude);
     // --------------------------------------------------------------------------
     //   WRITE
     // --------------------------------------------------------------------------

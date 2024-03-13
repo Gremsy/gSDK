@@ -48,7 +48,8 @@ class Gimbal_Protocol_V2 : public Gimbal_Protocol
 {
 public:
     Gimbal_Protocol_V2(Serial_Port *serial_port,
-                       const mavlink_system_t &system);
+                       const mavlink_system_t &system,
+                       mavlink_channel_t channel);
     ~Gimbal_Protocol_V2() = default;
 
     /**
@@ -80,6 +81,7 @@ public:
 private:
 
     control_mode_t _control_mode = GIMBAL_FOLLOW_MODE;
+    mavlink_channel_t   _channel = MAVLINK_COMM_0;
 };
 
 #endif // GIMBAL_PROTOCOL_V2_H_

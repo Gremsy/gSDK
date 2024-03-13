@@ -48,7 +48,8 @@ class Gimbal_Protocol_V1 : public Gimbal_Protocol
 {
 public:
     Gimbal_Protocol_V1(Serial_Port *serial_port,
-                       const mavlink_system_t &system);
+                       const mavlink_system_t &system, 
+                       mavlink_channel_t channel);
     ~Gimbal_Protocol_V1() = default;
 
     /**
@@ -78,6 +79,8 @@ public:
                                   input_mode_t mode) override;
 
 private:
+
+    mavlink_channel_t channel = MAVLINK_COMM_0;
 
 };
 
