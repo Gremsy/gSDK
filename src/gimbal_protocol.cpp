@@ -51,6 +51,12 @@ Gimbal_Protocol::~Gimbal_Protocol()
     pthread_cond_destroy(&_condition);
 }
 
+void 
+Gimbal_Protocol::
+regSendMessageCallback(send_message_callback_t func){
+    __notifySendMessageCallback = func;
+}
+
 /**
  * @brief Function init protocol
  *

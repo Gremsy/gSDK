@@ -92,9 +92,15 @@ struct vector3 {
  *
  * This class implement base class for Gimbal Protocol
  */
+
+typedef void (*send_message_callback_t)(mavlink_message_t msg);
+
 class Gimbal_Protocol
 {
 public:
+    void regSendMessageCallback(send_message_callback_t func);
+    send_message_callback_t __notifySendMessageCallback = NULL;
+
     /**
      * @brief Enum described function return status
      * 

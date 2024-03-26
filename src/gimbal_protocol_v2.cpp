@@ -134,6 +134,8 @@ Gimbal_Protocol::result_t Gimbal_Protocol_V2::set_gimbal_move_sync(float pitch, 
         attitude.angular_velocity_z = NAN;
 
     } else {
+        printf("%s %d %d\n", __func__, _system.sysid, _system.compid);
+
         attitude.angular_velocity_x = to_rad(roll);
         attitude.angular_velocity_y = to_rad(pitch);
         attitude.angular_velocity_z = to_rad(yaw);
@@ -151,5 +153,11 @@ Gimbal_Protocol::result_t Gimbal_Protocol_V2::set_gimbal_move_sync(float pitch, 
     // --------------------------------------------------------------------------
     //   WRITE
     // --------------------------------------------------------------------------
+#if 0
     return (_serial_port->write_message(message) > 0) ? SUCCESS : ERROR;
+#else
+    if(__notifySendMessageCallback != NULL){
+        __notifySendMessageCallback(message);
+    }
+#endif
 }
