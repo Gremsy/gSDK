@@ -51,6 +51,7 @@ Gimbal_Protocol::~Gimbal_Protocol()
     pthread_cond_destroy(&_condition);
 }
 
+// internal use for PayloadSDK
 void 
 Gimbal_Protocol::
 regSendMessageCallback(send_message_callback_t func){
@@ -62,11 +63,13 @@ regSendMessageCallback(send_message_callback_t func){
  *
  * @param gimbal
  */
-void Gimbal_Protocol::initialize(const mavlink_system_t &gimbal)
+void Gimbal_Protocol::initialize(const mavlink_system_t &gimbal, bool _use_udp_send)
 {
     _gimbal.sysid  = gimbal.sysid;
     _gimbal.compid = gimbal.compid;
     _is_init = true;
+
+    use_udp_send = _use_udp_send;
 }
 
 /**

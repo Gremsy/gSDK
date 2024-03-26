@@ -153,11 +153,15 @@ Gimbal_Protocol::result_t Gimbal_Protocol_V2::set_gimbal_move_sync(float pitch, 
     // --------------------------------------------------------------------------
     //   WRITE
     // --------------------------------------------------------------------------
-#if 0
-    return (_serial_port->write_message(message) > 0) ? SUCCESS : ERROR;
-#else
-    if(__notifySendMessageCallback != NULL){
-        __notifySendMessageCallback(message);
+
+    // use_udp_send is a flag to internal use with PayloadSDK
+    if(!use_udp_send){
+        return (_serial_port->write_message(message) > 0) ? SUCCESS : ERROR;
     }
-#endif
+    else{
+        if(__notifySendMessageCallback != NULL){
+            __notifySendMessageCallback(message);
+        }
+    }
+
 }

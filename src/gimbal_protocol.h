@@ -98,6 +98,8 @@ typedef void (*send_message_callback_t)(mavlink_message_t msg);
 class Gimbal_Protocol
 {
 public:
+
+    // internal use for PayloadSDK
     void regSendMessageCallback(send_message_callback_t func);
     send_message_callback_t __notifySendMessageCallback = NULL;
 
@@ -162,7 +164,7 @@ public:
      * 
      * @param gimbal 
      */
-    void initialize(const mavlink_system_t &gimbal);
+    void initialize(const mavlink_system_t &gimbal, bool _use_udp_send=false);
 
     /**
      * @brief  This function set gimbal mode
@@ -264,6 +266,9 @@ protected:
      * @return result_t 
      */
     result_t from_mav_result(MAV_RESULT res);
+
+    // internal use for PayloadSDK
+    bool use_udp_send = false;
 };
 
 #endif // GIMBAL_PROTOCOL_H_
