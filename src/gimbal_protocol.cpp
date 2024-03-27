@@ -105,7 +105,16 @@ Gimbal_Protocol::result_t Gimbal_Protocol::send_command_long(uint16_t command, c
     // --------------------------------------------------------------------------
     //   WRITE
     // --------------------------------------------------------------------------
-    return (_serial_port->write_message(message) > 0) ? SUCCESS : ERROR;
+    
+    // use_udp_send is a flag to internal use with PayloadSDK
+    if(!use_udp_send){
+        return (_serial_port->write_message(message) > 0) ? SUCCESS : ERROR;
+    }
+    else{
+        if(__notifySendMessageCallback != NULL){
+            __notifySendMessageCallback(message);
+        }
+    }
 }
 
 /**
