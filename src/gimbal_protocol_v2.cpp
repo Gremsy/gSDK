@@ -162,6 +162,7 @@ Gimbal_Protocol::result_t Gimbal_Protocol_V2::set_gimbal_move_sync(float pitch, 
         if(__notifySendMessageCallback != NULL){
             __notifySendMessageCallback(message);
         }
+        return SUCCESS;
     }
 
 }

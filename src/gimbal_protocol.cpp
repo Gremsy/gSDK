@@ -114,6 +114,7 @@ Gimbal_Protocol::result_t Gimbal_Protocol::send_command_long(uint16_t command, c
         if(__notifySendMessageCallback != NULL){
             __notifySendMessageCallback(message);
         }
+        return SUCCESS;
     }
 }
 
