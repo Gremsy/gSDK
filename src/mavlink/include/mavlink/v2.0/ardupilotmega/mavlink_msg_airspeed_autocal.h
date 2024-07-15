@@ -3,7 +3,7 @@
 
 #define MAVLINK_MSG_ID_AIRSPEED_AUTOCAL 174
 
-MAVPACKED(
+
 typedef struct __mavlink_airspeed_autocal_t {
  float vx; /*< [m/s] GPS velocity north.*/
  float vy; /*< [m/s] GPS velocity east.*/
@@ -17,7 +17,7 @@ typedef struct __mavlink_airspeed_autocal_t {
  float Pax; /*<  EKF Pax.*/
  float Pby; /*<  EKF Pby.*/
  float Pcz; /*<  EKF Pcz.*/
-}) mavlink_airspeed_autocal_t;
+} mavlink_airspeed_autocal_t;
 
 #define MAVLINK_MSG_ID_AIRSPEED_AUTOCAL_LEN 48
 #define MAVLINK_MSG_ID_AIRSPEED_AUTOCAL_MIN_LEN 48
@@ -290,7 +290,7 @@ static inline void mavlink_msg_airspeed_autocal_send_struct(mavlink_channel_t ch
 
 #if MAVLINK_MSG_ID_AIRSPEED_AUTOCAL_LEN <= MAVLINK_MAX_PAYLOAD_LEN
 /*
-  This varient of _send() can be used to save stack space by re-using
+  This variant of _send() can be used to save stack space by re-using
   memory from the receive buffer.  The caller provides a
   mavlink_message_t which is the size of a full mavlink message. This
   is usually the receive buffer for the channel, and allows a reply to an

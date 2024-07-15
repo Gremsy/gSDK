@@ -3,7 +3,7 @@
 
 #define MAVLINK_MSG_ID_SERIAL_UDB_EXTRA_F4 172
 
-MAVPACKED(
+
 typedef struct __mavlink_serial_udb_extra_f4_t {
  uint8_t sue_ROLL_STABILIZATION_AILERONS; /*<  Serial UDB Extra Roll Stabilization with Ailerons Enabled*/
  uint8_t sue_ROLL_STABILIZATION_RUDDER; /*<  Serial UDB Extra Roll Stabilization with Rudder Enabled*/
@@ -15,7 +15,7 @@ typedef struct __mavlink_serial_udb_extra_f4_t {
  uint8_t sue_ALTITUDEHOLD_STABILIZED; /*<  Serial UDB Extra Type of Alitude Hold when in Stabilized Mode*/
  uint8_t sue_ALTITUDEHOLD_WAYPOINT; /*<  Serial UDB Extra Type of Alitude Hold when in Waypoint Mode*/
  uint8_t sue_RACING_MODE; /*<  Serial UDB Extra Firmware racing mode enabled*/
-}) mavlink_serial_udb_extra_f4_t;
+} mavlink_serial_udb_extra_f4_t;
 
 #define MAVLINK_MSG_ID_SERIAL_UDB_EXTRA_F4_LEN 10
 #define MAVLINK_MSG_ID_SERIAL_UDB_EXTRA_F4_MIN_LEN 10
@@ -266,7 +266,7 @@ static inline void mavlink_msg_serial_udb_extra_f4_send_struct(mavlink_channel_t
 
 #if MAVLINK_MSG_ID_SERIAL_UDB_EXTRA_F4_LEN <= MAVLINK_MAX_PAYLOAD_LEN
 /*
-  This varient of _send() can be used to save stack space by re-using
+  This variant of _send() can be used to save stack space by re-using
   memory from the receive buffer.  The caller provides a
   mavlink_message_t which is the size of a full mavlink message. This
   is usually the receive buffer for the channel, and allows a reply to an

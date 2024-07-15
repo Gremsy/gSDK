@@ -3,13 +3,13 @@
 
 #define MAVLINK_MSG_ID_FLEXIFUNCTION_READ_REQ 151
 
-MAVPACKED(
+
 typedef struct __mavlink_flexifunction_read_req_t {
  int16_t read_req_type; /*<  Type of flexifunction data requested*/
  int16_t data_index; /*<  index into data where needed*/
  uint8_t target_system; /*<  System ID*/
  uint8_t target_component; /*<  Component ID*/
-}) mavlink_flexifunction_read_req_t;
+} mavlink_flexifunction_read_req_t;
 
 #define MAVLINK_MSG_ID_FLEXIFUNCTION_READ_REQ_LEN 6
 #define MAVLINK_MSG_ID_FLEXIFUNCTION_READ_REQ_MIN_LEN 6
@@ -194,7 +194,7 @@ static inline void mavlink_msg_flexifunction_read_req_send_struct(mavlink_channe
 
 #if MAVLINK_MSG_ID_FLEXIFUNCTION_READ_REQ_LEN <= MAVLINK_MAX_PAYLOAD_LEN
 /*
-  This varient of _send() can be used to save stack space by re-using
+  This variant of _send() can be used to save stack space by re-using
   memory from the receive buffer.  The caller provides a
   mavlink_message_t which is the size of a full mavlink message. This
   is usually the receive buffer for the channel, and allows a reply to an

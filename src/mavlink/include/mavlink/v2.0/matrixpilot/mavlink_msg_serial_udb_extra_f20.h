@@ -3,7 +3,7 @@
 
 #define MAVLINK_MSG_ID_SERIAL_UDB_EXTRA_F20 186
 
-MAVPACKED(
+
 typedef struct __mavlink_serial_udb_extra_f20_t {
  int16_t sue_trim_value_input_1; /*<  SUE UDB PWM Trim Value on Input 1*/
  int16_t sue_trim_value_input_2; /*<  SUE UDB PWM Trim Value on Input 2*/
@@ -18,7 +18,7 @@ typedef struct __mavlink_serial_udb_extra_f20_t {
  int16_t sue_trim_value_input_11; /*<  SUE UDB PWM Trim Value on Input 11*/
  int16_t sue_trim_value_input_12; /*<  SUE UDB PWM Trim Value on Input 12*/
  uint8_t sue_number_of_inputs; /*<  SUE Number of Input Channels*/
-}) mavlink_serial_udb_extra_f20_t;
+} mavlink_serial_udb_extra_f20_t;
 
 #define MAVLINK_MSG_ID_SERIAL_UDB_EXTRA_F20_LEN 25
 #define MAVLINK_MSG_ID_SERIAL_UDB_EXTRA_F20_MIN_LEN 25
@@ -302,7 +302,7 @@ static inline void mavlink_msg_serial_udb_extra_f20_send_struct(mavlink_channel_
 
 #if MAVLINK_MSG_ID_SERIAL_UDB_EXTRA_F20_LEN <= MAVLINK_MAX_PAYLOAD_LEN
 /*
-  This varient of _send() can be used to save stack space by re-using
+  This variant of _send() can be used to save stack space by re-using
   memory from the receive buffer.  The caller provides a
   mavlink_message_t which is the size of a full mavlink message. This
   is usually the receive buffer for the channel, and allows a reply to an

@@ -3,12 +3,12 @@
 
 #define MAVLINK_MSG_ID_GOPRO_GET_REQUEST 216
 
-MAVPACKED(
+
 typedef struct __mavlink_gopro_get_request_t {
  uint8_t target_system; /*<  System ID.*/
  uint8_t target_component; /*<  Component ID.*/
  uint8_t cmd_id; /*<  Command ID.*/
-}) mavlink_gopro_get_request_t;
+} mavlink_gopro_get_request_t;
 
 #define MAVLINK_MSG_ID_GOPRO_GET_REQUEST_LEN 3
 #define MAVLINK_MSG_ID_GOPRO_GET_REQUEST_MIN_LEN 3
@@ -182,7 +182,7 @@ static inline void mavlink_msg_gopro_get_request_send_struct(mavlink_channel_t c
 
 #if MAVLINK_MSG_ID_GOPRO_GET_REQUEST_LEN <= MAVLINK_MAX_PAYLOAD_LEN
 /*
-  This varient of _send() can be used to save stack space by re-using
+  This variant of _send() can be used to save stack space by re-using
   memory from the receive buffer.  The caller provides a
   mavlink_message_t which is the size of a full mavlink message. This
   is usually the receive buffer for the channel, and allows a reply to an

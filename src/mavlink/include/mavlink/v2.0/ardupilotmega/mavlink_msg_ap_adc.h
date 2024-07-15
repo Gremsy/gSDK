@@ -3,7 +3,7 @@
 
 #define MAVLINK_MSG_ID_AP_ADC 153
 
-MAVPACKED(
+
 typedef struct __mavlink_ap_adc_t {
  uint16_t adc1; /*<  ADC output 1.*/
  uint16_t adc2; /*<  ADC output 2.*/
@@ -11,7 +11,7 @@ typedef struct __mavlink_ap_adc_t {
  uint16_t adc4; /*<  ADC output 4.*/
  uint16_t adc5; /*<  ADC output 5.*/
  uint16_t adc6; /*<  ADC output 6.*/
-}) mavlink_ap_adc_t;
+} mavlink_ap_adc_t;
 
 #define MAVLINK_MSG_ID_AP_ADC_LEN 12
 #define MAVLINK_MSG_ID_AP_ADC_MIN_LEN 12
@@ -218,7 +218,7 @@ static inline void mavlink_msg_ap_adc_send_struct(mavlink_channel_t chan, const 
 
 #if MAVLINK_MSG_ID_AP_ADC_LEN <= MAVLINK_MAX_PAYLOAD_LEN
 /*
-  This varient of _send() can be used to save stack space by re-using
+  This variant of _send() can be used to save stack space by re-using
   memory from the receive buffer.  The caller provides a
   mavlink_message_t which is the size of a full mavlink message. This
   is usually the receive buffer for the channel, and allows a reply to an

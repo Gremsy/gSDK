@@ -3,7 +3,7 @@
 
 #define MAVLINK_MSG_ID_ADAP_TUNING 11010
 
-MAVPACKED(
+
 typedef struct __mavlink_adap_tuning_t {
  float desired; /*< [deg/s] Desired rate.*/
  float achieved; /*< [deg/s] Achieved rate.*/
@@ -18,7 +18,7 @@ typedef struct __mavlink_adap_tuning_t {
  float f_dot; /*<  Projection operator derivative.*/
  float u; /*<  u adaptive controlled output command.*/
  uint8_t axis; /*<  Axis.*/
-}) mavlink_adap_tuning_t;
+} mavlink_adap_tuning_t;
 
 #define MAVLINK_MSG_ID_ADAP_TUNING_LEN 49
 #define MAVLINK_MSG_ID_ADAP_TUNING_MIN_LEN 49
@@ -302,7 +302,7 @@ static inline void mavlink_msg_adap_tuning_send_struct(mavlink_channel_t chan, c
 
 #if MAVLINK_MSG_ID_ADAP_TUNING_LEN <= MAVLINK_MAX_PAYLOAD_LEN
 /*
-  This varient of _send() can be used to save stack space by re-using
+  This variant of _send() can be used to save stack space by re-using
   memory from the receive buffer.  The caller provides a
   mavlink_message_t which is the size of a full mavlink message. This
   is usually the receive buffer for the channel, and allows a reply to an

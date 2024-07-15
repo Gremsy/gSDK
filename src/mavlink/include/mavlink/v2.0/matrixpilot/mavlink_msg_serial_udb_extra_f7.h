@@ -3,7 +3,7 @@
 
 #define MAVLINK_MSG_ID_SERIAL_UDB_EXTRA_F7 175
 
-MAVPACKED(
+
 typedef struct __mavlink_serial_udb_extra_f7_t {
  float sue_YAWKP_RUDDER; /*<  Serial UDB YAWKP_RUDDER Gain for Proporional control of navigation*/
  float sue_YAWKD_RUDDER; /*<  Serial UDB YAWKD_RUDDER Gain for Rate control of navigation*/
@@ -11,7 +11,7 @@ typedef struct __mavlink_serial_udb_extra_f7_t {
  float sue_ROLLKD_RUDDER; /*<  Serial UDB Extra ROLLKD_RUDDER Gain for Rate control of roll stabilization*/
  float sue_RUDDER_BOOST; /*<  SERIAL UDB EXTRA Rudder Boost Gain to Manual Control when stabilized*/
  float sue_RTL_PITCH_DOWN; /*<  Serial UDB Extra Return To Landing - Angle to Pitch Plane Down*/
-}) mavlink_serial_udb_extra_f7_t;
+} mavlink_serial_udb_extra_f7_t;
 
 #define MAVLINK_MSG_ID_SERIAL_UDB_EXTRA_F7_LEN 24
 #define MAVLINK_MSG_ID_SERIAL_UDB_EXTRA_F7_MIN_LEN 24
@@ -218,7 +218,7 @@ static inline void mavlink_msg_serial_udb_extra_f7_send_struct(mavlink_channel_t
 
 #if MAVLINK_MSG_ID_SERIAL_UDB_EXTRA_F7_LEN <= MAVLINK_MAX_PAYLOAD_LEN
 /*
-  This varient of _send() can be used to save stack space by re-using
+  This variant of _send() can be used to save stack space by re-using
   memory from the receive buffer.  The caller provides a
   mavlink_message_t which is the size of a full mavlink message. This
   is usually the receive buffer for the channel, and allows a reply to an

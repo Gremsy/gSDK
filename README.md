@@ -3,12 +3,56 @@ Gimbal Interface Example
 
 This is a simple MAVLink to UART interface example for Unix systems that can allow communication between Gremsy's Gimbal and an Onboard computer.
 
-This example will receive one MAVLink message and send one MAVLink message.
+This will provide examples of controlling and communicating with Gremsy's Gimbal.
 
+Documentation
+=============
+  * [Compilation](#compilation)
+  * [Building](#building)
+  * [Hardware Setup](#hardware-setup)
+  * [Execution](#execution)
+  * [Menu Structure](#menu-structure)
+    * [1. Connection Initialization](#1-connection-initialization)
+    * [2. Gimbal Parameters Retrieval](#2-gimbal-parameters-retrieval)
+    * [3. Parameter Verification](#3-parameter-verification)
+    * [4. Firmware and Message Settings](#4-firmware-and-message-settings)
+    * [5. Gimbal Configuration Prompts](#5-gimbal-configuration-prompts)
+    * [6. Gimbal Control Mode Selection](#6-gimbal-control-mode-selection)
+      * [6.1 OFF Gimbal (Option 0)](#61-off-gimbal-option-0)
+      * [6.2 ON Gimbal (Option 1)](#62-on-gimbal-option-1)
+      * [6.3 Change Mount Mode (Option 2)](#63-change-mount-mode-option-2)
+      * [6.4 Gimbal Information (Option 3)](#64-gimbal-information-option-3)
+      * [6.5 Config Gimbal Follow Parameter (Option 4)](#65-config-gimbal-follow-parameter-option-4)
+      * [6.6 Set Gimbal to LOCK Mode (Option 5)](#66-set-gimbal-to-lock-mode-option-5)
+      * [6.7 Set Gimbal to Move Angle in LOCK Mode (Option 6)](#67-set-gimbal-to-move-angle-in-lock-mode-option-6)
+      * [6.8 Set Gimbal to Move Rate in LOCK Mode (Option 7)](#68-set-gimbal-to-move-rate-in-lock-mode-option-7)
+      * [6.9 Set Gimbal to FOLLOW Mode (Option 8)](#69-set-gimbal-to-follow-mode-option-8)
+      * [6.10 Set Gimbal to Move Angle in FOLLOW Mode (Option 9)](#610-set-gimbal-to-move-angle-in-follow-mode-option-9)
+      * [6.11 Set Gimbal to Move Rate in FOLLOW Mode (Option 10)](#611-set-gimbal-to-move-rate-in-follow-mode-option-10)
+      * [6.12 Set Gimbal to MAPPING Mode (Option 11)](#612-set-gimbal-to-mapping-mode-option-11)
+      * [6.13 Set Gimbal to Return Home (Option 12)](#613-set-gimbal-to-return-home-option-12)
+      * [6.14 Set Gimbal Reboot (Option 13)](#614-set-gimbal-reboot-option-13)
+    * [7. Termination and Cleanup](#7-termination-and-cleanup)
+  * [Usage](#usage)
+  * [Troubleshooting](#troubleshooting)
+  * [Contact](#contact)
+
+
+
+
+Compilation
+=========
+In order to compile you need the following packages:
+
+
+- CMake version 3.5 or higher
+
+- G++ compiler or Clang compiler
+
+- C and C++ standard libraries
 
 Building
 ========
-
 ```
 $ cd gSDK/
 $ mkdir build && cd build
@@ -16,11 +60,12 @@ $ cmake ..
 $ make
 ```
 
+
 Hardware Setup
 =========
 
 Connect the COM2 cable to your Onboard Computer.  
-The hardware connection between an GIMBAL T3 and a PC or Linux machine. Note that:
+The hardware connection between an GIMBAL and a PC or Linux machine. Note that:
 The recommended choice of USB to TTL cable is FT232 module.
 
 Refer to: gSDK Documentation
@@ -51,152 +96,212 @@ Here's an example output:
 
 ```
 
-$ ./gSDK -d /dev/ttyUSB0 
 OPEN PORT
 Connected to /dev/ttyUSB0 with 115200 baud, 8 data bits, no parity, 1 stop bit (8N1)
+
+START WRITE THREAD 
+
+ Lost Connection!
+
+ Lost Connection!
 
 START READ THREAD 
 
  Lost Connection!
+
  Lost Connection!
-Found 
 
-GOT GIMBAL SYSTEM ID: 4
-START WRITE THREAD 
-GIMBAL_STATE_NOT_PRESENT
-Request param read: VERSION_X 
-Request param read: VERSION_Y 
-Request param read: VERSION_Z 
+ Lost Connection!
+
+ Lost Connection!
+
+ Lost Connection!
+
+ Lost Connection!
+
+ Lost Connection!
+
+ Lost Connection!
+
+ Lost Connection!
+
+ Lost Connection!
+
+ Lost Connection!
+
+Found GIMBAL [SysID][CompID]: [1][154]
+
 GOT [VERSION_X] 7
-GOT [VERSION_Y] 5
-GOT [VERSION_Z] 0
-Request param read: PITCH_P 
-Request param read: ROLL_P 
-Request param read: YAW_P 
-GOT [ROLL_P] 90
-Request param read: PITCH_POWER
-GOT [PITCH_POWER] 40
-Request param read: ROLL_POWER
-GOT [ROLL_POWER] 40
-Request param read: YAW_POWER
-GOT [YAW_POWER] 40
-Request param read: YAW_I
-GOT [YAW_I] 3
-Request param read: GYRO_LPF 
-Request param read: PITCH_I 
-GOT [GYRO_LPF] 2
-Request param read: PITCH_FOLLOW 
-Request param read: YAW_FOLLOW 
-GOT [PITCH_FOLLOW] 65
-Request param read: PITCH_FILTER 
-Request param read: YAW_FILTER 
-GOT [YAW_FOLLOW] 87
-GOT [PITCH_FILTER] 50
-Request param read: TILT_WINDOW 
-Request param read: PAN_WINDOW 
-GOT [YAW_FILTER] 50
-GOT [TILT_WINDOW] 0
-Request param read: RC_PITCH_SPEED 
-GOT [PAN_WINDOW] 0
-Request param read: RC_ROLL_SPEED 
-Request param read: RC_YAW_SPEED 
-GOT [RC_PITCH_SPEED] 50
-GOT [RC_ROLL_SPEED] 50
-Request param read: RC_PITCH_LPF 
-GOT [RC_YAW_SPEED] 50
-Request param read: RC_ROLL_LPF 
-GOT [RC_PITCH_LPF] 50
-Request param read: RC_YAW_LPF 
-Request param read: JOY_AXIS 
-GOT [RC_YAW_LPF] 70
-Request param read: HEARTBEAT_EMIT 
-Request param read: STATUS_RATE 
-GOT [JOY_AXIS] 1
-GOT [HEARTBEAT_EMIT] 1
-Request param read: ENC_CNT_RATE 
-Request param read: ENC_TYPE_SEND 
-GOT [STATUS_RATE] 10
-Request param read: ORIEN_RATE 
-GOT [ENC_TYPE_SEND] 0
-Request param read: IMU_RATE 
-GOT [ORIEN_RATE] 50
-GOT [IMU_RATE] 10
-Request param read: PITCH_P 
-Request param read: YAW_P 
-Request param read: PITCH_I 
-GOT [PITCH_P] 80
-GOT [YAW_P] 100
-Request param read: RC_ROLL_LPF 
-Request param read: ENC_CNT_RATE 
-GOT [PITCH_I] 120
-GOT [ENC_CNT_RATE] 10
-Request param read: RC_ROLL_LPF 
-GOT [RC_ROLL_LPF] 60
-Check [VERSION_X] 7 
-Check [VERSION_Y] 5 
-Check [VERSION_Z] 0 
-Check [PITCH_P] 80 
-Check [ROLL_P] 90 
-Check [YAW_P] 100 
-Check [PITCH_POWER] 40 
-Check [ROLL_POWER] 40 
-Check [YAW_POWER] 40 
-Check [YAW_I] 3 
-Check [GYRO_LPF] 2 
-Check [PITCH_I] 120 
-Check [PITCH_FOLLOW] 65 
-Check [YAW_FOLLOW] 87 
-Check [PITCH_FILTER] 50 
-Check [YAW_FILTER] 50 
-Check [TILT_WINDOW] 0 
-Check [PAN_WINDOW] 0 
-Check [RC_PITCH_SPEED] 50 
-Check [RC_ROLL_SPEED] 50 
-Check [RC_YAW_SPEED] 50 
-Check [RC_PITCH_LPF] 50 
-Check [RC_ROLL_LPF] 60 
-Check [RC_YAW_LPF] 70 
-Check [JOY_AXIS] 1 
-Check [HEARTBEAT_EMIT] 1 
-Check [STATUS_RATE] 10 
-Check [ENC_CNT_RATE] 10 
-Check [ENC_TYPE_SEND] 0 
-Check [ORIEN_RATE] 50 
-Check [IMU_RATE] 10 
-GIMBAL_STATE_PRESENT_RUNNING 
-READ SOME MESSAGES 
 
-Got message gimbal status 
-Gimbal is operating
-Got message RAW IMU.
-	raw imu: time: 1591149964954814, xacc:20, yacc:-60, zacc:8534, xgyro:1287, xgyro:110, xgyro:124(raw)
-Got message Mount orientation.
-	orientation: time: 2020804268, p:-0.002313, r:0.058161, y:-0.032959 (degree)
-Got message Mount status 
-	Encoder Angle: time: 1591149964954833, p:0, r:0, y:0 (Degree)
-	SETTING TILT: dir 1, speed_follow: 65, speed_control: 50
-	MOTOR_CONTROL: GYRO: 2, OUT 3, GAIN 120
-	TILT  stiff 80, hold: 40
-	ROLL  stiff 90, hold: 40
-	PAN   stiff 100, hold: 40
+GOT [STIFF_TILT] 20
 
-FW Version: 7.5.0.OFFICIAL
-READ SOME MESSAGES 
+GOT [STIFF_ROLL] 70
 
-Got message gimbal status 
-Gimbal is operating
-Got message RAW IMU.
-	raw imu: time: 1591149965057013, xacc:103, yacc:-168, zacc:8289, xgyro:502, xgyro:-43, xgyro:-14(raw)
-Got message Mount orientation.
-	orientation: time: 2020874504, p:-0.049958, r:0.079474, y:-0.032959 (degree)
-Got message Mount status 
-	Encoder Angle: time: 1591149965057037, p:0, r:0, y:0 (Degree)
-	SETTING TILT: dir 1, speed_follow: 65, speed_control: 50
-	MOTOR_CONTROL: GYRO: 2, OUT 3, GAIN 120
-	TILT  stiff 80, hold: 40
-	ROLL  stiff 90, hold: 40
-	PAN   stiff 100, hold: 40
+GOT [STIFF_PAN] 60
 
+GOT [FILTER_OUT] 1
+
+GOT [PWR_TILT] 20
+
+GOT [PWR_ROLL] 70
+
+GOT [PWR_PAN] 60
+
+GOT [FLW_LPF_TILT] 20
+
+GOT [FLW_LPF_PAN] 20
+
+GOT [RC_TYPE] 15
+
+GOT [GYRO_LPF] 4
+
+GOT [RC_LIM_MIN_TILT] -45
+
+GOT [RC_LIM_MAX_TILT] 45
+
+GOT [RC_LIM_MIN_ROLL] -40
+
+GOT [RC_LIM_MAX_ROLL] 40
+
+GOT [RC_LPF_TILT] 80
+
+GOT [RC_LPF_ROLL] 80
+
+GOT [RC_LPF_PAN] 80
+
+GOT [FLW_WD_TILT] 5
+
+GOT [FLW_WD_PAN] 20
+
+GOT [RC_SPD_TILT] 30
+
+GOT [RC_SPD_ROLL] 30
+
+GOT [RC_SPD_PAN] 30
+
+GOT [RC_REVERSE_AXIS] 24
+
+GOT [VERSION_Y] 7
+
+GOT [VERSION_Z] 3
+
+GOT [RC_LIM_MIN_PAN] -320
+
+GOT [RC_LIM_MAX_PAN] 320
+
+GOT [MAV_TS_ENCNT] 1
+
+Check [VERSION_X] 7
+
+Check [VERSION_Y] 7
+
+Check [VERSION_Z] 3
+
+Check [STIFF_TILT] 20
+
+Check [STIFF_ROLL] 70
+
+Check [STIFF_PAN] 60
+
+Check [PWR_TILT] 20
+
+Check [PWR_ROLL] 70
+
+Check [PWR_PAN] 60
+
+Check [FILTER_OUT] 1
+
+Check [GYRO_LPF] 4
+
+Check [FLW_LPF_TILT] 20
+
+Check [FLW_LPF_PAN] 20
+
+Check [FLW_WD_TILT] 5
+
+Check [FLW_WD_PAN] 20
+
+Check [RC_SPD_TILT] 30
+
+Check [RC_SPD_ROLL] 30
+
+Check [RC_SPD_PAN] 30
+
+Check [RC_LPF_TILT] 80
+
+Check [RC_LPF_ROLL] 80
+
+Check [RC_LPF_PAN] 80
+
+Check [RC_REVERSE_AXIS] 24
+
+Check [MAV_TS_ENCNT] 1
+
+Check [RC_LIM_MIN_TILT] -45
+
+Check [RC_LIM_MAX_TILT] 45
+
+Check [RC_LIM_MIN_ROLL] -40
+
+Check [RC_LIM_MAX_ROLL] 40
+
+Check [RC_LIM_MIN_PAN] -320
+
+Check [RC_LIM_MAX_PAN] 320
+
+Check [RC_TYPE] 15
+
+Use mavlink gimbal V1
+Gimbal Firmware version is 7.7.3.OFFICIAL
+Set gimbal send raw encoder value.
+
+GET GIMBAL DEVICE: 
+
+Vendor name: GREMSY
+
+Model name: MIO
+
+Request gimbal device information.
+
+Please Enter y/n(yes or no) to setting gimbal mavlink message rate
+
+n
+Please Enter y/n(yes or no) to setting gimbal stiffness - follow param
+
+n
+Please Enter number to select type of gimbal
+
+         1. Two axis
+
+         2. Three axis
+
+2
+Please Enter number to select three axis gimbal mode 
+
+         1. Normal mode
+
+         2. Inverted mode
+
+1
+You selected gimbal mount mode 
+Three axis Normal Mount
+
+
+ Please Enter number [0-13] to seclect Gimbal control mode
+         0.   OFF Gimbal
+         1.   ON Gimbal
+         2.   Change mount mode
+         3.   Gimbal information
+         4.   Config gimbal follow parameter
+         5.   Set Gimbal to LOCK mode
+         6.   Set Gimbal to move angle in LOCK mode
+         7.   Set Gimbal to move rate in LOCK mode
+         8.   Set Gimbal to FOLLOW mode
+         9.   Set Gimbal to move angle in FOLLOW mode
+         10.  Set Gimbal to move rate in FOLLOW mode
+         11.  Set Gimbal to MAPPING mode
+         12.  Set Gimbal to Return Home
+         13.  Set Gimbal Reboot
 ^C
 TERMINATING AT USER REQUEST
 
@@ -204,3 +309,240 @@ CLOSE THREADS
 
 CLOSE PORT
 ```
+# Menu Structure
+
+## 1. Connection Initialization
+
+- **OPEN PORT**: Initializes the connection to the specified port.
+- **START WRITE THREAD**: Begins the thread responsible for sending data to the gimbal.
+- **START READ THREAD**: Begins the thread responsible for receiving data from the gimbal.
+- **Lost Connection!**: Indicates that the connection to the gimbal was lost. This message may repeat if reconnection attempts fail.
+- **Found GIMBAL [SysID][CompID]: [1][154]**: Indicates successful detection of the gimbal with system ID 1 and component ID 154.
+
+## 2. Gimbal Parameters Retrieval
+
+- **GOT [PARAMETER] [VALUE]**: Lists the retrieved gimbal parameters and their respective values. These parameters include stiffness, power, filter settings, RC limits, and other configuration values.
+  
+  Example parameters:
+  - `VERSION_X`, `VERSION_Y`, `VERSION_Z`
+  - `STIFF_TILT`, `STIFF_ROLL`, `STIFF_PAN`
+  - `PWR_TILT`, `PWR_ROLL`, `PWR_PAN`
+  - `FLW_LPF_TILT`, `FLW_LPF_PAN`
+  - `RC_TYPE`
+  - `GYRO_LPF`
+  - `RC_LIM_MIN_TILT`, `RC_LIM_MAX_TILT`, etc.
+## 3. Parameter Verification
+
+- **Check [PARAMETER] [VALUE]**: Confirms that the retrieved parameters match the expected values.
+
+## 4. Firmware and Message Settings
+
+- **Use mavlink gimbal V1**: Indicates the use of MAVLink protocol version 1 for communication.
+- **Gimbal Firmware version is 7.7.3.OFFICIAL**: Displays the current firmware version of the gimbal.
+- **Request gimbal device information**: Queries for the device's vendor and model information.
+  - **Vendor name**: GREMSY
+  - **Model name**: MIO
+
+## 5. Gimbal Configuration Prompts
+- **Please Enter y/n(yes or no) to setting gimbal mavlink message rate**: Prompts the user to confirm whether to set gimbal messages rate.
+- **Please Enter y/n (yes or no) to setting gimbal stiffness - follow param**: Prompts the user to confirm whether to set gimbal stiffness and follow parameters.
+- **Please Enter number to select type of gimbal**: Prompts the user to select the gimbal type.
+  - Options:
+    - `1. Two axis`
+    - `2. Three axis`
+- **Please Enter number to select two axis gimbal mount mode**: Prompts the user to select the mount mode for a two-axis gimbal.
+  - If `1. Two axis` is selected, additional prompts will appear:
+    - `1. Roll-Tilt Mount`
+    - `2. Pan-Tilt Mount`
+  - If `2. Three axis` is selected, additional prompts will appear:
+    - `1. Normal mode`
+    - `2. Inverted mode`
+## 6. Gimbal Control Mode Selection
+
+- **Please Enter number [0-15] to select Gimbal control mode**: Prompts the user to select the desired gimbal control mode.
+  - Options:
+    - `0.  OFF Gimbal`
+    - `1.  ON Gimbal`
+    - `2.  Change mount mode`
+    - `3.  Gimbal information`
+    - `4.  Config gimbal follow parameter`
+    - `5.  Set Gimbal to LOCK mode`
+    - `6.  Set Gimbal to move angle in LOCK mode`
+    - `7.  Set Gimbal to move rate in LOCK mode`
+    - `8.  Set Gimbal to FOLLOW mode`
+    - `9.  Set Gimbal to move angle in FOLLOW mode`
+    - `10. Set Gimbal to move rate in FOLLOW mode`
+    - `11. Set Gimbal to MAPPING mode`
+    - `12. Set Gimbal to Return Home`
+    - `13. Set Gimbal Reboot`
+ 
+   ### 6.1 OFF Gimbal (Option 0)
+   Turns off the gimbal.
+   
+   ### 6.2 ON Gimbal (Option 1)
+   Turns on the gimbal.
+   
+   ### 6.3 Change Mount Mode (Option 2)
+   Similar to **5. Gimbal Configuration Prompts**, this option allows the user to change the mount mode of the gimbal. The prompts for changing the mount mode are as follows:
+   
+   - **Please Enter number to select type of gimbal**: Prompts the user to select the gimbal type.
+     - Options:
+       - `1. Two axis`
+       - `2. Three axis`
+   - **Please Enter number to select two axis gimbal mount mode**: Prompts the user to select the mount mode for a two-axis gimbal.
+     - If `1. Two axis` is selected, additional prompts will appear:
+       - `1. Roll-Tilt Mount`
+       - `2. Pan-Tilt Mount`
+     - If `1. Three axis` is selected, additional prompts will appear:
+       - `1. Normal mode`
+       - `2. Inverted mode`
+   
+   ### 6.4 Gimbal Information (Option 3)
+   Displays information about the gimbal.
+   - **Gimbal Mount Mode**: Shows the current gimbal mount mode, such as Two axis Roll-Tilt mount, Two axis Pan-Tilt Mount, Three axis Inverted Mount, or Three axis Normal Mount.
+   - **Gimbal Mode**: Displays the current gimbal operational mode.
+   - **Gimbal State**: Shows the current state of the gimbal.
+   - **Gimbal IMU Data**: Displays raw IMU data including accelerometer and gyroscope readings.
+   - **Gimbal Attitude**: Shows the current pitch, roll, and yaw angles of the gimbal.
+   - **Gimbal Encoder Data**: Displays the encoder values for pitch, roll, and yaw.
+   - **Gimbal Configuration for Tilt, Roll, and Pan Axes**: Shows the current configuration settings for each axis, including direction, speed control, smooth control, smooth follow, and window follow parameters.
+   - **Gimbal Limit Angles**: Displays the maximum and minimum angles for pitch, roll, and yaw.
+   - **Motor Control Settings**: Shows the current motor control settings including hold strength, stiffness, gyro filter, and output filter.
+  
+   For example:
+   ```
+  Gimbal Firmware version is 7.7.3.OFFICIAL
+
+  You selected gimbal mount mode 
+  Two axis Roll-Tilt mount
+
+  Gimbal mode: 2
+
+  Gimbal state: 2
+
+  Raw imu:  xacc:200, yacc:-218, zacc:8174, xgyro:8, xgyro:-8, xgyro:-36(raw)
+
+  Gimbal attitude Pitch - Roll - Yaw: 0.00 - -0.00 - -0.01
+
+  Gimbal encoder Pitch - Roll - Yaw: 0.00 - -0.00 - -0.01
+
+  Config follow TILT: Dir: 0 -- Speed control: 30 -- Smooth control: 80 -- Smooth follow: 20 -- Window follow: 5
+
+  Config follow ROLL: Dir: 0 -- Speed control: 30 -- Smooth control: 80 -- Smooth follow: 0 -- Window follow: 0
+
+  Config follow PAN: Dir: 0 -- Speed control: 30 -- Smooth control: 80 -- Smooth follow: 20 -- Window follow: 20
+
+  Pitch max: 45 -- Pitch min: -45
+
+  Roll max: 40 -- Roll min: -40
+
+  Yaw max: 320 -- Yaw min: -320
+
+  Tilt hold strength: 20 -- Tilt stiffness: 20
+
+  Roll hold strength: 70 -- Roll stiffness: 70
+
+  Pan hold strength: 60 -- Pan stiffness: 60
+
+  Gyro filter: 4
+
+  Output filter: 1
+
+   ```
+   ### 6.5 Config Gimbal Follow Parameter (Option 4)
+    Allows the user to configure the follow parameters for the gimbal.
+    
+    - **Chose axis**: Prompts the user to select the axis for which they want to configure the follow parameters.
+      - Options:
+        - `1: Tilt`
+        - `2: Roll`
+        - `3: Pan`
+        - `4: Reset parameter`
+        - `Other: Exit`
+
+      Example Process:
+      1. **Chose axis**: The user is prompted to choose an axis to configure.
+         - Input: `1` (Tilt)
+         - Output: "You have chosen 1"
+      2. **Direction**: The user is prompted to set the direction (0 for Clockwise, 1 for Counter clockwise).
+         - Input: `0`
+      3. **Speed control**: The user sets the speed control parameter.
+         - Input: `180`
+      4. **Smooth control**: The user sets the smooth control parameter.
+         - Input: `50`
+      5. **Smooth follow**: The user sets the smooth follow parameter.
+         - Input: `10`
+      6. **Window follow**: The user sets the window follow parameter.
+         - Input: `10`
+
+  After inputting the parameters, the system will display the configured settings:
+  - Output: `Config TILT: Dir: 0 -- Speed control: 180 -- Smooth control: 50 -- Smooth follow: 10 -- Window follow: 10`
+
+  The user is then prompted to continue or not.
+  - Input: `y` to continue or `n` to exit.
+
+  If the user chooses to reset parameters:
+  - Input: `4` (Reset parameter)
+  - The parameters will be reset to their default values.
+   
+   ### 6.6 Set Gimbal to LOCK Mode (Option 5)
+   Sets the gimbal to LOCK mode, where the gimbal maintains its current orientation regardless of the movement of the base.
+   
+   ### 6.7 Set Gimbal to Move Angle in LOCK Mode (Option 6)
+   Allows the user to set a specific angle for the gimbal to move to while in LOCK mode.
+  
+   Sets the gimbal to LOCK mode and moves it to a specified angle.
+
+   - **ROLL angle**: The desired angle for the roll axis.
+   - **PITCH angle**: The desired angle for the pitch axis.
+   - **YAW angle**: The desired angle for the yaw axis.
+     
+   **Note that this function utilizes the coordinate system [-180, 180].**
+   ### 6.8 Set Gimbal to Move Rate in LOCK Mode (Option 7)
+   In LOCK mode, this option allows the user to set the gimbal's movement rate.
+   
+
+   ### 6.9 Set Gimbal to FOLLOW Mode (Option 8)
+   Sets the gimbal to FOLLOW mode, where the gimbal follows the movement of the attached device.
+   
+   ### 6.10 Set Gimbal to Move Angle in FOLLOW Mode (Option 9)
+   In FOLLOW mode, this option allows the user to set the gimbal to a specific angle.
+  
+   Sets the gimbal to FOLLOW mode and moves it to a specified angle.
+
+   - **ROLL angle**: The desired angle for the roll axis.
+   - **PITCH angle**: The desired angle for the pitch axis.
+   - **YAW angle**: The desired angle for the yaw axis.
+     
+   **Note that this function utilizes the coordinate system [-180, 180].**
+   ### 6.11 Set Gimbal to Move Rate in FOLLOW Mode (Option 10)
+   In FOLLOW mode, this option allows the user to set the gimbal's movement rate.
+   
+   ### 6.12 Set Gimbal to MAPPING Mode (Option 11)
+   Sets the gimbal to MAPPING mode, which may be used for specific applications such as 3D mapping or scanning.
+   
+   ### 6.13 Set Gimbal to Return Home (Option 12)
+   Sets the gimbal to return to its home position.
+   
+   ### 6.14 Set Gimbal Reboot (Option 13)
+   Reboots the gimbal. Please note that it takes about 10 seconds to reboot successfully.
+  
+## 7. Termination and Cleanup
+
+- **TERMINATING AT USER REQUEST**: Indicates that the user has requested to terminate the program.
+- **CLOSE THREADS**: Closes the read and write threads.
+- **CLOSE PORT**: Closes the port connection.
+
+# Usage
+
+Follow the prompts to configure and control the gimbal. Input the required values as instructed by each prompt. This menu system is designed to facilitate easy interaction with the gimbal for setup and operation.
+
+# Troubleshooting
+
+- Ensure the correct port and baud rate are configured.
+- If you see repeated "Lost Connection!" messages, check the physical connection and try reconnecting.
+- Follow the prompts carefully to avoid configuration errors.
+
+# Contact
+
+For further assistance, please contact support at [support@gremsy.com].

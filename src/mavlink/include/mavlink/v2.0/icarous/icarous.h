@@ -10,8 +10,8 @@
     #error Wrong include order: MAVLINK_ICAROUS.H MUST NOT BE DIRECTLY USED. Include mavlink.h from the same directory instead or set ALL AND EVERY defines from MAVLINK.H manually accordingly, including the #define MAVLINK_H call.
 #endif
 
-#undef MAVLINK_THIS_XML_IDX
-#define MAVLINK_THIS_XML_IDX 3
+#undef MAVLINK_THIS_XML_HASH
+#define MAVLINK_THIS_XML_HASH 1466344407110087144
 
 #ifdef __cplusplus
 extern "C" {
@@ -24,7 +24,7 @@ extern "C" {
 #endif
 
 #ifndef MAVLINK_MESSAGE_CRCS
-#define MAVLINK_MESSAGE_CRCS {{42000, 227, 1, 0, 0, 0}, {42001, 239, 46, 0, 0, 0}}
+#define MAVLINK_MESSAGE_CRCS {{42000, 227, 1, 1, 0, 0, 0}, {42001, 239, 46, 46, 0, 0, 0}}
 #endif
 
 #include "../protocol.h"
@@ -79,10 +79,10 @@ typedef enum ICAROUS_FMS_STATE
 // base include
 
 
-#undef MAVLINK_THIS_XML_IDX
-#define MAVLINK_THIS_XML_IDX 3
+#undef MAVLINK_THIS_XML_HASH
+#define MAVLINK_THIS_XML_HASH 1466344407110087144
 
-#if MAVLINK_THIS_XML_IDX == MAVLINK_PRIMARY_XML_IDX
+#if MAVLINK_THIS_XML_HASH == MAVLINK_PRIMARY_XML_HASH
 # define MAVLINK_MESSAGE_INFO {MAVLINK_MESSAGE_INFO_ICAROUS_HEARTBEAT, MAVLINK_MESSAGE_INFO_ICAROUS_KINEMATIC_BANDS}
 # define MAVLINK_MESSAGE_NAMES {{ "ICAROUS_HEARTBEAT", 42000 }, { "ICAROUS_KINEMATIC_BANDS", 42001 }}
 # if MAVLINK_COMMAND_24BIT

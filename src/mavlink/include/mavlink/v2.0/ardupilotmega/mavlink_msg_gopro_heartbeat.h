@@ -3,12 +3,12 @@
 
 #define MAVLINK_MSG_ID_GOPRO_HEARTBEAT 215
 
-MAVPACKED(
+
 typedef struct __mavlink_gopro_heartbeat_t {
  uint8_t status; /*<  Status.*/
  uint8_t capture_mode; /*<  Current capture mode.*/
  uint8_t flags; /*<  Additional status bits.*/
-}) mavlink_gopro_heartbeat_t;
+} mavlink_gopro_heartbeat_t;
 
 #define MAVLINK_MSG_ID_GOPRO_HEARTBEAT_LEN 3
 #define MAVLINK_MSG_ID_GOPRO_HEARTBEAT_MIN_LEN 3
@@ -182,7 +182,7 @@ static inline void mavlink_msg_gopro_heartbeat_send_struct(mavlink_channel_t cha
 
 #if MAVLINK_MSG_ID_GOPRO_HEARTBEAT_LEN <= MAVLINK_MAX_PAYLOAD_LEN
 /*
-  This varient of _send() can be used to save stack space by re-using
+  This variant of _send() can be used to save stack space by re-using
   memory from the receive buffer.  The caller provides a
   mavlink_message_t which is the size of a full mavlink message. This
   is usually the receive buffer for the channel, and allows a reply to an

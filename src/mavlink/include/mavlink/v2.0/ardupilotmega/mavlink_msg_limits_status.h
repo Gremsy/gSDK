@@ -3,7 +3,7 @@
 
 #define MAVLINK_MSG_ID_LIMITS_STATUS 167
 
-MAVPACKED(
+
 typedef struct __mavlink_limits_status_t {
  uint32_t last_trigger; /*< [ms] Time (since boot) of last breach.*/
  uint32_t last_action; /*< [ms] Time (since boot) of last recovery action.*/
@@ -14,7 +14,7 @@ typedef struct __mavlink_limits_status_t {
  uint8_t mods_enabled; /*<  AP_Limit_Module bitfield of enabled modules.*/
  uint8_t mods_required; /*<  AP_Limit_Module bitfield of required modules.*/
  uint8_t mods_triggered; /*<  AP_Limit_Module bitfield of triggered modules.*/
-}) mavlink_limits_status_t;
+} mavlink_limits_status_t;
 
 #define MAVLINK_MSG_ID_LIMITS_STATUS_LEN 22
 #define MAVLINK_MSG_ID_LIMITS_STATUS_MIN_LEN 22
@@ -254,7 +254,7 @@ static inline void mavlink_msg_limits_status_send_struct(mavlink_channel_t chan,
 
 #if MAVLINK_MSG_ID_LIMITS_STATUS_LEN <= MAVLINK_MAX_PAYLOAD_LEN
 /*
-  This varient of _send() can be used to save stack space by re-using
+  This variant of _send() can be used to save stack space by re-using
   memory from the receive buffer.  The caller provides a
   mavlink_message_t which is the size of a full mavlink message. This
   is usually the receive buffer for the channel, and allows a reply to an

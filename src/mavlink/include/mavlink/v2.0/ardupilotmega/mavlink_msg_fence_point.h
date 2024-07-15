@@ -3,7 +3,7 @@
 
 #define MAVLINK_MSG_ID_FENCE_POINT 160
 
-MAVPACKED(
+
 typedef struct __mavlink_fence_point_t {
  float lat; /*< [deg] Latitude of point.*/
  float lng; /*< [deg] Longitude of point.*/
@@ -11,7 +11,7 @@ typedef struct __mavlink_fence_point_t {
  uint8_t target_component; /*<  Component ID.*/
  uint8_t idx; /*<  Point index (first point is 1, 0 is for return point).*/
  uint8_t count; /*<  Total number of points (for sanity checking).*/
-}) mavlink_fence_point_t;
+} mavlink_fence_point_t;
 
 #define MAVLINK_MSG_ID_FENCE_POINT_LEN 12
 #define MAVLINK_MSG_ID_FENCE_POINT_MIN_LEN 12
@@ -218,7 +218,7 @@ static inline void mavlink_msg_fence_point_send_struct(mavlink_channel_t chan, c
 
 #if MAVLINK_MSG_ID_FENCE_POINT_LEN <= MAVLINK_MAX_PAYLOAD_LEN
 /*
-  This varient of _send() can be used to save stack space by re-using
+  This variant of _send() can be used to save stack space by re-using
   memory from the receive buffer.  The caller provides a
   mavlink_message_t which is the size of a full mavlink message. This
   is usually the receive buffer for the channel, and allows a reply to an

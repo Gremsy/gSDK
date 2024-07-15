@@ -3,7 +3,7 @@
 
 #define MAVLINK_MSG_ID_MOUNT_CONFIGURE 156
 
-MAVPACKED(
+
 typedef struct __mavlink_mount_configure_t {
  uint8_t target_system; /*<  System ID.*/
  uint8_t target_component; /*<  Component ID.*/
@@ -11,7 +11,7 @@ typedef struct __mavlink_mount_configure_t {
  uint8_t stab_roll; /*<  (1 = yes, 0 = no).*/
  uint8_t stab_pitch; /*<  (1 = yes, 0 = no).*/
  uint8_t stab_yaw; /*<  (1 = yes, 0 = no).*/
-}) mavlink_mount_configure_t;
+} mavlink_mount_configure_t;
 
 #define MAVLINK_MSG_ID_MOUNT_CONFIGURE_LEN 6
 #define MAVLINK_MSG_ID_MOUNT_CONFIGURE_MIN_LEN 6
@@ -218,7 +218,7 @@ static inline void mavlink_msg_mount_configure_send_struct(mavlink_channel_t cha
 
 #if MAVLINK_MSG_ID_MOUNT_CONFIGURE_LEN <= MAVLINK_MAX_PAYLOAD_LEN
 /*
-  This varient of _send() can be used to save stack space by re-using
+  This variant of _send() can be used to save stack space by re-using
   memory from the receive buffer.  The caller provides a
   mavlink_message_t which is the size of a full mavlink message. This
   is usually the receive buffer for the channel, and allows a reply to an

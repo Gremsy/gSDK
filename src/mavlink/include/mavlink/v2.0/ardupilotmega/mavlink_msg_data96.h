@@ -3,12 +3,12 @@
 
 #define MAVLINK_MSG_ID_DATA96 172
 
-MAVPACKED(
+
 typedef struct __mavlink_data96_t {
  uint8_t type; /*<  Data type.*/
  uint8_t len; /*< [bytes] Data length.*/
  uint8_t data[96]; /*<  Raw data.*/
-}) mavlink_data96_t;
+} mavlink_data96_t;
 
 #define MAVLINK_MSG_ID_DATA96_LEN 98
 #define MAVLINK_MSG_ID_DATA96_MIN_LEN 98
@@ -176,7 +176,7 @@ static inline void mavlink_msg_data96_send_struct(mavlink_channel_t chan, const 
 
 #if MAVLINK_MSG_ID_DATA96_LEN <= MAVLINK_MAX_PAYLOAD_LEN
 /*
-  This varient of _send() can be used to save stack space by re-using
+  This variant of _send() can be used to save stack space by re-using
   memory from the receive buffer.  The caller provides a
   mavlink_message_t which is the size of a full mavlink message. This
   is usually the receive buffer for the channel, and allows a reply to an

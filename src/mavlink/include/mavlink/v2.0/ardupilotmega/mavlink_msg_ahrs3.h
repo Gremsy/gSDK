@@ -3,7 +3,7 @@
 
 #define MAVLINK_MSG_ID_AHRS3 182
 
-MAVPACKED(
+
 typedef struct __mavlink_ahrs3_t {
  float roll; /*< [rad] Roll angle.*/
  float pitch; /*< [rad] Pitch angle.*/
@@ -15,7 +15,7 @@ typedef struct __mavlink_ahrs3_t {
  float v2; /*<  Test variable2.*/
  float v3; /*<  Test variable3.*/
  float v4; /*<  Test variable4.*/
-}) mavlink_ahrs3_t;
+} mavlink_ahrs3_t;
 
 #define MAVLINK_MSG_ID_AHRS3_LEN 40
 #define MAVLINK_MSG_ID_AHRS3_MIN_LEN 40
@@ -266,7 +266,7 @@ static inline void mavlink_msg_ahrs3_send_struct(mavlink_channel_t chan, const m
 
 #if MAVLINK_MSG_ID_AHRS3_LEN <= MAVLINK_MAX_PAYLOAD_LEN
 /*
-  This varient of _send() can be used to save stack space by re-using
+  This variant of _send() can be used to save stack space by re-using
   memory from the receive buffer.  The caller provides a
   mavlink_message_t which is the size of a full mavlink message. This
   is usually the receive buffer for the channel, and allows a reply to an

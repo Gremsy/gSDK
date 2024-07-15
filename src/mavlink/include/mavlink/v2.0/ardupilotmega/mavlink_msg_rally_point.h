@@ -3,7 +3,7 @@
 
 #define MAVLINK_MSG_ID_RALLY_POINT 175
 
-MAVPACKED(
+
 typedef struct __mavlink_rally_point_t {
  int32_t lat; /*< [degE7] Latitude of point.*/
  int32_t lng; /*< [degE7] Longitude of point.*/
@@ -15,7 +15,7 @@ typedef struct __mavlink_rally_point_t {
  uint8_t idx; /*<  Point index (first point is 0).*/
  uint8_t count; /*<  Total number of points (for sanity checking).*/
  uint8_t flags; /*<  Configuration flags.*/
-}) mavlink_rally_point_t;
+} mavlink_rally_point_t;
 
 #define MAVLINK_MSG_ID_RALLY_POINT_LEN 19
 #define MAVLINK_MSG_ID_RALLY_POINT_MIN_LEN 19
@@ -266,7 +266,7 @@ static inline void mavlink_msg_rally_point_send_struct(mavlink_channel_t chan, c
 
 #if MAVLINK_MSG_ID_RALLY_POINT_LEN <= MAVLINK_MAX_PAYLOAD_LEN
 /*
-  This varient of _send() can be used to save stack space by re-using
+  This variant of _send() can be used to save stack space by re-using
   memory from the receive buffer.  The caller provides a
   mavlink_message_t which is the size of a full mavlink message. This
   is usually the receive buffer for the channel, and allows a reply to an

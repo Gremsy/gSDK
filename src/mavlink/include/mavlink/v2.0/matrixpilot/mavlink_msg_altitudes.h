@@ -3,16 +3,16 @@
 
 #define MAVLINK_MSG_ID_ALTITUDES 181
 
-MAVPACKED(
+
 typedef struct __mavlink_altitudes_t {
  uint32_t time_boot_ms; /*<  Timestamp (milliseconds since system boot)*/
- int32_t alt_gps; /*<  GPS altitude in meters, expressed as * 1000 (millimeters), above MSL*/
+ int32_t alt_gps; /*<  GPS altitude (MSL) in meters, expressed as * 1000 (millimeters)*/
  int32_t alt_imu; /*<  IMU altitude above ground in meters, expressed as * 1000 (millimeters)*/
  int32_t alt_barometric; /*<  barometeric altitude above ground in meters, expressed as * 1000 (millimeters)*/
  int32_t alt_optical_flow; /*<  Optical flow altitude above ground in meters, expressed as * 1000 (millimeters)*/
  int32_t alt_range_finder; /*<  Rangefinder Altitude above ground in meters, expressed as * 1000 (millimeters)*/
  int32_t alt_extra; /*<  Extra altitude above ground in meters, expressed as * 1000 (millimeters)*/
-}) mavlink_altitudes_t;
+} mavlink_altitudes_t;
 
 #define MAVLINK_MSG_ID_ALTITUDES_LEN 28
 #define MAVLINK_MSG_ID_ALTITUDES_MIN_LEN 28
@@ -60,7 +60,7 @@ typedef struct __mavlink_altitudes_t {
  * @param msg The MAVLink message to compress the data into
  *
  * @param time_boot_ms  Timestamp (milliseconds since system boot)
- * @param alt_gps  GPS altitude in meters, expressed as * 1000 (millimeters), above MSL
+ * @param alt_gps  GPS altitude (MSL) in meters, expressed as * 1000 (millimeters)
  * @param alt_imu  IMU altitude above ground in meters, expressed as * 1000 (millimeters)
  * @param alt_barometric  barometeric altitude above ground in meters, expressed as * 1000 (millimeters)
  * @param alt_optical_flow  Optical flow altitude above ground in meters, expressed as * 1000 (millimeters)
@@ -106,7 +106,7 @@ static inline uint16_t mavlink_msg_altitudes_pack(uint8_t system_id, uint8_t com
  * @param chan The MAVLink channel this message will be sent over
  * @param msg The MAVLink message to compress the data into
  * @param time_boot_ms  Timestamp (milliseconds since system boot)
- * @param alt_gps  GPS altitude in meters, expressed as * 1000 (millimeters), above MSL
+ * @param alt_gps  GPS altitude (MSL) in meters, expressed as * 1000 (millimeters)
  * @param alt_imu  IMU altitude above ground in meters, expressed as * 1000 (millimeters)
  * @param alt_barometric  barometeric altitude above ground in meters, expressed as * 1000 (millimeters)
  * @param alt_optical_flow  Optical flow altitude above ground in meters, expressed as * 1000 (millimeters)
@@ -178,7 +178,7 @@ static inline uint16_t mavlink_msg_altitudes_encode_chan(uint8_t system_id, uint
  * @param chan MAVLink channel to send the message
  *
  * @param time_boot_ms  Timestamp (milliseconds since system boot)
- * @param alt_gps  GPS altitude in meters, expressed as * 1000 (millimeters), above MSL
+ * @param alt_gps  GPS altitude (MSL) in meters, expressed as * 1000 (millimeters)
  * @param alt_imu  IMU altitude above ground in meters, expressed as * 1000 (millimeters)
  * @param alt_barometric  barometeric altitude above ground in meters, expressed as * 1000 (millimeters)
  * @param alt_optical_flow  Optical flow altitude above ground in meters, expressed as * 1000 (millimeters)
@@ -230,7 +230,7 @@ static inline void mavlink_msg_altitudes_send_struct(mavlink_channel_t chan, con
 
 #if MAVLINK_MSG_ID_ALTITUDES_LEN <= MAVLINK_MAX_PAYLOAD_LEN
 /*
-  This varient of _send() can be used to save stack space by re-using
+  This variant of _send() can be used to save stack space by re-using
   memory from the receive buffer.  The caller provides a
   mavlink_message_t which is the size of a full mavlink message. This
   is usually the receive buffer for the channel, and allows a reply to an
@@ -282,7 +282,7 @@ static inline uint32_t mavlink_msg_altitudes_get_time_boot_ms(const mavlink_mess
 /**
  * @brief Get field alt_gps from altitudes message
  *
- * @return  GPS altitude in meters, expressed as * 1000 (millimeters), above MSL
+ * @return  GPS altitude (MSL) in meters, expressed as * 1000 (millimeters)
  */
 static inline int32_t mavlink_msg_altitudes_get_alt_gps(const mavlink_message_t* msg)
 {

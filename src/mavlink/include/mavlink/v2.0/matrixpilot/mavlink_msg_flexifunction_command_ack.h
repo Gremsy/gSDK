@@ -3,11 +3,11 @@
 
 #define MAVLINK_MSG_ID_FLEXIFUNCTION_COMMAND_ACK 158
 
-MAVPACKED(
+
 typedef struct __mavlink_flexifunction_command_ack_t {
  uint16_t command_type; /*<  Command acknowledged*/
  uint16_t result; /*<  result of acknowledge*/
-}) mavlink_flexifunction_command_ack_t;
+} mavlink_flexifunction_command_ack_t;
 
 #define MAVLINK_MSG_ID_FLEXIFUNCTION_COMMAND_ACK_LEN 4
 #define MAVLINK_MSG_ID_FLEXIFUNCTION_COMMAND_ACK_MIN_LEN 4
@@ -170,7 +170,7 @@ static inline void mavlink_msg_flexifunction_command_ack_send_struct(mavlink_cha
 
 #if MAVLINK_MSG_ID_FLEXIFUNCTION_COMMAND_ACK_LEN <= MAVLINK_MAX_PAYLOAD_LEN
 /*
-  This varient of _send() can be used to save stack space by re-using
+  This variant of _send() can be used to save stack space by re-using
   memory from the receive buffer.  The caller provides a
   mavlink_message_t which is the size of a full mavlink message. This
   is usually the receive buffer for the channel, and allows a reply to an

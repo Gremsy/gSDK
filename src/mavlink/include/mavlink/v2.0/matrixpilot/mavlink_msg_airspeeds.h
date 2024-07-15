@@ -3,7 +3,7 @@
 
 #define MAVLINK_MSG_ID_AIRSPEEDS 182
 
-MAVPACKED(
+
 typedef struct __mavlink_airspeeds_t {
  uint32_t time_boot_ms; /*<  Timestamp (milliseconds since system boot)*/
  int16_t airspeed_imu; /*<  Airspeed estimate from IMU, cm/s*/
@@ -12,7 +12,7 @@ typedef struct __mavlink_airspeeds_t {
  int16_t airspeed_ultrasonic; /*<  Ultrasonic measured airspeed, cm/s*/
  int16_t aoa; /*<  Angle of attack sensor, degrees * 10*/
  int16_t aoy; /*<  Yaw angle sensor, degrees * 10*/
-}) mavlink_airspeeds_t;
+} mavlink_airspeeds_t;
 
 #define MAVLINK_MSG_ID_AIRSPEEDS_LEN 16
 #define MAVLINK_MSG_ID_AIRSPEEDS_MIN_LEN 16
@@ -230,7 +230,7 @@ static inline void mavlink_msg_airspeeds_send_struct(mavlink_channel_t chan, con
 
 #if MAVLINK_MSG_ID_AIRSPEEDS_LEN <= MAVLINK_MAX_PAYLOAD_LEN
 /*
-  This varient of _send() can be used to save stack space by re-using
+  This variant of _send() can be used to save stack space by re-using
   memory from the receive buffer.  The caller provides a
   mavlink_message_t which is the size of a full mavlink message. This
   is usually the receive buffer for the channel, and allows a reply to an

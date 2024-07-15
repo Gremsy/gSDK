@@ -3,7 +3,7 @@
 
 #define MAVLINK_MSG_ID_RADIO 166
 
-MAVPACKED(
+
 typedef struct __mavlink_radio_t {
  uint16_t rxerrors; /*<  Receive errors.*/
  uint16_t fixed; /*<  Count of error corrected packets.*/
@@ -12,7 +12,7 @@ typedef struct __mavlink_radio_t {
  uint8_t txbuf; /*< [%] How full the tx buffer is.*/
  uint8_t noise; /*<  Background noise level.*/
  uint8_t remnoise; /*<  Remote background noise level.*/
-}) mavlink_radio_t;
+} mavlink_radio_t;
 
 #define MAVLINK_MSG_ID_RADIO_LEN 9
 #define MAVLINK_MSG_ID_RADIO_MIN_LEN 9
@@ -230,7 +230,7 @@ static inline void mavlink_msg_radio_send_struct(mavlink_channel_t chan, const m
 
 #if MAVLINK_MSG_ID_RADIO_LEN <= MAVLINK_MAX_PAYLOAD_LEN
 /*
-  This varient of _send() can be used to save stack space by re-using
+  This variant of _send() can be used to save stack space by re-using
   memory from the receive buffer.  The caller provides a
   mavlink_message_t which is the size of a full mavlink message. This
   is usually the receive buffer for the channel, and allows a reply to an

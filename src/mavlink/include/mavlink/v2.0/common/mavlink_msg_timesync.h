@@ -3,11 +3,11 @@
 
 #define MAVLINK_MSG_ID_TIMESYNC 111
 
-MAVPACKED(
+
 typedef struct __mavlink_timesync_t {
  int64_t tc1; /*<  Time sync timestamp 1*/
  int64_t ts1; /*<  Time sync timestamp 2*/
-}) mavlink_timesync_t;
+} mavlink_timesync_t;
 
 #define MAVLINK_MSG_ID_TIMESYNC_LEN 16
 #define MAVLINK_MSG_ID_TIMESYNC_MIN_LEN 16
@@ -170,7 +170,7 @@ static inline void mavlink_msg_timesync_send_struct(mavlink_channel_t chan, cons
 
 #if MAVLINK_MSG_ID_TIMESYNC_LEN <= MAVLINK_MAX_PAYLOAD_LEN
 /*
-  This varient of _send() can be used to save stack space by re-using
+  This variant of _send() can be used to save stack space by re-using
   memory from the receive buffer.  The caller provides a
   mavlink_message_t which is the size of a full mavlink message. This
   is usually the receive buffer for the channel, and allows a reply to an

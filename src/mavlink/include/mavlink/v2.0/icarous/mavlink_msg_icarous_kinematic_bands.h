@@ -3,7 +3,7 @@
 
 #define MAVLINK_MSG_ID_ICAROUS_KINEMATIC_BANDS 42001
 
-MAVPACKED(
+
 typedef struct __mavlink_icarous_kinematic_bands_t {
  float min1; /*< [deg] min angle (degrees)*/
  float max1; /*< [deg] max angle (degrees)*/
@@ -21,7 +21,7 @@ typedef struct __mavlink_icarous_kinematic_bands_t {
  uint8_t type3; /*<  See the TRACK_BAND_TYPES enum.*/
  uint8_t type4; /*<  See the TRACK_BAND_TYPES enum.*/
  uint8_t type5; /*<  See the TRACK_BAND_TYPES enum.*/
-}) mavlink_icarous_kinematic_bands_t;
+} mavlink_icarous_kinematic_bands_t;
 
 #define MAVLINK_MSG_ID_ICAROUS_KINEMATIC_BANDS_LEN 46
 #define MAVLINK_MSG_ID_ICAROUS_KINEMATIC_BANDS_MIN_LEN 46
@@ -338,7 +338,7 @@ static inline void mavlink_msg_icarous_kinematic_bands_send_struct(mavlink_chann
 
 #if MAVLINK_MSG_ID_ICAROUS_KINEMATIC_BANDS_LEN <= MAVLINK_MAX_PAYLOAD_LEN
 /*
-  This varient of _send() can be used to save stack space by re-using
+  This variant of _send() can be used to save stack space by re-using
   memory from the receive buffer.  The caller provides a
   mavlink_message_t which is the size of a full mavlink message. This
   is usually the receive buffer for the channel, and allows a reply to an

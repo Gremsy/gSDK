@@ -3,14 +3,14 @@
 
 #define MAVLINK_MSG_ID_SET_MAG_OFFSETS 151
 
-MAVPACKED(
+
 typedef struct __mavlink_set_mag_offsets_t {
  int16_t mag_ofs_x; /*<  Magnetometer X offset.*/
  int16_t mag_ofs_y; /*<  Magnetometer Y offset.*/
  int16_t mag_ofs_z; /*<  Magnetometer Z offset.*/
  uint8_t target_system; /*<  System ID.*/
  uint8_t target_component; /*<  Component ID.*/
-}) mavlink_set_mag_offsets_t;
+} mavlink_set_mag_offsets_t;
 
 #define MAVLINK_MSG_ID_SET_MAG_OFFSETS_LEN 8
 #define MAVLINK_MSG_ID_SET_MAG_OFFSETS_MIN_LEN 8
@@ -206,7 +206,7 @@ static inline void mavlink_msg_set_mag_offsets_send_struct(mavlink_channel_t cha
 
 #if MAVLINK_MSG_ID_SET_MAG_OFFSETS_LEN <= MAVLINK_MAX_PAYLOAD_LEN
 /*
-  This varient of _send() can be used to save stack space by re-using
+  This variant of _send() can be used to save stack space by re-using
   memory from the receive buffer.  The caller provides a
   mavlink_message_t which is the size of a full mavlink message. This
   is usually the receive buffer for the channel, and allows a reply to an
