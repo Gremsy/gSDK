@@ -54,8 +54,7 @@ In order to compile you need the following packages:
 Building
 ========
 ```
-$ cd gSDK/
-$ mkdir build && cd build
+$ cd gSDK/build
 $ cmake ..
 $ make
 ```
