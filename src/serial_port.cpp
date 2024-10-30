@@ -120,7 +120,11 @@ int Serial_Port::write_message(const mavlink_message_t &message)
     int bytesWritten = _write_port(buf, len);
     return bytesWritten;
 }
-
+int Serial_Port::write_buf(uint8_t *buf, uint16_t len)
+{
+    int bytesWritten = _write_port((char *)buf, len);
+    return bytesWritten;
+}
 // ------------------------------------------------------------------------------
 //   Open Serial Port
 // ------------------------------------------------------------------------------
@@ -182,13 +186,66 @@ void Serial_Port::open_serial()
     status = SERIAL_PORT_OPEN;
     printf("\n");
 }
+void Serial_Port::open_serial(Serial_Mode mode)
+{
+    if (mode == Serial_Port::RUNNING_MODE)
+    {
+        open_serial();
+    }
+    else
+    {
+        printf("OPEN PORT\n");
+        fd = _open_port(uart_name);
 
+        // Check success
+        if (fd == -1) {
+            printf("failure, could not open port.\n");
+            throw EXIT_FAILURE;
+        }
+
+        // --------------------------------------------------------------------------
+        //   SETUP PORT
+        // --------------------------------------------------------------------------
+        bool success = _setup_port(baudrate, 8, 1, true, false);
+
+        // --------------------------------------------------------------------------
+        //   CHECK STATUS
+        // --------------------------------------------------------------------------
+        if (!success) {
+            printf("failure, could not configure port.\n");
+            throw EXIT_FAILURE;
+        }
+
+        if (fd <= 0) {
+            printf("Connection attempt to port %s with %d baud, 8N1 failed, exiting.\n", uart_name, baudrate);
+            throw EXIT_FAILURE;
+        }
+
+        // --------------------------------------------------------------------------
+        //   CONNECTED!
+        // --------------------------------------------------------------------------
+        printf("Connected to %s with %d baud, 8 data bits, even parity, 1 stop bit (8N1)\n", uart_name, baudrate);
+        lastStatus.packet_rx_drop_count = 0;
+        // --------------------------------------------------------------------------
+        //   CONTROL DTR & RTS
+        // --------------------------------------------------------------------------
+        boot();
+        printf("Go in bootloader mode\n");
+        // --------------------------------------------------------------------------
+        //   FOOTER
+        // --------------------------------------------------------------------------
+        status = SERIAL_PORT_BOOT;
+        printf("\n");
+    }
+    
+    
+}
 // ------------------------------------------------------------------------------
 //   Close Serial Port
 // ------------------------------------------------------------------------------
 void Serial_Port::close_serial()
 {
-    printf("CLOSE PORT\n");
+    printf("\nCLOSE PORT\n");
     int result = close(fd);
 
     if ( result ) {
@@ -298,8 +355,25 @@ bool Serial_Port::_setup_port(int baud, int data_bits, int stop_bits, bool parit
     // Turn off character processing
     // clear current char size mask, no parity checking,
     // no output processing, force 8 bit input
-    config.c_cflag &= ~(CSIZE | PARENB);
-    config.c_cflag |= CS8;
+    if (parity)
+    {
+        config.c_cflag &= ~CSIZE; // Clear character size bits
+        config.c_cflag |= CS8;    // Set character size to 8 bits
+        config.c_cflag |= PARENB; // Enable parity checking
+        config.c_cflag &= ~PARODD; // Select even parity (clear PARODD)
+    }
+    else{
+        config.c_cflag &= ~(CSIZE | PARENB);
+        config.c_cflag |= CS8;
+    }
+
+    // Set up stop bits
+    if (stop_bits == 2) {
+        config.c_cflag |= CSTOPB;  // Set 2 stop bits
+    } else {
+        config.c_cflag &= ~CSTOPB; // Set 1 stop bit (default)
+    }
+    
     // One input byte is enough to return from read()
     // Inter-character timer off
     config.c_cc[VMIN]  = 1;
@@ -419,4 +493,58 @@ int Serial_Port::_write_port(const char *buf, unsigned len)
     // Unlock
     // pthread_mutex_unlock(&lock);
     return bytesWritten;
+}
+// ------------------------------------------------------------------------------
+//   Control Boot & Reset PIN
+// ------------------------------------------------------------------------------
+void Serial_Port::_set_boot(bool level)
+{
+    int RTS_flag = TIOCM_RTS;
+
+    if (level)
+    {
+        ioctl(fd, TIOCMBIS, &RTS_flag); //Set RTS pin
+    }
+    else
+    {
+        ioctl(fd, TIOCMBIC, &RTS_flag); //Set RTS pin
+    }
+}
+void Serial_Port::_set_reset(bool level)
+{
+    int DTR_flag = TIOCM_DTR;
+    if (level)
+    {
+        ioctl(fd, TIOCMBIS, &DTR_flag); //Set RTS pin
+    }
+    else
+    {
+        ioctl(fd, TIOCMBIC, &DTR_flag); //Set RTS pin
+    }
+}
+// ------------------------------------------------------------------------------
+//   Boot & Reset
+// ------------------------------------------------------------------------------
+bool Serial_Port::boot()
+{
+
+    _set_boot(true);
+    _set_reset(true);
+    usleep(100000);
+    _set_reset(false);
+    usleep(100000);
+
+    return true;
+
+}
+
+bool Serial_Port::reset()
+{
+
+    _set_boot(false);
+    _set_reset(true);
+    usleep(100000);
+    _set_reset(false);
+    return true;
+    
 }

@@ -81,6 +81,7 @@
 
 
 // Status flags
+#define SERIAL_PORT_BOOT   2
 #define SERIAL_PORT_OPEN   1
 #define SERIAL_PORT_CLOSED 0
 #define SERIAL_PORT_ERROR -1
@@ -109,7 +110,11 @@
 class Serial_Port
 {
 public:
-
+    // Mode when init port
+    enum Serial_Mode{
+        BOOT_MODE,
+        RUNNING_MODE
+    };
     Serial_Port();
     Serial_Port(const char *uart_name_, int baudrate_);
     void initialize_defaults();
@@ -123,8 +128,14 @@ public:
     int read_message(char *buf, uint16_t len);
     int write_message(const mavlink_message_t &message);
 
+    int write_buf(uint8_t *buf, uint16_t len);
+
     void open_serial();
+    void open_serial(Serial_Mode mode);
     void close_serial();
+
+    bool boot();
+    bool reset();
 
     void start();
     void stop();
@@ -137,10 +148,13 @@ private:
     mavlink_status_t lastStatus;
     pthread_mutex_t  lock;
 
+    void _set_boot(bool level);
+    void _set_reset(bool level);
     int  _open_port(const char *port);
     bool _setup_port(int baud, int data_bits, int stop_bits, bool parity, bool hardware_control);
     int  _read_port(char *buf, uint16_t len);
-    int _write_port(const char *buf, unsigned len);
+    int  _write_port(const char *buf, unsigned len);
+
 
 };
 

@@ -476,6 +476,18 @@ void Gimbal_Interface::param_process(void)
                 // // parameters done initializing,
                 if (params_initialized()) {
                     for (uint8_t i = 0; i < GIMBAL_NUM_TRACKED_PARAMS; i++) {
+                        if ((strcmp("RC_LIM_MIN_TILT",_params_list[i].gmb_id) == 0))
+                        {
+                            GSDK_DebugInfo("Check [%s] %d\n", "RC_LIM_MAX_TILT_UP",- _params_list[i].value);
+                            continue;
+                        }
+                        
+                        if ((strcmp("RC_LIM_MAX_TILT",_params_list[i].gmb_id) == 0))
+                        {
+                            GSDK_DebugInfo("Check [%s] %d\n", "RC_LIM_MAX_TILT_DOWN",- _params_list[i].value);
+                            continue;
+                        }
+
                         GSDK_DebugInfo("Check [%s] %d\n", _params_list[i].gmb_id, _params_list[i].value);
                     }
 
@@ -587,7 +599,7 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_motor(control_motor_t typ
             /* code */
             set_gimbal_rotation_rate_sync(0.f, 0.f, 0.f);
 
-            if (countTimeoutReached > 30) {
+            if (countTimeoutReached > 3) {
                 return Gimbal_Protocol::result_t::TIMEOUT;
             }
             countTimeoutReached += 1;
@@ -671,7 +683,7 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_lock_mode_sync(void)
             /* code */
             set_gimbal_rotation_rate_sync(0.f, 0.f, 0.f);
 
-            if (countTimeoutReached > 30) {
+            if (countTimeoutReached > 3) {
                 return Gimbal_Protocol::result_t::TIMEOUT;
             }
             countTimeoutReached += 1;
@@ -705,7 +717,7 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_follow_mode_sync(void)
             /* code */
             set_gimbal_rotation_rate_sync(0.f, 0.f, 0.f);
 
-            if (countTimeoutReached > 30) {
+            if (countTimeoutReached > 3) {
                 return Gimbal_Protocol::result_t::TIMEOUT;
             }
             countTimeoutReached += 1;
@@ -739,7 +751,7 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_mapping_sync(void)
 
             set_gimbal_rotation_rate_sync(0.f, 0.f, 0.f);
 
-            if (countTimeoutReached > 30) {
+            if (countTimeoutReached > 3) {
                 return Gimbal_Protocol::result_t::TIMEOUT;
             }
             countTimeoutReached += 1;
@@ -773,7 +785,7 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_return_home_sync(void)
 
             set_gimbal_rotation_rate_sync(0.f, 0.f, 0.f);
 
-            if (countTimeoutReached > 30) {
+            if (countTimeoutReached > 3) {
                 return Gimbal_Protocol::result_t::TIMEOUT;
             }
             countTimeoutReached += 1;
@@ -1393,6 +1405,13 @@ Gimbal_Protocol::result_t Gimbal_Interface::request_gimbal_device_info(void)
     return request_msg(MAVLINK_MSG_ID_GIMBAL_DEVICE_INFORMATION);
 }
 
+uint16_t Gimbal_Interface::get_gimbal_name(char *name)
+{
+    pthread_mutex_lock(&_messages.mutex);
+    strncpy(name,_messages.gimbal_device_info.model_name,32);
+    pthread_mutex_unlock(&_messages.mutex);
+    return 1;
+}
 /**
  * @brief Get the gimbal encoder type send
  *
@@ -1461,8 +1480,12 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_return_home_when_change_m
  * @param limitAngle: limit angle.
  * @return None
  */
-Gimbal_Protocol::result_t Gimbal_Interface::set_limit_angle_pitch(const limit_angle_t &limit_angle)
+Gimbal_Protocol::result_t Gimbal_Interface::set_limit_angle_pitch(limit_angle_t &limit_angle)
 {
+    int16_t temp_limit = limit_angle.angle_min;
+    limit_angle.angle_min = - limit_angle.angle_max;
+    limit_angle.angle_max = - temp_limit;
+
     return (set_param(GMB_PARAM_MIN_LIMIT_ANGLE_PITCH, (int16_t)limit_angle.angle_min) == Gimbal_Protocol::SUCCESS &&
             set_param(GMB_PARAM_MAX_LIMIT_ANGLE_PITCH, (int16_t)limit_angle.angle_max) == Gimbal_Protocol::SUCCESS) ? Gimbal_Protocol::SUCCESS : Gimbal_Protocol::ERROR;
 }
@@ -1479,11 +1502,11 @@ Gimbal_Interface::limit_angle_t Gimbal_Interface::get_limit_angle_pitch(void)
     limit_angle_t limit_angle = { 0 };
     int16_t ret = 0;
 
-    if (get_param(GMB_PARAM_MIN_LIMIT_ANGLE_PITCH, ret) == Gimbal_Protocol::SUCCESS)
-        limit_angle.angle_min = ret;
-
     if (get_param(GMB_PARAM_MAX_LIMIT_ANGLE_PITCH, ret) == Gimbal_Protocol::SUCCESS)
-        limit_angle.angle_max = ret;
+        limit_angle.angle_min = - ret;
+
+    if (get_param(GMB_PARAM_MIN_LIMIT_ANGLE_PITCH, ret) == Gimbal_Protocol::SUCCESS)
+        limit_angle.angle_max = - ret;
 
     return limit_angle;
 }
@@ -1679,6 +1702,8 @@ Gimbal_Protocol::result_t Gimbal_Interface::request_param_list(void)
 // ------------------------------------------------------------------------------
 //   Write heartbeat Message
 // ------------------------------------------------------------------------
+static uint64_t now = 0;
+static uint64_t pre = 0;
 void Gimbal_Interface::write_heartbeat(void)
 {
     mavlink_heartbeat_t heartbeat = { 0 };
@@ -1699,6 +1724,8 @@ void Gimbal_Interface::write_heartbeat(void)
     // --------------------------------------------------------------------------
     if (write_message(message) <= 0)
         GSDK_DebugError("WARNING: could not send HEARTBEAT\n");
+
+    
 }
 
 // ------------------------------------------------------------------------------
@@ -1706,6 +1733,7 @@ void Gimbal_Interface::write_heartbeat(void)
 // ------------------------------------------------------------------------------
 void Gimbal_Interface::start()
 {
+    time_to_exit = false;
     int result = 0;
 
     // --------------------------------------------------------------------------
@@ -1774,8 +1802,12 @@ void Gimbal_Interface::stop()
     // signal exit
     time_to_exit = true;
     // wait for exit
-    pthread_join(read_tid, NULL);
-    pthread_join(write_tid, NULL);
+    // pthread_join(read_tid, NULL);
+    // pthread_join(write_tid, NULL);
+    writing_status = THREAD_NOT_INIT;
+    reading_status = THREAD_NOT_INIT;
+    pthread_cancel(read_tid);
+    pthread_cancel(write_tid);
     // now the read and write threads are closed
     // still need to close the _serial_port separately
 }
@@ -1888,6 +1920,7 @@ void Gimbal_Interface::read_thread(void)
                 for (int i = 0; i < result; ++i) {
                     // the parsing
                     if (mavlink_parse_char(_channel, (uint8_t)buf[i], &message, &mav_status)) {
+                        // printf("Parse error: %u, Drop: %u, Success: %u\n",mav_status.parse_error,mav_status.packet_rx_drop_count,mav_status.packet_rx_success_count);
                         messages_handler(message);
                     }
                 }

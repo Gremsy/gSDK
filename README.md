@@ -32,6 +32,8 @@ Documentation
       * [6.12 Set Gimbal to MAPPING Mode (Option 11)](#612-set-gimbal-to-mapping-mode-option-11)
       * [6.13 Set Gimbal to Return Home (Option 12)](#613-set-gimbal-to-return-home-option-12)
       * [6.14 Set Gimbal Reboot (Option 13)](#614-set-gimbal-reboot-option-13)
+      * [6.15 Upgrade Firmware (Option 14)](#615-upgrade-firmware-option-14)
+      * [6.16 Monitoring Encoder - Attitude - IMU (Option 15)](#616-monitoring-encoder---attitude---imu-option-15)
     * [7. Termination and Cleanup](#7-termination-and-cleanup)
   * [Usage](#usage)
   * [Troubleshooting](#troubleshooting)
@@ -252,7 +254,7 @@ Check [RC_LIM_MAX_PAN] 320
 Check [RC_TYPE] 15
 
 Use mavlink gimbal V1
-Gimbal Firmware version is 7.7.3.OFFICIAL
+Gimbal Firmware version is 7.8.3.OFFICIAL
 Set gimbal send raw encoder value.
 
 GET GIMBAL DEVICE: 
@@ -287,7 +289,7 @@ You selected gimbal mount mode
 Three axis Normal Mount
 
 
- Please Enter number [0-13] to seclect Gimbal control mode
+ Please Enter number [0-15] to seclect Gimbal control mode
          0.   OFF Gimbal
          1.   ON Gimbal
          2.   Change mount mode
@@ -302,6 +304,8 @@ Three axis Normal Mount
          11.  Set Gimbal to MAPPING mode
          12.  Set Gimbal to Return Home
          13.  Set Gimbal Reboot
+         14.  Upgrade Firmware
+         15.  Monitoring Encoder - Attitude - IMU
 ^C
 TERMINATING AT USER REQUEST
 
@@ -375,6 +379,8 @@ CLOSE PORT
     - `11. Set Gimbal to MAPPING mode`
     - `12. Set Gimbal to Return Home`
     - `13. Set Gimbal Reboot`
+    - `14. Upgrade Firmware`
+    - `15. Monitoring Encoder - Attitude - IMU`
  
    ### 6.1 OFF Gimbal (Option 0)
    Turns off the gimbal.
@@ -525,8 +531,77 @@ CLOSE PORT
    Sets the gimbal to return to its home position.
    
    ### 6.14 Set Gimbal Reboot (Option 13)
-   Reboots the gimbal. Please note that it takes about 10 seconds to reboot successfully.
-  
+
+  Reboots the gimbal. Please note that it takes about 10 seconds to reboot successfully.
+
+   ### 6.15 Upgrade Firmware (Option 14)
+
+  Upgrade the gimbal firmware using a local hex file.
+
+  Enter the path of the firmware file.
+
+  Example:
+  ```
+  Enter a path: /home/Gremsy/User/gSDK/FW/gremsyMio-2Axis_v783_Official.hex
+  The path: /home/Gremsy/User/gSDK/FW/gremsyMio-2Axis_v783_Official.hex
+  CLOSE THREADS
+
+  CLOSE PORT
+
+  OPEN PORT
+  Connected to /dev/ttyUSB0 with 460800 baud, 8 data bits, even parity, 1 stop bit (8N1)
+  Entering bootloader mode...
+
+  [✓] Parse Hex File
+  [✓] Connecting
+  [✓] Get CMD
+  [✓] Get ID
+  [✓] Erase memory
+  [==================================================] 100% Flash memory                              
+  Code flashed successfully!
+
+  ```
+  **Note**: If the upgrade is interrupted and gSDK cannot reconnect, you can use the upgrade_gimbal example for upgrading.
+   ### 6.16 Monitoring Encoder - Attitude - IMU (Option 15)
+
+   Monitoring Encoder - Attitude - IMU
+
+   Example:
+   ```
+   Duration (in seconds): 
+  2
+
+
+  Raw imu:  xacc:234, yacc:-12, zacc:8034, xgyro:-32, xgyro:-21, xgyro:-35(raw)
+
+  Gimbal attitude Pitch - Roll - Yaw: (0.40) - (-0.30) - (0.00)
+
+  Gimbal encoder Pitch - Roll - Yaw: (-23336) - (-216) - (0)
+
+
+
+  Raw imu:  xacc:-851, yacc:-15, zacc:8014, xgyro:-70, xgyro:1019, xgyro:-5(raw)
+
+  Gimbal attitude Pitch - Roll - Yaw: (0.56) - (6.29) - (-0.00)
+
+  Gimbal encoder Pitch - Roll - Yaw: (-23348) - (1024) - (0)
+
+
+
+  Raw imu:  xacc:-2342, yacc:-20, zacc:7639, xgyro:-60, xgyro:323, xgyro:-37(raw)
+
+  Gimbal attitude Pitch - Roll - Yaw: (0.28) - (18.23) - (-0.00)
+
+  Gimbal encoder Pitch - Roll - Yaw: (-23276) - (3252) - (0)
+
+
+
+  Raw imu:  xacc:-3069, yacc:-37, zacc:7401, xgyro:-34, xgyro:55, xgyro:-34(raw)
+
+  Gimbal attitude Pitch - Roll - Yaw: (0.32) - (23.68) - (0.00)
+
+  Gimbal encoder Pitch - Roll - Yaw: (-23268) - (4276) - (0)
+   ```
 ## 7. Termination and Cleanup
 
 - **TERMINATING AT USER REQUEST**: Indicates that the user has requested to terminate the program.
