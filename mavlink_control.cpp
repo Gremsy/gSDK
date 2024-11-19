@@ -450,6 +450,8 @@ static void get_input_rate(float &pitch,float &roll, float &yaw, uint8_t &durati
 
 static void get_input_duration(uint8_t &duration);
 
+static void get_encoder_mode(uint8_t &mode);
+
 static void control_sample_gimbal_process(Gimbal_Interface &onboard, Serial_Port &serial_port){
 
     if (onboard.present() == false) {
@@ -1543,7 +1545,14 @@ static void monitor_attitude_imu_encoder(Gimbal_Interface &onboard,  uint8_t dur
     attitude<int16_t> myencoder;
 
     auto start = std::chrono::steady_clock::now();
-
+    uint8_t mode ;
+    get_encoder_mode(mode);
+    if (mode == 0 || mode == 1)
+    {
+        onboard.set_gimbal_encoder_type_send((mode == 0 ? false : true));
+        usleep(500000);
+    }
+    
     do {
         auto now = std::chrono::steady_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - start);
@@ -1643,6 +1652,12 @@ static void get_input_rate(float &pitch_rate,float &roll_rate, float &yaw_rate, 
     scanf("%hhu" , &duration);
 }
 
+static void get_encoder_mode(uint8_t &mode)
+{
+    printf("\n");
+    GSDK_DebugMsg("Enter encoder mode: 0 - Angle, 1 - Count , Else - skip");
+    scanf("%hhu" , &mode);
+}
 
 static void get_input_duration(uint8_t &duration)
 {
