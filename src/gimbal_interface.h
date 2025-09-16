@@ -138,6 +138,17 @@ public:
         uint8_t y;
         uint8_t z;
         const char *type;
+
+        // Equality operator
+        bool operator==(const fw_version_t& other) const {
+            return (x == other.x 
+                    && y == other.y
+                    && z == other.z);
+        }
+
+        bool operator!=(const fw_version_t& other) const {
+            return !(*this == other);
+        }
     };
 
     /**
@@ -625,7 +636,7 @@ public:
      */
     uint32_t get_gimbal_attitude_flag(void);
 
-private:
+public:
 
     /**
      * @brief Gimbal Interface state
@@ -837,7 +848,7 @@ private:
     void fetch_params();
 
     void param_update();
-    void param_process(void);
+    virtual void param_process(void);
 
     const char *get_param_name(param_index_t param)
     {
