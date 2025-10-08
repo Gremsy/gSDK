@@ -168,6 +168,8 @@ void Serial_Port::open_serial()
     // --------------------------------------------------------------------------
     printf("Connected to %s with %d baud, 8 data bits, no parity, 1 stop bit (8N1)\n", uart_name, baudrate);
     lastStatus.packet_rx_drop_count = 0;
+
+#if 0
     // --------------------------------------------------------------------------
     //   CONTROL DTR & RTS
     // --------------------------------------------------------------------------
@@ -180,6 +182,8 @@ void Serial_Port::open_serial()
     //getchar();
     usleep(1000000);
     ioctl(fd, TIOCMBIC, &DTR_flag); //Clear DTR pin
+#endif
+    
     // --------------------------------------------------------------------------
     //   FOOTER
     // --------------------------------------------------------------------------
