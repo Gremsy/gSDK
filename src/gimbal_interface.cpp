@@ -82,20 +82,29 @@ enum status2_t {
 // ----------------------------------------------------------------------------------
 //   Time
 // ------------------- ---------------------------------------------------------------
-static uint64_t get_time_usec()
+static uint64_t get_time_usec(void) 
 {
-    static struct timeval _timestamp;
-    gettimeofday(&_timestamp, NULL);
-    return _timestamp.tv_sec * 1000000 + _timestamp.tv_usec;
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);  // get directly from monotonic kernel (linux - WSL2)           
+    return (uint64_t)ts.tv_sec * 1000000ULL + (uint64_t)(ts.tv_nsec / 1000ULL);
 }
 
 static uint64_t get_time_msec()
 {
-    static struct timeval _timestamp;
-    gettimeofday(&_timestamp, NULL);
-    return _timestamp.tv_sec * 1000 + _timestamp.tv_usec / 1000;
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint64_t)ts.tv_sec * 1000ULL + (uint64_t)(ts.tv_nsec / 1000000ULL);
 }
 
+static inline uint64_t time_since_us(uint64_t start_time)
+{
+    return get_time_usec() - start_time;
+}
+
+static inline uint64_t time_since_ms(uint64_t start_time)
+{
+    return get_time_msec() - start_time;
+}
 // ------------------------------------------------------------------------------
 //   Con/De structors
 // ------------------------------------------------------------------------------
@@ -193,7 +202,6 @@ void Gimbal_Interface::messages_handler(const mavlink_message_t &message)
                                                        _messages.mount_orientation.roll,
                                                        _messages.mount_orientation.yaw);
                     }
-
                     pthread_mutex_unlock(&_messages.mutex);
                     break;
                 }
@@ -202,12 +210,7 @@ void Gimbal_Interface::messages_handler(const mavlink_message_t &message)
                     pthread_mutex_lock(&_messages.mutex);
                     mavlink_msg_gimbal_device_attitude_status_decode(&message, &_messages.atttitude_status);
                     _messages.timestamps.attitude_status = get_time_usec();
-
-                    if (_gimbal_proto != nullptr) {
-                        _gimbal_proto->update_attitude(_messages.atttitude_status.q);
-                    }
-
-                    pthread_mutex_unlock(&_messages.mutex);
+                    pthread_mutex_unlock(&_messages.mutex);  
                     break;
                 }
 
@@ -267,7 +270,7 @@ void Gimbal_Interface::messages_handler(const mavlink_message_t &message)
 
                                 case PARAM_STATE_CONSISTENT:
                                     _params_list[i].value = (int16_t)packet.param_value;
-                                    GSDK_DebugInfo("Got [%s] %d\n", _params_list[i].gmb_id , _params_list[i].value);
+                                    GSDK_DebugInfo("GOT [%s] %d\n", _params_list[i].gmb_id , _params_list[i].value);
                                     break;
 
                                 case PARAM_STATE_ATTEMPTING_TO_SET:
@@ -478,17 +481,17 @@ void Gimbal_Interface::param_process(void)
                     for (uint8_t i = 0; i < GIMBAL_NUM_TRACKED_PARAMS; i++) {
                         if ((strcmp("RC_LIM_MIN_TILT",_params_list[i].gmb_id) == 0))
                         {
-                            GSDK_DebugInfo("Check [%s] %d\n", "RC_LIM_MAX_TILT_UP",- _params_list[i].value);
+                            GSDK_DebugInfo("CHECK [%s] %d\n", "RC_LIM_MAX_TILT_UP",- _params_list[i].value);
                             continue;
                         }
                         
                         if ((strcmp("RC_LIM_MAX_TILT",_params_list[i].gmb_id) == 0))
                         {
-                            GSDK_DebugInfo("Check [%s] %d\n", "RC_LIM_MAX_TILT_DOWN",- _params_list[i].value);
+                            GSDK_DebugInfo("CHECK [%s] %d\n", "RC_LIM_MAX_TILT_DOWN",- _params_list[i].value);
                             continue;
                         }
 
-                        GSDK_DebugInfo("Check [%s] %d\n", _params_list[i].gmb_id, _params_list[i].value);
+                        GSDK_DebugInfo("CHECK [%s] %d\n", _params_list[i].gmb_id, _params_list[i].value);
                     }
 
                     _state = GIMBAL_STATE_PRESENT_ALIGNING;
@@ -544,6 +547,29 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_reboot(void)
     return _gimbal_proto->send_command_long(MAV_CMD_PREFLIGHT_REBOOT_SHUTDOWN, param);
 }
 
+Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_reboot(reboot_action_t reboot)
+{
+    if(reboot >= MAX_REBOOT_ACTION){
+        GSDK_DebugError("ERROR: Invalid reboot action\n");
+        return Gimbal_Protocol::ERROR;
+    }
+
+    if (_gimbal_proto == nullptr) {
+        return Gimbal_Protocol::ERROR;
+    }
+
+    const float param[7] = {
+        0,
+        0,
+        (float)reboot,
+        MAV_COMP_ID_GIMBAL,  // param 4
+        0,
+        0,
+        0
+    };
+
+    return _gimbal_proto->send_command_long(MAV_CMD_PREFLIGHT_REBOOT_SHUTDOWN, param);
+}
 /**
  * @brief  This function set gimbal to rc input mode and block to wait for gimbal response
  * @param: NONE
@@ -630,22 +656,24 @@ Gimbal_Protocol::control_mode_t Gimbal_Interface::get_gimbal_mode(void)
 {
     // Get gimbal status
     pthread_mutex_lock(&_messages.mutex);
-    const uint16_t errors_count1 = _messages.sys_status.errors_count1;
-    pthread_mutex_unlock(&_messages.mutex);
-
-    /* Check gimbal's motor */
-    if (errors_count1 & STATUS1_MOTORS) {
-        _status.state = GIMBAL_STATE_ON;
-
-        /* Check gimbal is follow mode*/
-        if (errors_count1 & STATUS1_MODE_FOLLOW_LOCK) {
-            _status.mode = Gimbal_Protocol::GIMBAL_FOLLOW_MODE;
-
-        } else {
-            _status.mode = Gimbal_Protocol::GIMBAL_LOCK_MODE;
-        }
+    const uint16_t attitude_flag = _messages.atttitude_status.flags;
+    /* Check gimbal is follow mode*/
+    if (attitude_flag & GIMBAL_DEVICE_FLAGS_YAW_LOCK) {
+        _status.mode = (uint8_t)Gimbal_Protocol::GIMBAL_LOCK_MODE;
+    } 
+    else if (attitude_flag & GIMBAL_DEVICE_FLAGS_RETRACT){
+        _status.mode = (uint8_t)Gimbal_Protocol::GIMBAL_OFF;
     }
-
+    else if (attitude_flag & GIMBAL_DEVICE_FLAGS_NEUTRAL){
+        _status.mode = (uint8_t)Gimbal_Protocol::GIMBAL_RESET_MODE;
+    }
+    else if(attitude_flag & 0x4000) {
+        _status.mode = (uint8_t)Gimbal_Protocol::GIMBAL_MAPPING_MODE;
+    }
+    else if (attitude_flag & ~GIMBAL_DEVICE_FLAGS_YAW_LOCK) {
+        _status.mode = (uint8_t)Gimbal_Protocol::GIMBAL_FOLLOW_MODE;
+    }
+    pthread_mutex_unlock(&_messages.mutex);
     return (Gimbal_Protocol::control_mode_t)_status.mode;
 }
 
@@ -1254,11 +1282,11 @@ Gimbal_Interface::imu_t Gimbal_Interface::get_gimbal_raw_imu(void)
  * @param: None
  * @ret: Gimbal attitude
  */
-static attitude<float> global_pre_attitude;
-attitude<float> Gimbal_Interface::get_gimbal_attitude(void)
+Attitude_t<float> Gimbal_Interface::get_gimbal_attitude(void)
 {
+    static Attitude_t<float> ret_attitude;
     uint64_t timestamps = 0;
-
+    
     if (_proto == MAVLINK_GIMBAL_V1) {
         pthread_mutex_lock(&_messages.mutex);
         timestamps = _messages.timestamps.mount_orientation;
@@ -1271,37 +1299,149 @@ attitude<float> Gimbal_Interface::get_gimbal_attitude(void)
             _messages.timestamps.mount_orientation = 0;
             const mavlink_mount_orientation_t &orient = _messages.mount_orientation;
             pthread_mutex_unlock(&_messages.mutex);
-
+            
             if(get_gimbal_mode() == Gimbal_Protocol::control_mode_t::GIMBAL_LOCK_MODE)
             {
-                global_pre_attitude = attitude<float>(orient.roll, orient.pitch, orient.yaw_absolute);
-                return attitude<float>(orient.roll, orient.pitch, orient.yaw_absolute);
+                ret_attitude = Attitude_t<float>(orient.roll, orient.pitch, orient.yaw_absolute);
             }
-            global_pre_attitude = attitude<float>(orient.roll, orient.pitch, orient.yaw);
-            return attitude<float>(orient.roll, orient.pitch, orient.yaw);
+            else {
+                ret_attitude = Attitude_t<float>(orient.roll, orient.pitch, orient.yaw);
+            } 
         }
-
     } else {
         pthread_mutex_lock(&_messages.mutex);
         timestamps = _messages.timestamps.attitude_status;
+        const mavlink_gimbal_device_attitude_status_t &status = _messages.atttitude_status;
         pthread_mutex_unlock(&_messages.mutex);
 
         /* Check gimbal status has changed*/
-        if (_messages.timestamps.attitude_status) {
+        if (timestamps) {
             pthread_mutex_lock(&_messages.mutex);
             /* Reset timestamps */
             _messages.timestamps.attitude_status = 0;
-            const mavlink_gimbal_device_attitude_status_t &status = _messages.atttitude_status;
-            attitude<float> attitude;
-            mavlink_quaternion_to_euler(status.q, &attitude.roll, &attitude.pitch, &attitude.yaw);
-            pthread_mutex_unlock(&_messages.mutex);
-            global_pre_attitude = attitude;
-            global_pre_attitude.to_deg();
-            return attitude.to_deg();
+            pthread_mutex_unlock(&_messages.mutex);      
+
+            Attitude_t<float> attitude;
+            float roll_, pitch_, yaw_;
+            float q_[4];
+
+            float delta_yaw_ = status.delta_yaw;
+            bool is_inEarthFrame = false;
+
+            if(status.flags & GIMBAL_DEVICE_FLAGS_YAW_IN_VEHICLE_FRAME ||
+               status.flags & GIMBAL_DEVICE_FLAGS_YAW_IN_EARTH_FRAME)
+            {
+                if(status.flags & GIMBAL_DEVICE_FLAGS_YAW_IN_EARTH_FRAME)
+                {
+                    is_inEarthFrame = true;
+                }
+            }
+            else
+            {
+                if(status.flags & GIMBAL_DEVICE_FLAGS_YAW_LOCK)
+                {
+                    is_inEarthFrame = true;
+                }
+            }
+
+            if(is_inEarthFrame)
+            {
+                attitude.qua_angle_north.w = status.q[0];
+                attitude.qua_angle_north.x = status.q[1];
+                attitude.qua_angle_north.y = status.q[2];
+                attitude.qua_angle_north.z = status.q[3];
+
+                auto quaternion_north = Quaternion_angle_t{};
+                quaternion_north.w = status.q[0];
+                quaternion_north.x = status.q[1];
+                quaternion_north.y = status.q[2];
+                quaternion_north.z = status.q[3];
+
+                q_[0] = attitude.qua_angle_north.w;
+                q_[1] = attitude.qua_angle_north.x;
+                q_[2] = attitude.qua_angle_north.y;
+                q_[3] = attitude.qua_angle_north.z;
+                mavlink_quaternion_to_euler(q_, &roll_, &pitch_, &yaw_);
+
+                attitude.eu_angle_north.pitch = pitch_ * attitude.RAD2DEG;
+                attitude.eu_angle_north.roll = roll_ * attitude.RAD2DEG;
+                attitude.eu_angle_north.yaw = yaw_ * attitude.RAD2DEG;
+
+                if(!std::isnan(delta_yaw_))
+                {
+                    
+                    mavlink_euler_to_quaternion(0, 0, -delta_yaw_, q_);
+                    auto rotation = Quaternion_angle_t{q_[0], q_[1], q_[2], q_[3]};
+
+                    const auto quaternion_forward = rotation * quaternion_north;
+                    attitude.qua_angle_forward.w = quaternion_forward.w;
+                    attitude.qua_angle_forward.x = quaternion_forward.x;
+                    attitude.qua_angle_forward.y = quaternion_forward.y;
+                    attitude.qua_angle_forward.z = quaternion_forward.z;
+
+                    q_[1] = attitude.qua_angle_forward.x;
+                    q_[2] = attitude.qua_angle_forward.y;
+                    q_[3] = attitude.qua_angle_forward.z;
+
+                    mavlink_quaternion_to_euler(q_, &roll_, &pitch_, &yaw_);
+                    attitude.eu_angle_forward.pitch = pitch_ * attitude.RAD2DEG;
+                    attitude.eu_angle_forward.roll = roll_ * attitude.RAD2DEG;
+                    attitude.eu_angle_forward.yaw = yaw_ * attitude.RAD2DEG;
+                }
+            }
+            else
+            {
+                attitude.qua_angle_forward.w = status.q[0];
+                attitude.qua_angle_forward.x = status.q[1];
+                attitude.qua_angle_forward.y = status.q[2];
+                attitude.qua_angle_forward.z = status.q[3];
+
+                auto quaternion_forward = Quaternion_angle_t{};
+                quaternion_forward.w = status.q[0];
+                quaternion_forward.x = status.q[1];
+                quaternion_forward.y = status.q[2];
+                quaternion_forward.z = status.q[3];
+
+                q_[0] = attitude.qua_angle_forward.w;
+                q_[1] = attitude.qua_angle_forward.x;
+                q_[2] = attitude.qua_angle_forward.y;
+                q_[3] = attitude.qua_angle_forward.z;
+
+                mavlink_quaternion_to_euler(q_, &roll_, &pitch_, &yaw_);
+
+                attitude.eu_angle_forward.pitch = pitch_ * attitude.RAD2DEG;
+                attitude.eu_angle_forward.roll = roll_ * attitude.RAD2DEG;
+                attitude.eu_angle_forward.yaw = yaw_ * attitude.RAD2DEG;
+
+                if(!std::isnan(delta_yaw_))
+                {
+                    mavlink_euler_to_quaternion(0, 0, delta_yaw_, q_);
+                    auto rotation = Quaternion_angle_t{q_[0], q_[1], q_[2], q_[3]};
+
+                    const auto quaternion_north = rotation * quaternion_forward;
+                    attitude.qua_angle_north.w = quaternion_north.w;
+                    attitude.qua_angle_north.x = quaternion_north.x;
+                    attitude.qua_angle_north.y = quaternion_north.y;
+                    attitude.qua_angle_north.z = quaternion_north.z;
+
+                    q_[0] = attitude.qua_angle_north.w;
+                    q_[1] = attitude.qua_angle_north.x;
+                    q_[2] = attitude.qua_angle_north.y;
+                    q_[3] = attitude.qua_angle_north.z;
+
+                    mavlink_quaternion_to_euler(q_, &roll_, &pitch_, &yaw_);
+                    attitude.eu_angle_north.pitch = pitch_ * attitude.RAD2DEG;
+                    attitude.eu_angle_north.roll = roll_ * attitude.RAD2DEG;
+                    attitude.eu_angle_north.yaw = yaw_ * attitude.RAD2DEG;
+
+                }
+            }
+                                
+            ret_attitude = attitude; 
         }
     }
 
-    return global_pre_attitude;
+    return ret_attitude;
 }
 
 /**
@@ -1322,7 +1462,7 @@ uint32_t Gimbal_Interface::get_gimbal_attitude_flag(void)
  * @param: None
  * @ret: Gimbal encoder
  */
-attitude<int16_t> Gimbal_Interface::get_gimbal_encoder(void)
+Attitude_t<int16_t> Gimbal_Interface::get_gimbal_encoder(void)
 {
     pthread_mutex_lock(&_messages.mutex);
     uint64_t timestamps = _messages.timestamps.mount_status;
@@ -1334,12 +1474,12 @@ attitude<int16_t> Gimbal_Interface::get_gimbal_encoder(void)
         /* Reset timestamps */
         _messages.timestamps.mount_status = 0;
         const mavlink_mount_status_t &mount = _messages.mount_status;
-        attitude<int16_t> encoder(mount.pointing_b, mount.pointing_a, mount.pointing_c);
+        Attitude_t<int16_t> encoder(mount.pointing_b, mount.pointing_a, mount.pointing_c);
         pthread_mutex_unlock(&_messages.mutex);
         return encoder;
     }
 
-    return attitude<int16_t>();
+    return Attitude_t<int16_t>();
 }
 
 /**
@@ -1364,22 +1504,22 @@ Gimbal_Interface::timestamps_t Gimbal_Interface::get_gimbal_timestamps(void)
  * @NOTE The range [0 - 200Hz]. 0 will disable that message. Only set 1 msg rate higher than 50Hz
  * @ret: None
  */
-Gimbal_Protocol::result_t Gimbal_Interface::set_msg_encoder_rate(uint8_t rate)
+Gimbal_Protocol::result_t Gimbal_Interface::set_msg_encoder_rate(rate_action_t rate)
 {
     return set_msg_rate(MAVLINK_MSG_ID_MOUNT_STATUS, rate);
 }
 
-Gimbal_Protocol::result_t Gimbal_Interface::set_msg_mnt_orient_rate(uint8_t rate)
+Gimbal_Protocol::result_t Gimbal_Interface::set_msg_mnt_orient_rate(rate_action_t rate)
 {
     return set_msg_rate(MAVLINK_MSG_ID_MOUNT_ORIENTATION, rate);
 }
 
-Gimbal_Protocol::result_t Gimbal_Interface::set_msg_attitude_status_rate(uint8_t rate)
+Gimbal_Protocol::result_t Gimbal_Interface::set_msg_attitude_status_rate(rate_action_t rate)
 {
     return set_msg_rate(MAVLINK_MSG_ID_GIMBAL_DEVICE_ATTITUDE_STATUS, rate);
 }
 
-Gimbal_Protocol::result_t Gimbal_Interface::set_msg_raw_imu_rate(uint8_t rate)
+Gimbal_Protocol::result_t Gimbal_Interface::set_msg_raw_imu_rate(rate_action_t rate)
 {
     return set_msg_rate(MAVLINK_MSG_ID_RAW_IMU, rate);
 }
@@ -1609,22 +1749,29 @@ bool Gimbal_Interface::is_gimbal(uint8_t compid)
  * @param rate
  * @return result_t
  */
-Gimbal_Protocol::result_t Gimbal_Interface::set_msg_rate(uint32_t msgid, uint8_t rate)
+Gimbal_Protocol::result_t Gimbal_Interface::set_msg_rate(uint32_t msgid, rate_action_t rate)
 {
-    if (_gimbal_proto == nullptr) {
+    if(rate >= MAX_RATE) {
+        GSDK_DebugError("ERROR: The rate is invalid, the range [0 - 50Hz]\n");
         return Gimbal_Protocol::ERROR;
     }
 
-    const float param[7] = {
+    if (_gimbal_proto == nullptr) {
+        return Gimbal_Protocol::ERROR;
+    }
+    float action;
+
+    action = (rate <= 0) ? rate : hz_to_period_us(rate);
+    const float param[7] = { 
         (float)msgid,
-        1000000.f / rate,
+        action,
         0,
         0,
         0,
         0,
         0
-    };
-    return _gimbal_proto->send_command_long_sync(MAV_CMD_SET_MESSAGE_INTERVAL, param);
+     };
+    return _gimbal_proto->send_command_long_sync(MAV_CMD_SET_MESSAGE_INTERVAL, param);    
 }
 
 /**
@@ -1964,7 +2111,7 @@ void Gimbal_Interface::write_thread(void)
 
         writing_status = THREAD_IDLING;
 
-        time_out = get_time_usec() - _messages.timestamps.heartbeat;
+        time_out = time_since_us(_messages.timestamps.heartbeat);
 
         usleep(1000);
     }
@@ -2007,5 +2154,15 @@ bool operator!=(const Gimbal_Interface::gimbal_motor_control_t& lhs, const Gimba
     return !(lhs == rhs);
 }
 
+Quaternion_angle_t operator*(const Quaternion_angle_t& lhs, const Quaternion_angle_t& rhs)
+{
+    Quaternion_angle_t result;
+    result.w = lhs.w * rhs.w - lhs.x * rhs.x - lhs.y * rhs.y - lhs.z * rhs.z;
+    result.x = lhs.w * rhs.x + lhs.x * rhs.w + lhs.y * rhs.z - lhs.z * rhs.y;
+    result.y = lhs.w * rhs.y + lhs.y * rhs.w - lhs.x * rhs.z + lhs.z * rhs.x;
+    result.z = lhs.w * rhs.z + lhs.z * rhs.w + lhs.x * rhs.y + lhs.y * rhs.x;
+
+    return result;
+}
 
 /************************ (C) COPYRIGHT Gremsy *****END OF FILE****************/

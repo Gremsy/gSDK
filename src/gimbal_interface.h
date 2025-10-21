@@ -99,6 +99,37 @@ public:
         }
     };
 
+    enum reboot_action_t
+    {
+        REBOOT_ACTION_REBOOT   = 0x01,
+        REBOOT_ACTION_SHUTDOWN = 0x02,
+
+        MAX_REBOOT_ACTION     
+    };
+
+    enum rate_action_t
+    {
+        RATE_DISABLE = -1,
+        RATE_DEFAULT = 0,
+        RATE_1HZ,  RATE_2HZ,  RATE_3HZ,  RATE_4HZ,  RATE_5HZ,
+        RATE_6HZ,  RATE_7HZ,  RATE_8HZ,  RATE_9HZ,  RATE_10HZ,
+
+        RATE_11HZ, RATE_12HZ, RATE_13HZ, RATE_14HZ, RATE_15HZ,
+        RATE_16HZ, RATE_17HZ, RATE_18HZ, RATE_19HZ, RATE_20HZ,
+
+        RATE_21HZ, RATE_22HZ, RATE_23HZ, RATE_24HZ, RATE_25HZ,
+        RATE_26HZ, RATE_27HZ, RATE_28HZ, RATE_29HZ, RATE_30HZ,
+
+        RATE_31HZ, RATE_32HZ, RATE_33HZ, RATE_34HZ, RATE_35HZ,
+        RATE_36HZ, RATE_37HZ, RATE_38HZ, RATE_39HZ, RATE_40HZ,
+
+        RATE_41HZ, RATE_42HZ, RATE_43HZ, RATE_44HZ, RATE_45HZ,
+        RATE_46HZ, RATE_47HZ, RATE_48HZ, RATE_49HZ, RATE_50HZ, 
+        
+        MAX_RATE
+    };
+
+    
     /**
      * @brief Control direction
      */
@@ -269,8 +300,15 @@ public:
      * @param: NONE
      * @ret: result
      */
-    Gimbal_Protocol::result_t set_gimbal_reboot(void);
+    Gimbal_Protocol::result_t set_gimbal_reboot(reboot_action_t reboot); 
 
+        /**
+     * @brief  This function reboot the gimbal
+     * @param: NONE
+     * @ret: result
+     */
+    Gimbal_Protocol::result_t set_gimbal_reboot(); // reverse for history
+        
     /**
      * @brief  This function set gimbal to rc input mode and block to wait for gimbal response
      * @param: NONE
@@ -364,14 +402,14 @@ public:
      * @param: None
      * @ret: Gimbal attitude
      */
-    attitude<float> get_gimbal_attitude(void);
+    Attitude_t<float> get_gimbal_attitude(void);
 
     /**
      * @brief  This function get gimbal encoder depends on encoder type send
      * @param: None
      * @ret: Gimbal encoder
      */
-    attitude<int16_t> get_gimbal_encoder(void);
+    Attitude_t<int16_t> get_gimbal_encoder(void);
 
     /**
      * @brief  This function get gimbal timestamps
@@ -506,10 +544,10 @@ public:
      * @NOTE The range [0 - 200Hz]. 0 will disable that message. Only set 1 msg rate higher than 50Hz
      * @ret: None
      */
-    Gimbal_Protocol::result_t set_msg_encoder_rate(uint8_t rate);
-    Gimbal_Protocol::result_t set_msg_mnt_orient_rate(uint8_t rate);
-    Gimbal_Protocol::result_t set_msg_attitude_status_rate(uint8_t rate);
-    Gimbal_Protocol::result_t set_msg_raw_imu_rate(uint8_t rate);
+    Gimbal_Protocol::result_t set_msg_encoder_rate(rate_action_t rate);
+    Gimbal_Protocol::result_t set_msg_mnt_orient_rate(rate_action_t rate);
+    Gimbal_Protocol::result_t set_msg_attitude_status_rate(rate_action_t rate);
+    Gimbal_Protocol::result_t set_msg_raw_imu_rate(rate_action_t rate);
 
     /**
      * @brief Set the gimbal encoder type send
@@ -625,7 +663,7 @@ public:
      */
     uint32_t get_gimbal_attitude_flag(void);
 
-private:
+    private:
 
     /**
      * @brief Gimbal Interface state
@@ -820,7 +858,7 @@ private:
      * @param rate
      * @return Gimbal_Protocol::result_t
      */
-    Gimbal_Protocol::result_t set_msg_rate(uint32_t msgid, uint8_t rate);
+    Gimbal_Protocol::result_t set_msg_rate(uint32_t msgid, rate_action_t rate);
 
     /**
      * @brief Request msg from gimbal
@@ -830,6 +868,14 @@ private:
      */
     Gimbal_Protocol::result_t request_msg(uint32_t msgid);
 
+    /**
+     * @brief Get the gimbal period from frequency
+     *
+     * @param hz 
+     * @return float
+     */
+    constexpr float hz_to_period_us(uint8_t hz) { return 1000000 / hz; }
+    
     // Gimbal params
     void reset_params();        
     bool params_initialized();
@@ -869,7 +915,7 @@ private:
      * @ret: None
      */
     Gimbal_Protocol::result_t set_param(param_index_t param, int16_t value);  
-    static constexpr uint32_t _TIME_LOST_CONNECT = 6000000;  // 60s
+    static constexpr uint32_t _TIME_LOST_CONNECT = 6000000;   // 60s
     static constexpr uint32_t _RETRY_PERIOD      = 100;       // 100ms
     static constexpr uint8_t _MAX_FETCH_TIME     = 5;         // times
 
@@ -943,6 +989,7 @@ private:
 bool operator==(const Gimbal_Interface::gimbal_motor_control_t& lhs, const Gimbal_Interface::gimbal_motor_control_t& rhs);
 
 bool operator!=(const Gimbal_Interface::gimbal_motor_control_t& lhs, const Gimbal_Interface::gimbal_motor_control_t& rhs);
+Quaternion_angle_t operator*(const Quaternion_angle_t& lhs, const Quaternion_angle_t& rhs);
 
 
 #endif // GIMBAL_INTERFACE_H_

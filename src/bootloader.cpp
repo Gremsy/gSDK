@@ -187,7 +187,7 @@ bool Boot_loader::run()
                 {
                     for (size_t i = 0; i < sizeof(stm32_cmd)/sizeof(uint8_t); i++)
                     {
-                        GSDK_DebugInfo("CMD [%d]:0x%2x",i, *((&cmd.get)+i))
+                        GSDK_DebugInfo("CMD [%ld]:0x%2x",i, *((&cmd.get)+i))
                     }
                 }
                 GSDK_DebugSuccess("[\u2713] %s",status.c_str());

@@ -145,7 +145,7 @@ Gimbal_Protocol::result_t Gimbal_Protocol_V2::set_gimbal_move_sync(float pitch, 
         }
 
         if(pitch > 90.f || pitch < -90.f){
-            GSDK_DebugError("ERROR: Gimbal Protocol V2 only supports roll axis from -90 degrees to 90 degrees!\n");
+            GSDK_DebugError("ERROR: Gimbal Protocol V2 only supports pitch axis from -90 degrees to 90 degrees!\n");
             return ERROR;
         }
         mavlink_euler_to_quaternion(to_rad(roll), to_rad(pitch), to_rad(yaw), attitude.q);
