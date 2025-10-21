@@ -10,6 +10,15 @@ set(MAVLINK_INCLUDES
 
 set(MAVLINK_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/src")
+    
+# Set default value if not passed from command line
+if(NOT DEFINED ENABLE_DTR_RTS)
+    set(ENABLE_DTR_RTS 0)   # Default: disabled
+endif()
+
+message(STATUS "ENABLE_DTR_RTS = ${ENABLE_DTR_RTS}")
+
+add_definitions(-DENABLE_DTR_RTS=${ENABLE_DTR_RTS})
 
 ###############################################################################
 #### INCLUDES #################################################################

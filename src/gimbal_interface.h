@@ -238,7 +238,56 @@ public:
         imu_t(const vector3<int16_t> &_a, const vector3<int16_t> &_g) :
             accel(_a), gyro(_g) {};
     };
+    /**
+     * @brief param_index_t
+     * Gimbal opens some parameters for setting. Please refer to user manual to learn more how to set
+     * that parameters
+     */
+    enum param_index_t {
+        GMB_PARAM_VERSION_X = 0,
+        GMB_PARAM_VERSION_Y,
+        GMB_PARAM_VERSION_Z,
 
+        GMB_PARAM_STIFFNESS_PITCH,
+        GMB_PARAM_STIFFNESS_ROLL,
+        GMB_PARAM_STIFFNESS_YAW,
+
+        GMB_PARAM_HOLDSTRENGTH_PITCH,
+        GMB_PARAM_HOLDSTRENGTH_ROLL,
+        GMB_PARAM_HOLDSTRENGTH_YAW,
+
+        GMB_PARAM_OUTPUT_FILTER,
+        GMB_PARAM_GYRO_FILTER,
+
+        GMB_PARAM_SMOOTH_FOLLOW_PITCH,
+        GMB_PARAM_SMOOTH_FOLLOW_YAW,
+
+        GMB_PARAM_WINDOW_FOLLOW_PITCH,
+        GMB_PARAM_WINDOW_FOLLOW_YAW,
+
+        GMB_PARAM_SPEED_CONTROL_PITCH,
+        GMB_PARAM_SPEED_CONTROL_ROLL,
+        GMB_PARAM_SPEED_CONTROL_YAW,
+
+        GMB_PARAM_SMOOTH_CONTROL_PITCH,
+        GMB_PARAM_SMOOTH_CONTROL_ROLL,
+        GMB_PARAM_SMOOTH_CONTROL_YAW,
+
+        GMB_PARAM_AXIS_DIR,
+
+        GMB_PARAM_ENCODER_TYPE,
+
+        GMB_PARAM_MIN_LIMIT_ANGLE_PITCH,
+        GMB_PARAM_MAX_LIMIT_ANGLE_PITCH,
+        GMB_PARAM_MIN_LIMIT_ANGLE_ROLL,
+        GMB_PARAM_MAX_LIMIT_ANGLE_ROLL,
+        GMB_PARAM_MIN_LIMIT_ANGLE_YAW,
+        GMB_PARAM_MAX_LIMIT_ANGLE_YAW,
+
+        GMB_PARAM_RC_TYPE,
+
+        GIMBAL_NUM_TRACKED_PARAMS
+    };
     /**
      * @brief Gimbal remote controller type
      * 
@@ -662,6 +711,31 @@ public:
      * @ret: uint32_t
      */
     uint32_t get_gimbal_attitude_flag(void);
+    /**
+     * @brief  This function for user to get gimbal param
+     *
+     * @param: param - param name to get, follow param_index_t
+     * @param: value - reference to value
+     * @ret: None
+     */
+    Gimbal_Protocol::result_t get_param(param_index_t param, int16_t &value);
+
+    /**
+     * @brief  This function for user to set gimbal param. Some parameters are not writable by gSDK. If you cannot set the parameters, please try again using gTune.
+     *
+     * @param: param - param name to set, follow param_index_t
+     * @param: value - value to set
+     * @ret: None
+     */
+    Gimbal_Protocol::result_t set_param(param_index_t param, int16_t value);  
+        /**
+     * @brief Set the msg rate
+     *
+     * @param msgid
+     * @param rate
+     * @return Gimbal_Protocol::result_t
+     */
+    Gimbal_Protocol::result_t set_msg_rate(uint32_t msgid, rate_action_t rate);
 
     private:
 
@@ -753,58 +827,6 @@ public:
         PARAM_STATE_NONEXISTANT       = 4    // parameter does not seem to exist
     };
 
-    /**
-     * @brief param_index_t
-     * Gimbal opens some parameters for setting. Please refer to user manual to learn more how to set
-     * that parameters
-     */
-    enum param_index_t {
-        GMB_PARAM_VERSION_X = 0,
-        GMB_PARAM_VERSION_Y,
-        GMB_PARAM_VERSION_Z,
-
-        GMB_PARAM_STIFFNESS_PITCH,
-        GMB_PARAM_STIFFNESS_ROLL,
-        GMB_PARAM_STIFFNESS_YAW,
-
-        GMB_PARAM_HOLDSTRENGTH_PITCH,
-        GMB_PARAM_HOLDSTRENGTH_ROLL,
-        GMB_PARAM_HOLDSTRENGTH_YAW,
-
-        GMB_PARAM_OUTPUT_FILTER,
-        GMB_PARAM_GYRO_FILTER,
-
-        GMB_PARAM_SMOOTH_FOLLOW_PITCH,
-        GMB_PARAM_SMOOTH_FOLLOW_YAW,
-
-        GMB_PARAM_WINDOW_FOLLOW_PITCH,
-        GMB_PARAM_WINDOW_FOLLOW_YAW,
-
-        GMB_PARAM_SPEED_CONTROL_PITCH,
-        GMB_PARAM_SPEED_CONTROL_ROLL,
-        GMB_PARAM_SPEED_CONTROL_YAW,
-
-        GMB_PARAM_SMOOTH_CONTROL_PITCH,
-        GMB_PARAM_SMOOTH_CONTROL_ROLL,
-        GMB_PARAM_SMOOTH_CONTROL_YAW,
-
-        GMB_PARAM_AXIS_DIR,
-
-        GMB_PARAM_ENCODER_TYPE,
-
-        GMB_PARAM_MIN_LIMIT_ANGLE_PITCH,
-        GMB_PARAM_MAX_LIMIT_ANGLE_PITCH,
-        GMB_PARAM_MIN_LIMIT_ANGLE_ROLL,
-        GMB_PARAM_MAX_LIMIT_ANGLE_ROLL,
-        GMB_PARAM_MIN_LIMIT_ANGLE_YAW,
-        GMB_PARAM_MAX_LIMIT_ANGLE_YAW,
-
-        GMB_PARAM_RC_TYPE,
-
-        GIMBAL_NUM_TRACKED_PARAMS
-    };
-    
-
     Serial_Port *_serial_port;
 
     Gimbal_Protocol *_gimbal_proto;
@@ -851,14 +873,6 @@ public:
      */
     bool is_gimbal(uint8_t compid);
 
-    /**
-     * @brief Set the msg rate
-     *
-     * @param msgid
-     * @param rate
-     * @return Gimbal_Protocol::result_t
-     */
-    Gimbal_Protocol::result_t set_msg_rate(uint32_t msgid, rate_action_t rate);
 
     /**
      * @brief Request msg from gimbal
@@ -898,23 +912,7 @@ public:
     Gimbal_Protocol::result_t request_param(const char* param_id);
     Gimbal_Protocol::result_t request_param_list(void);
 
-    /**
-     * @brief  This function for user to get gimbal param
-     *
-     * @param: param - param name to get, follow param_index_t
-     * @param: value - reference to value
-     * @ret: None
-     */
-    Gimbal_Protocol::result_t get_param(param_index_t param, int16_t &value);
 
-    /**
-     * @brief  This function for user to set gimbal param. Some parameters are not writable by gSDK. If you cannot set the parameters, please try again using gTune.
-     *
-     * @param: param - param name to set, follow param_index_t
-     * @param: value - value to set
-     * @ret: None
-     */
-    Gimbal_Protocol::result_t set_param(param_index_t param, int16_t value);  
     static constexpr uint32_t _TIME_LOST_CONNECT = 6000000;   // 60s
     static constexpr uint32_t _RETRY_PERIOD      = 100;       // 100ms
     static constexpr uint8_t _MAX_FETCH_TIME     = 5;         // times

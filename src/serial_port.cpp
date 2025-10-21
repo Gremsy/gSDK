@@ -171,15 +171,20 @@ void Serial_Port::open_serial()
     // --------------------------------------------------------------------------
     //   CONTROL DTR & RTS
     // --------------------------------------------------------------------------
-    int RTS_flag;
-    int DTR_flag;
-    RTS_flag = TIOCM_RTS;
-    DTR_flag = TIOCM_DTR;
-    ioctl(fd, TIOCMBIS, &DTR_flag); //Set DTR pin
-    ioctl(fd, TIOCMBIC, &RTS_flag); //clear RTS pin
-    //getchar();
+#if ENABLE_DTR_RTS
+    printf("Setting up DTR/RTS...\n");
+
+    int RTS_flag = TIOCM_RTS;
+    int DTR_flag = TIOCM_DTR;
+
+    ioctl(fd, TIOCMBIS, &DTR_flag);  // Set DTR
+    ioctl(fd, TIOCMBIC, &RTS_flag);  // Clear RTS
     usleep(1000000);
-    ioctl(fd, TIOCMBIC, &DTR_flag); //Clear DTR pin
+    ioctl(fd, TIOCMBIC, &DTR_flag);  // Clear DTR
+
+    printf("DTR/RTS setup done.\n");
+#endif
+
     // --------------------------------------------------------------------------
     //   FOOTER
     // --------------------------------------------------------------------------
