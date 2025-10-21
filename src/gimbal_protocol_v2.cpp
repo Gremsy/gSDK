@@ -134,19 +134,19 @@ Gimbal_Protocol::result_t Gimbal_Protocol_V2::set_gimbal_move_sync(float pitch, 
         /* Convert target to quaternion */
         if (yaw > 180.f || yaw < -180.f)
         {
-            GSDK_DebugError("ERROR: Gimbal Protocol V2 only supports yaw axis from -180 degrees to 180 degrees!\n");
-            return ERROR;
+            GSDK_DebugWarning("WARNING: Gimbal Protocol V2 only supports yaw axis from -180 degrees to 180 degrees!\n");
+          //  return ERROR;
         }
         
         if (roll > 180.f || roll < -180.f)
         {
-            GSDK_DebugError("ERROR: Gimbal Protocol V2 only supports roll axis from -180 degrees to 180 degrees!\n");
-            return ERROR;
+            GSDK_DebugWarning("WARNING: Gimbal Protocol V2 only supports roll axis from -180 degrees to 180 degrees!\n");
+          //  return ERROR;
         }
 
         if(pitch > 90.f || pitch < -90.f){
-            GSDK_DebugError("ERROR: Gimbal Protocol V2 only supports pitch axis from -90 degrees to 90 degrees!\n");
-            return ERROR;
+            GSDK_DebugWarning("WARNING: Gimbal Protocol V2 only supports pitch axis from -90 degrees to 90 degrees!\n");
+          //  return ERROR;
         }
         mavlink_euler_to_quaternion(to_rad(roll), to_rad(pitch), to_rad(yaw), attitude.q);
         attitude.angular_velocity_x = NAN;

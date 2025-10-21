@@ -865,22 +865,22 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_rotation_sync(float pitch
     limit_angle_t limit = get_limit_angle_pitch();
     if (pitch > limit.angle_max || pitch < limit.angle_min)
     {
-        GSDK_DebugError("ERROR: Pitch angle out of range! Acceptable range is %d° to %d°.",limit.angle_min,limit.angle_max);
-        return Gimbal_Protocol::ERROR;
+        GSDK_DebugWarning("WARNING: Pitch angle out of range! Acceptable range is %d° to %d°.",limit.angle_min,limit.angle_max);
+      //  return Gimbal_Protocol::ERROR;
     }
     
     limit = get_limit_angle_roll();
     if (roll > limit.angle_max || roll < limit.angle_min)
     {
-        GSDK_DebugError("ERROR: Roll angle out of range! Acceptable range is %d° to %d°.",limit.angle_min,limit.angle_max);
-        return Gimbal_Protocol::ERROR;
+        GSDK_DebugWarning("WARNING: Roll angle out of range! Acceptable range is %d° to %d°.",limit.angle_min,limit.angle_max);
+      //  return Gimbal_Protocol::ERROR;
     }
     
     limit = get_limit_angle_yaw();
     if (yaw > limit.angle_max || yaw < limit.angle_min)
     {
-        GSDK_DebugError("ERROR: Yaw angle out of range! Acceptable range is %d° to %d°.",limit.angle_min,limit.angle_max);
-        return Gimbal_Protocol::ERROR;
+        GSDK_DebugWarning("WARNING: Yaw angle out of range! Acceptable range is %d° to %d°.",limit.angle_min,limit.angle_max);
+       // return Gimbal_Protocol::ERROR;
     }
 
     return _gimbal_proto->set_gimbal_move_sync(pitch, roll, yaw, Gimbal_Protocol::INPUT_ANGLE);
@@ -898,13 +898,16 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_rotation_rate_sync(float 
     if (_gimbal_proto == nullptr) {
         return Gimbal_Protocol::ERROR;
     }
-
-    if (pitch >  MAX_ROTATION_RATE || pitch < -MAX_ROTATION_RATE ||
-        roll  >  MAX_ROTATION_RATE || roll  < -MAX_ROTATION_RATE ||
-        yaw   >  MAX_ROTATION_RATE || yaw   < -MAX_ROTATION_RATE    )
+    int16_t PITCH_RATE_MAX, ROLL_RATE_MAX, YAW_RATE_MAX;
+    get_param(GMB_PARAM_SPEED_CONTROL_PITCH,PITCH_RATE_MAX);
+    get_param(GMB_PARAM_SPEED_CONTROL_ROLL,ROLL_RATE_MAX);
+    get_param(GMB_PARAM_SPEED_CONTROL_YAW,YAW_RATE_MAX);
+    if (pitch >  PITCH_RATE_MAX || pitch < -PITCH_RATE_MAX ||
+        roll  >  ROLL_RATE_MAX || roll  < -ROLL_RATE_MAX ||
+        yaw   >  YAW_RATE_MAX || yaw   < -YAW_RATE_MAX    )
     {
-        GSDK_DebugError("ERROR: You are moving the gimbal too fast!!!");
-        return Gimbal_Protocol::ERROR;
+        GSDK_DebugWarning("WARNING: You are moving the gimbal too fast!!!");
+      //  return Gimbal_Protocol::ERROR;
     }
     
 
