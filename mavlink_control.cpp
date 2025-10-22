@@ -1712,10 +1712,13 @@ static void monitor_attitude_imu_encoder(Gimbal_Interface &onboard,  uint8_t dur
                                                         my_imu.gyro.y,
                                                         my_imu.gyro.z);
         myattitude= onboard.get_gimbal_attitude();
-        
-
+        if(mav_gimbal_proto == Gimbal_Interface::MAVLINK_GIMBAL_V1){
+        GSDK_DebugInfo("Gimbal attitude Pitch - Roll -Yaw: (%.2f) - (%.2f) - (%.2f)\n",myattitude.pitch,myattitude.roll,myattitude.yaw);       
+        }
+        else{
         GSDK_DebugInfo("Gimbal attitude Pitch - Roll - Yaw in earth frame: (%.2f) - (%.2f) - (%.2f)\n" , myattitude.eu_angle_north.pitch, myattitude.eu_angle_north.roll, myattitude.eu_angle_north.yaw);
         GSDK_DebugInfo("Gimbal attitude Pitch - Roll - Yaw in vehicle frame: (%.2f) - (%.2f) - (%.2f)\n" , myattitude.eu_angle_forward.pitch, myattitude.eu_angle_forward.roll, myattitude.eu_angle_forward.yaw);
+        }
         myencoder = onboard.get_gimbal_encoder();
 
         GSDK_DebugInfo("Gimbal encoder Pitch - Roll - Yaw: (%d) - (%d) - (%d)\n" ,myencoder.pitch, myencoder.roll, myencoder.yaw);

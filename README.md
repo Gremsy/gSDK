@@ -57,6 +57,7 @@ Building
 ========
 ```
 $ cd gSDK/
+$ git submodule update --init --recursive
 $ mkdir build && cd build
 $ cmake ..
 $ make
@@ -64,6 +65,7 @@ $ make
 Note: If you are using USB to control the gimbal, you should enable DTR/RTS control by using the following command:
 ```
 $ cd gSDK/
+$ git submodule update --init --recursive
 $ mkdir build && cd build
 $ cmake -DENABLE_DTR_RTS=1 ..
 $ make
