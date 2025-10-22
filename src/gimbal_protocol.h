@@ -59,20 +59,52 @@
 // ------------------------------------------------------------------------------
 //   Data Structures
 // ------------------------------------------------------------------------------
+
 template<typename T>
-struct attitude {
+struct Euler_angle_t
+{
+    T pitch;
+    T roll;
+    T yaw;
+} ;
+
+
+struct Quaternion_angle_t
+{
+    float w;
+    float x;
+    float y;
+    float z;
+};
+
+template<typename T>
+struct Angular_velocity_t
+{
+    T roll_vel;
+    T pitch_vel;
+    T yaw_vel;
+};
+
+template<typename T>
+struct Attitude_t {
     T roll  = 0;
     T pitch = 0;
     T yaw   = 0;
 
+    Quaternion_angle_t qua_angle_north;
+    Euler_angle_t<T> eu_angle_north;
+    Quaternion_angle_t qua_angle_forward;
+    Euler_angle_t<T> eu_angle_forward;
+    Angular_velocity_t<T> ang_vel;
+
     static constexpr float DEG2RAD = M_PI / 180.f;
     static constexpr float RAD2DEG = 180.f / M_PI;
 
-    attitude() = default;
-    attitude(T val) : roll(val), pitch(val), yaw(val) {};
-    attitude(T r, T p, T y) : roll(r), pitch(p), yaw(y) {};
+    Attitude_t() = default;
+    Attitude_t(T val) : roll(val), pitch(val), yaw(val) {};
+    Attitude_t(T r, T p, T y) : roll(r), pitch(p), yaw(y) {};
 
-    attitude &to_rad(void)
+    Attitude_t &to_rad(void)
     {
         roll  *= DEG2RAD;
         pitch *= DEG2RAD;
@@ -80,7 +112,7 @@ struct attitude {
         return *this;
     }
 
-    attitude &to_deg(void)
+    Attitude_t &to_deg(void)
     {
         roll  *= RAD2DEG;
         pitch *= RAD2DEG;
@@ -132,6 +164,10 @@ public:
         GIMBAL_LOCK_MODE   = 0x01,
         GIMBAL_FOLLOW_MODE = 0x02,
         GIMBAL_RESET_MODE  = 0x04,
+
+        GIMBAL_YAW_IN_VEHICLE_FRAME = 0x20,
+        GIMBAL_YAW_IN_EARTH_FRAME = 0x40,
+
         GIMBAL_MAPPING_MODE = 0x4000,
         GIMBAL_RESET_HOME   = 0x8000
     };
@@ -242,7 +278,7 @@ public:
      * @param q attitude quaternion
      */
     void update_attitude(const float q[4]);
-    
+
     void get_attitude(float &pitch, float &roll, float &yaw);
     // Helper
     static float to_deg(float rad) {
@@ -269,7 +305,7 @@ protected:
 
     mavlink_command_ack_t _ack = { 0 };
 
-    attitude<float> _attitude;
+    Attitude_t<float> _attitude;
 
     /**
      * @brief convert from mav result

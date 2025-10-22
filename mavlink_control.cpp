@@ -264,11 +264,11 @@ void gGimbal_displays(Gimbal_Interface &onboard){
                                                     my_imu.gyro.x,
                                                     my_imu.gyro.y,
                                                     my_imu.gyro.z);
-    attitude<float> myattitude;
+    Attitude_t<float> myattitude;
     myattitude= onboard.get_gimbal_attitude();
 
     GSDK_DebugInfo("Gimbal attitude Pitch - Roll - Yaw: (%.2f) - (%.2f) - (%.2f)\n" ,myattitude.pitch, myattitude.roll, myattitude.yaw);
-    attitude<int16_t> myencoder;
+    Attitude_t<int16_t> myencoder;
     myencoder = onboard.get_gimbal_encoder();
 
     GSDK_DebugInfo("Gimbal encoder Pitch - Roll - Yaw: (%d) - (%d) - (%d)\n" ,myencoder.pitch, myencoder.roll, myencoder.yaw);
@@ -460,7 +460,7 @@ static void control_sample_gimbal_process(Gimbal_Interface &onboard, Serial_Port
 
     int number = 0;
 
-    printf("\33[39m\n\r Please Enter number [0-15] to seclect Gimbal control mode\n\r");
+    printf("\33[39m\n\r Please Enter number [0-15] to select Gimbal control mode\n\r");
     printf("\t 0.   OFF Gimbal\n\r");
     printf("\t 1.   ON Gimbal\n\r");
     printf("\t 2.   Change mount mode\n\r");
@@ -477,6 +477,7 @@ static void control_sample_gimbal_process(Gimbal_Interface &onboard, Serial_Port
     printf("\t 13.  Set Gimbal Reboot\n\r");
     printf("\t 14.  Upgrade Firmware\n\r");
     printf("\t 15.  Monitoring Encoder - Attitude - IMU\n\r");
+    printf("\33[32mSelect ->  ");
 
     scanf("%d", &number);
 
@@ -781,7 +782,7 @@ static void setting_sample_gimbal_setup_message_rate(Gimbal_Interface &onboard){
         do
         {
             usleep(10);
-            result = onboard.set_msg_encoder_rate(enc_value_rate) ;
+            result = onboard.set_msg_encoder_rate((Gimbal_Interface::rate_action_t)enc_value_rate) ;
             GSDK_DebugInfo("Try to set encoder messages rate: %dHz\r\n",enc_value_rate);
 
             if(timeout++ > _TIMEOUT){
@@ -809,7 +810,7 @@ static void setting_sample_gimbal_setup_message_rate(Gimbal_Interface &onboard){
         do
         {
             usleep(10);
-            result = onboard.set_msg_mnt_orient_rate(orien_rate);
+            result = onboard.set_msg_mnt_orient_rate((Gimbal_Interface::rate_action_t)orien_rate);
             GSDK_DebugInfo("Try to set mount orientation messages rate: %dHz\r\n",orien_rate);
             
             if(timeout++ > _TIMEOUT){
@@ -824,7 +825,7 @@ static void setting_sample_gimbal_setup_message_rate(Gimbal_Interface &onboard){
         do
         {
             usleep(10);
-            result = onboard.set_msg_attitude_status_rate(orien_rate);
+            result = onboard.set_msg_attitude_status_rate((Gimbal_Interface::rate_action_t)orien_rate);
             GSDK_DebugInfo("Try to set gimbal device attitude status messages rate: %dHz\r\n",orien_rate);
 
             if(timeout++ > _TIMEOUT){
@@ -852,7 +853,7 @@ static void setting_sample_gimbal_setup_message_rate(Gimbal_Interface &onboard){
         do
         {
             usleep(10);
-            result = onboard.set_msg_raw_imu_rate(imu_rate);
+            result = onboard.set_msg_raw_imu_rate((Gimbal_Interface::rate_action_t)imu_rate);
             GSDK_DebugInfo("Try to set raw imu messages rate: %d\r\n",imu_rate);
 
             if(timeout++ > _TIMEOUT){
@@ -1373,8 +1374,8 @@ static void control_sample_gimbal_set_move_angle(Gimbal_Interface &onboard, floa
     Gimbal_Protocol::result_t res = onboard.set_gimbal_rotation_sync(setpoint_pitch, setpoint_roll, setpoint_yaw);
     if (res == Gimbal_Protocol::SUCCESS) {
         GSDK_DebugSuccess("\tSend command successfully!\n");
-        attitude<float> attitude;
-        
+        Attitude_t<float> attitude;
+        uint32_t gimbal_attitude_flag = onboard.get_gimbal_attitude_flag();
         uint8_t timeout = 0;
         do {
 
@@ -1382,31 +1383,116 @@ static void control_sample_gimbal_set_move_angle(Gimbal_Interface &onboard, floa
             attitude = onboard.get_gimbal_attitude();
             
             res = onboard.set_gimbal_rotation_sync(setpoint_pitch, setpoint_roll, setpoint_yaw);
-        
+
             if(gimbal_mode.mnt_mode == TWO_AXIS_GIMBAL_MOUNT_MODE_ROLL_TILT){
-                GSDK_DebugInfo("\tGimbal attitude Pitch - Roll: (%.2f) - (%.2f)\n", attitude.pitch, attitude.roll)
-                if((fabsf(attitude.pitch - setpoint_pitch)   < 0.5f)    &&
-                    (fabsf(attitude.roll - setpoint_roll)    < 0.5f))
-                {
-                    break;
+                if(mav_gimbal_proto == Gimbal_Interface::MAVLINK_GIMBAL_V1) {
+                    GSDK_DebugInfo("\tGimbal attitude Pitch - Roll: (%.2f) - (%.2f)\n", attitude.pitch, attitude.roll)
+                    if((fabsf(attitude.pitch - setpoint_pitch)   < 0.5f)    &&
+                        (fabsf(attitude.roll - setpoint_roll)    < 0.5f))
+                    {
+                        break;
+                    }   
+                } else if(mav_gimbal_proto == Gimbal_Interface::MAVLINK_GIMBAL_V2){
+                    GSDK_DebugInfo("\tGimbal attitude Pitch - Roll: (%.2f) - (%.2f)\n", attitude.eu_angle_forward.pitch, attitude.eu_angle_forward.roll);
+                    if((fabsf(attitude.eu_angle_forward.pitch - setpoint_pitch)   < 0.5f)    &&
+                       (fabsf(attitude.eu_angle_forward.roll - setpoint_roll)     < 0.5f))
+                    {
+                        break;
+                    }   
+                    
                 }
+
             }else if (gimbal_mode.mnt_mode == TWO_AXIS_GIMBAL_MOUNT_MODE_PAN_TILT)
             {
-                GSDK_DebugInfo("\tGimbal attitude Pitch - Yaw: (%.2f) - (%.2f)\n", attitude.pitch, attitude.yaw);
-                if ((fabsf(attitude.pitch - setpoint_pitch)  < 0.5f)     &&
-                    ((fabsf(attitude.yaw - setpoint_yaw)     < 0.5f)     || ((fabsf(attitude.yaw- setpoint_yaw) < 360.5f) && (fabsf(attitude.yaw - setpoint_yaw) > 359.5f))))
+                /* Check for earth frame */
+                if(gimbal_attitude_flag & GIMBAL_DEVICE_FLAGS_YAW_LOCK)
                 {
-                    break;
+                    if(mav_gimbal_proto == Gimbal_Interface::MAVLINK_GIMBAL_V1){
+                        GSDK_DebugInfo("\tGimbal attitude Pitch - Yaw: (%.2f) - (%.2f)\n", attitude.pitch, attitude.yaw);
+                        if ((fabsf(attitude.pitch - setpoint_pitch)  < 0.5f)     &&
+                            ((fabsf(attitude.yaw - setpoint_yaw)     < 0.5f)     || ((fabsf(attitude.yaw- setpoint_yaw) < 360.5f) && (fabsf(attitude.yaw - setpoint_yaw) > 359.5f))))
+                        {
+                            break;
+                        }                        
+                    }else{
+                        GSDK_DebugInfo("\tGimbal attitude earth Pitch - Yaw: (%.2f) - (%.2f)\n", attitude.eu_angle_north.pitch, attitude.eu_angle_north.yaw);
+                        GSDK_DebugInfo("\tGimbal attitude vehicle Pitch - Yaw: (%.2f) - (%.2f)\n", attitude.eu_angle_forward.pitch, attitude.eu_angle_forward.yaw);                    
+                        if ((fabsf(attitude.eu_angle_north.pitch - setpoint_pitch)   < 0.5f)     &&
+                            ((fabsf(attitude.eu_angle_north.yaw  - setpoint_yaw)     < 0.5f)     || 
+                            ((fabsf(attitude.eu_angle_north.yaw - setpoint_yaw) < 360.5f) && (fabsf(attitude.eu_angle_north.yaw - setpoint_yaw) > 359.5f))))
+                        {
+                            break;
+                        }  
+                    }
                 }
+                /* Check for vehicle frame */
+                else if(gimbal_attitude_flag & ~GIMBAL_DEVICE_FLAGS_YAW_LOCK)
+                {
+                    if(mav_gimbal_proto == Gimbal_Interface::MAVLINK_GIMBAL_V1){
+                        GSDK_DebugInfo("\tGimbal attitude Pitch - Yaw: (%.2f) - (%.2f)\n", attitude.pitch, attitude.yaw);
+                        if ((fabsf(attitude.pitch - setpoint_pitch)  < 0.5f)     &&
+                            ((fabsf(attitude.yaw - setpoint_yaw)     < 0.5f)     || 
+                            ((fabsf(attitude.yaw- setpoint_yaw) < 360.5f) && (fabsf(attitude.yaw - setpoint_yaw) > 359.5f))))
+                        {
+                            break;
+                        }                        
+                    }else{                    
+                        GSDK_DebugInfo("\tGimbal attitude earth Pitch - Yaw: (%.2f) - (%.2f)\n", attitude.eu_angle_north.pitch, attitude.eu_angle_north.yaw);
+                        GSDK_DebugInfo("\tGimbal attitude vehicle Pitch - Yaw: (%.2f) - (%.2f)\n", attitude.eu_angle_forward.pitch, attitude.eu_angle_forward.yaw);
+                        if ((fabsf(attitude.eu_angle_forward.pitch - setpoint_pitch)   < 0.5f)     &&
+                            ((fabsf(attitude.eu_angle_forward.yaw  - setpoint_yaw)     < 0.5f)     || 
+                            ((fabsf(attitude.eu_angle_forward.yaw - setpoint_yaw) < 360.5f) && (fabsf(attitude.eu_angle_forward.yaw - setpoint_yaw) > 359.5f))))
+                            {
+                                break;
+                            }                      
+                        }
+                    }
             }else
             {
-                GSDK_DebugInfo("\tGimbal attitude Pitch - Roll - Yaw: (%.2f) - (%.2f) - (%.2f)\n", attitude.pitch, attitude.roll, attitude.yaw);
-                if ((fabsf(attitude.roll - setpoint_roll)    < 0.5f)     &&
-                    (fabsf(attitude.pitch - setpoint_pitch)  < 0.5f)     &&
-                    ((fabsf(attitude.yaw - setpoint_yaw)     < 0.5f)     || ((fabsf(attitude.yaw- setpoint_yaw) < 360.5f) && (fabsf(attitude.yaw - setpoint_yaw) > 359.5f))))
+                /* Check for earth frame */
+                if(gimbal_attitude_flag & GIMBAL_DEVICE_FLAGS_YAW_LOCK)
                 {
-                    break;
+                    if(mav_gimbal_proto == Gimbal_Interface::MAVLINK_GIMBAL_V1){
+                        GSDK_DebugInfo("\tGimbal attitude Pitch - Roll - Yaw: (%.2f) - (%.2f) - (%.2f)\n", attitude.pitch, attitude.roll, attitude.yaw);
+                        if ((fabsf(attitude.roll - setpoint_roll)    < 0.5f)     &&
+                            (fabsf(attitude.pitch - setpoint_pitch)  < 0.5f)     &&
+                            ((fabsf(attitude.yaw - setpoint_yaw)     < 0.5f)     || ((fabsf(attitude.yaw- setpoint_yaw) < 360.5f) && (fabsf(attitude.yaw - setpoint_yaw) > 359.5f))))
+                        {
+                            break;
+                        }                        
+                    }else{
+                        GSDK_DebugInfo("\tGimbal attitude earth Pitch - Roll - Yaw: (%.2f) - (%.2f) - (%.2f)\n", attitude.eu_angle_north.pitch, attitude.eu_angle_north.roll, attitude.eu_angle_north.yaw);
+                        GSDK_DebugInfo("\tGimbal attitude vehicle Pitch - Roll - Yaw: (%.2f) - (%.2f) - (%.2f)\n", attitude.eu_angle_forward.pitch, attitude.eu_angle_forward.roll, attitude.eu_angle_forward.yaw);                    
+                        if ((fabsf(attitude.eu_angle_north.roll  - setpoint_roll)    < 0.5f)     &&
+                            (fabsf(attitude.eu_angle_north.pitch - setpoint_pitch)   < 0.5f)     &&
+                            ((fabsf(attitude.eu_angle_north.yaw  - setpoint_yaw)     < 0.5f)     || ((fabsf(attitude.eu_angle_north.yaw - setpoint_yaw) < 360.5f) && (fabsf(attitude.eu_angle_north.yaw - setpoint_yaw) > 359.5f))))
+                        {
+                            break;
+                        }  
+                    }
                 }
+                /* Check for vehicle frame */
+                else if(gimbal_attitude_flag & ~GIMBAL_DEVICE_FLAGS_YAW_LOCK)
+                {
+                    if(mav_gimbal_proto == Gimbal_Interface::MAVLINK_GIMBAL_V1){
+                        GSDK_DebugInfo("\tGimbal attitude Pitch - Roll - Yaw: (%.2f) - (%.2f) - (%.2f)\n", attitude.pitch, attitude.roll, attitude.yaw);
+                        if ((fabsf(attitude.roll - setpoint_roll)    < 0.5f)     &&
+                            (fabsf(attitude.pitch - setpoint_pitch)  < 0.5f)     &&
+                            ((fabsf(attitude.yaw - setpoint_yaw)     < 0.5f)     || ((fabsf(attitude.yaw- setpoint_yaw) < 360.5f) && (fabsf(attitude.yaw - setpoint_yaw) > 359.5f))))
+                        {
+                            break;
+                        }                        
+                    }else{                    
+                        GSDK_DebugInfo("\tGimbal attitude earth Pitch - Roll - Yaw: (%.2f) - (%.2f) - (%.2f)\n", attitude.eu_angle_north.pitch, attitude.eu_angle_north.roll, attitude.eu_angle_north.yaw);
+                        GSDK_DebugInfo("\tGimbal attitude vehicle Pitch - Roll - Yaw: (%.2f) - (%.2f) - (%.2f)\n", attitude.eu_angle_forward.pitch, attitude.eu_angle_forward.roll, attitude.eu_angle_forward.yaw);
+                        if ((fabsf(attitude.eu_angle_forward.roll  - setpoint_roll)    < 0.5f)     &&
+                            (fabsf(attitude.eu_angle_forward.pitch - setpoint_pitch)   < 0.5f)     &&
+                            ((fabsf(attitude.eu_angle_forward.yaw  - setpoint_yaw)     < 0.5f)     || ((fabsf(attitude.eu_angle_forward.yaw - setpoint_yaw) < 360.5f) && (fabsf(attitude.eu_angle_forward.yaw - setpoint_yaw) > 359.5f))))
+                            {
+                                break;
+                            }                      
+                        }
+                    }
             }
 
             if(timeout++ > _TIMEOUT){
@@ -1422,7 +1508,7 @@ static void control_sample_gimbal_set_move_angle(Gimbal_Interface &onboard, floa
 }
 
 static void control_sample_gimbal_set_move_rate(Gimbal_Interface &onboard, float pitch_rate, float roll_rate, float yaw_rate ,uint8_t duration){
-    attitude<float> attitude;
+    Attitude_t<float> attitude;
     Gimbal_Protocol::result_t res = Gimbal_Protocol::UNKNOWN;
     auto start = std::chrono::steady_clock::now();
     GSDK_DebugInfo("Gimbal move pitch - roll - yaw at rate: %.2fdeg/s - %.2fdeg/s - %.2fdeg/s\n", pitch_rate, roll_rate, yaw_rate);
@@ -1435,7 +1521,27 @@ static void control_sample_gimbal_set_move_rate(Gimbal_Interface &onboard, float
             break;
         }
         attitude = onboard.get_gimbal_attitude();
-        GSDK_DebugInfo("\tGimbal attitude Pitch - Roll - Yaw: (%.2f) - (%.2f) - (%.2f)\r\n",attitude.pitch,attitude.roll,attitude.yaw);
+        if(mav_gimbal_proto == Gimbal_Interface::MAVLINK_GIMBAL_V1){
+            if(gimbal_mode.mnt_mode == TWO_AXIS_GIMBAL_MOUNT_MODE_ROLL_TILT) {
+                GSDK_DebugInfo("\tGimbal attitude Pitch - Roll: (%.2f) - (%.2f)\r\n",attitude.pitch,attitude.roll);
+            }
+            else if(gimbal_mode.mnt_mode == TWO_AXIS_GIMBAL_MOUNT_MODE_PAN_TILT) {
+                GSDK_DebugInfo("\tGimbal attitude Pitch - Yaw: (%.2f) - (%.2f)\r\n",attitude.pitch,attitude.yaw);
+            }
+        }else{
+            if(gimbal_mode.mnt_mode == TWO_AXIS_GIMBAL_MOUNT_MODE_ROLL_TILT) {
+                GSDK_DebugInfo("\tGimbal attitude Pitch - Roll in vehicle frame: (%.2f) - (%.2f)\n\n",attitude.eu_angle_forward.pitch,attitude.eu_angle_forward.roll);
+            }
+            else if(gimbal_mode.mnt_mode == TWO_AXIS_GIMBAL_MOUNT_MODE_PAN_TILT) {
+                GSDK_DebugInfo("\tGimbal attitude Pitch - Yaw in earth frame: (%.2f) - (%.2f)\n",attitude.eu_angle_north.pitch,attitude.eu_angle_north.yaw);
+                GSDK_DebugInfo("\tGimbal attitude Pitch - Yaw in vehicle frame: (%.2f) - (%.2f)\n\n",attitude.eu_angle_forward.pitch,attitude.eu_angle_forward.yaw);
+            }
+            else {
+                GSDK_DebugInfo("\tGimbal attitude Pitch - Roll - Yaw in earth frame: (%.2f) - (%.2f) - (%.2f)\n",attitude.eu_angle_north.pitch,attitude.eu_angle_north.roll,attitude.eu_angle_north.yaw);
+                GSDK_DebugInfo("\tGimbal attitude Pitch - Roll - Yaw in vehicle frame: (%.2f) - (%.2f) - (%.2f)\n\n",attitude.eu_angle_forward.pitch,attitude.eu_angle_forward.roll,attitude.eu_angle_forward.yaw);                
+            }
+        }
+
         usleep(10000);
         res = onboard.set_gimbal_rotation_rate_sync(pitch_rate, roll_rate, yaw_rate);
     } while (res == Gimbal_Protocol::SUCCESS);
@@ -1449,7 +1555,7 @@ static void control_sample_gimbal_set_move_rate(Gimbal_Interface &onboard, float
 }
 
 static void control_sample_gimbal_return_home(Gimbal_Interface &onboard){
-    attitude<float> attitude;
+    Attitude_t<float> attitude;
     uint8_t timeout = 0;
     Gimbal_Protocol::result_t res = Gimbal_Protocol::UNKNOWN;
     
@@ -1471,16 +1577,54 @@ static void control_sample_gimbal_return_home(Gimbal_Interface &onboard){
     GSDK_DebugSuccess("Gimbal RETURN HOME Successfully!\n");            
 }
 
-static void control_sample_gimbal_reboot(Gimbal_Interface &onboard){
-    if (onboard.set_gimbal_reboot() == Gimbal_Protocol::SUCCESS) {
-        while (onboard.get_gimbal_status().state != Gimbal_Interface::GIMBAL_STATE_ON)
-            usleep(2000000);
+static void control_sample_gimbal_reboot(Gimbal_Interface &onboard) {
+
+    Gimbal_Interface::fw_version_t fw = onboard.get_gimbal_version();
+
+    uint32_t version = fw.x * 100 + fw.y * 10 + fw.z;
+
+    /* Check firmware version */
+    if(version > 0 && version < 787) {
+        if (onboard.set_gimbal_reboot() == Gimbal_Protocol::SUCCESS) {
+            while (onboard.get_gimbal_status().state != Gimbal_Interface::GIMBAL_STATE_ON)
+                usleep(2000000);
 
         usleep(15000000); // wait to gimbal reboot  
         GSDK_DebugSuccess("Gimbal reboot is Successfully!\n");
         return;
+        }   
     }
-    GSDK_DebugError("Gimbal cannot reboot!\n");
+    else{
+        if (onboard.set_gimbal_reboot(Gimbal_Interface::REBOOT_ACTION_REBOOT) == Gimbal_Protocol::SUCCESS) {
+            bool reboot_started = false;
+            bool reboot_done = false;
+            int retries = 200; // 200 * 100ms = 20s timeout
+
+            while (retries-- > 0) {
+                auto status = onboard.get_gimbal_status();
+
+                if (!reboot_started && status.state != Gimbal_Interface::GIMBAL_STATE_ON) {
+                    reboot_started = true;
+                    GSDK_DebugMsg("Gimbal reboot started (lost state ON)\n");
+                }
+
+                if (reboot_started && status.state == Gimbal_Interface::GIMBAL_STATE_ON) {
+                    reboot_done = true;
+                    break;
+                }
+
+                usleep(100000); 
+            }
+
+            if (reboot_done) {
+                GSDK_DebugSuccess("Gimbal reboot success!\n");
+            } else {
+                GSDK_DebugError("Gimbal reboot timeout!\n");
+            }
+            return;
+        }
+    }
+    GSDK_DebugError("Gimbal cannot reboot (command failed)!\n");
 }
 
 static void control_sample_gimbal_set_mapping_mode(Gimbal_Interface &onboard){
@@ -1541,8 +1685,8 @@ static bool upgrade_firmware(Gimbal_Interface &onboard, Serial_Port &serial_port
 static void monitor_attitude_imu_encoder(Gimbal_Interface &onboard,  uint8_t duration)
 {
     Gimbal_Interface::imu_t my_imu;
-    attitude<float> myattitude;
-    attitude<int16_t> myencoder;
+    Attitude_t<float> myattitude;
+    Attitude_t<int16_t> myencoder;
 
     auto start = std::chrono::steady_clock::now();
     uint8_t mode ;
@@ -1568,8 +1712,10 @@ static void monitor_attitude_imu_encoder(Gimbal_Interface &onboard,  uint8_t dur
                                                         my_imu.gyro.y,
                                                         my_imu.gyro.z);
         myattitude= onboard.get_gimbal_attitude();
+        
 
-        GSDK_DebugInfo("Gimbal attitude Pitch - Roll - Yaw: (%.2f) - (%.2f) - (%.2f)\n" ,myattitude.pitch, myattitude.roll, myattitude.yaw);
+        GSDK_DebugInfo("Gimbal attitude Pitch - Roll - Yaw in earth frame: (%.2f) - (%.2f) - (%.2f)\n" , myattitude.eu_angle_north.pitch, myattitude.eu_angle_north.roll, myattitude.eu_angle_north.yaw);
+        GSDK_DebugInfo("Gimbal attitude Pitch - Roll - Yaw in vehicle frame: (%.2f) - (%.2f) - (%.2f)\n" , myattitude.eu_angle_forward.pitch, myattitude.eu_angle_forward.roll, myattitude.eu_angle_forward.yaw);
         myencoder = onboard.get_gimbal_encoder();
 
         GSDK_DebugInfo("Gimbal encoder Pitch - Roll - Yaw: (%d) - (%d) - (%d)\n" ,myencoder.pitch, myencoder.roll, myencoder.yaw);
@@ -1665,4 +1811,54 @@ static void get_input_duration(uint8_t &duration)
     GSDK_DebugMsg("Duration (in seconds): ");
     scanf("%hhu" , &duration);
 }
+
+static uint64_t get_time_usec(void) 
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);  // get directly from monotonic kernel (linux - WSL2)           
+    return (uint64_t)ts.tv_sec * 1000000ULL + (uint64_t)(ts.tv_nsec / 1000ULL);
+}
+
+static uint64_t get_time_msec()
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint64_t)ts.tv_sec * 1000ULL + (uint64_t)(ts.tv_nsec / 1000000ULL);
+}
+
+static uint64_t get_time_sec(void)
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint64_t)ts.tv_sec;
+}
+
+static uint64_t get_time_min(void)
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint64_t)ts.tv_sec / 60ULL;
+}
+
+static inline uint64_t time_since_us(uint64_t start_time)
+{
+    return get_time_usec() - start_time;
+}
+
+static inline uint64_t time_since_ms(uint64_t start_time)
+{
+    return get_time_msec() - start_time;
+}
+
+static inline uint64_t time_since_sec(uint64_t start_sec)
+{
+    return get_time_sec() - start_sec;
+}
+
+static inline uint64_t time_since_min(uint64_t start_min)
+{
+    return get_time_min() - start_min;
+}
+
+
 /************************ (C) COPYRIGHT Gremsy *****END OF FILE****************/
