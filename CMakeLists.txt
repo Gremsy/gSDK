@@ -60,4 +60,4 @@ target_link_libraries(gSDK
 #        gSDK
 #        RUNTIME DESTINATION usr/bin/gSDK)
 
-# add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/examples")
+ add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/examples")

@@ -124,6 +124,7 @@ public:
 	int  status;
 
 	int read_message(std::queue<mavlink_message_t> &message);
+	int read_message(char *buf, uint16_t len);
 	int write_message(const mavlink_message_t &message);
 	int write_buf(uint8_t *buf, uint16_t len);
 	bool is_running(){
@@ -143,6 +144,7 @@ public:
     void close_serial();
 	bool boot();
     bool reset();
+	void handle_quit( int sig );
 private:
 
 	int  fd;
@@ -159,6 +161,7 @@ private:
 	int  _open_port(const char* port);
 	bool _setup_port(int baud, int data_bits, int stop_bits, bool parity, bool hardware_control);
 	int  _read_port(uint8_t &cp);
+	int  _read_port(char *buf, uint16_t len);
 	int _write_port(char *buf, unsigned len);
     void _set_boot(bool level);
     void _set_reset(bool level);

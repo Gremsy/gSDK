@@ -157,7 +157,23 @@ read_message(std::queue<mavlink_message_t> &message)
 
 	return msgReceived;
 }
-
+int Serial_Port::read_message(char *buf, uint16_t len)
+{
+    // --------------------------------------------------------------------------
+    //   READ FROM PORT
+    // --------------------------------------------------------------------------
+    // this function locks the port during read
+    return _read_port(buf, 256);
+}
+int Serial_Port::_read_port(char *buf, uint16_t len)
+{
+    // Lock
+    // pthread_mutex_lock(&lock);
+    int result = read(fd, buf, len);
+    // Unlock
+    // pthread_mutex_unlock(&lock);
+    return result;
+}
 // ------------------------------------------------------------------------------
 //   Write to Serial
 // ------------------------------------------------------------------------------
@@ -257,7 +273,15 @@ stop()
 	printf("\n");
 
 }
+void Serial_Port::handle_quit( int sig )
+{
+    try {
+        stop();
 
+    } catch (int error) {
+        fprintf(stderr, "Warning, could not stop serial port\n");
+    }
+}
 void Serial_Port::set_mav_channel(int _ch){
 	mav_channel = _ch;
 }

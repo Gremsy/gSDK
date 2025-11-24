@@ -1649,39 +1649,39 @@ static void control_sample_gimbal_set_mapping_mode(Gimbal_Interface *onboard){
 }
 static bool upgrade_firmware(Gimbal_Interface *onboard, Generic_Port *port)
 {
-    // std::string path = "";
-    // std::cout << "Enter a path: ";
-    // std::cin >> path;
+    std::string path = "";
+    std::cout << "Enter a path: ";
+    std::cin >> path;
     bool result = false;
-    // if (path == "")
-    // {
-    //     GSDK_DebugError("The path is empty!");
-    //     return false;
-    // }else
-    // {
-    //     GSDK_DebugInfo("The path: %s",path.c_str());
-    // }
+    if (path == "")
+    {
+        GSDK_DebugError("The path is empty!");
+        return false;
+    }else
+    {
+        GSDK_DebugInfo("The path: %s",path.c_str());
+    }
     
-    // onboard->stop();
-    // usleep(500000);
-    // serial_port.stop();
-    // const char * name = serial_port.uart_name;
-    // usleep(500000);
-    // {
-    //     is_boot_mode = true;
-    //     Serial_Port _serial_port(name,460800);
-    //     Boot_loader boot_loader(&_serial_port, path);
-    //     usleep(500000);
-    //     boot_loader.init();
-    //     uint8_t timeout = 0;
-    //     if(boot_loader.run())
-    //     {
-    //         result = true;
-    //     }
-    //     is_boot_mode = false;
-    // }
-    // serial_port.start();
-    // onboard->start();
+    onboard->stop();
+    usleep(500000);
+    port->stop();
+    //const char * name = port->uart_name;
+    usleep(500000);
+    {
+        is_boot_mode = true;
+        Serial_Port _serial_port((char *)"/dev/ttyUSB1",115200);
+        Boot_loader boot_loader(&_serial_port, path);
+        usleep(5000000);
+        boot_loader.init();
+        uint8_t timeout = 0;
+        if(boot_loader.run())
+        {
+            result = true;
+        }
+        is_boot_mode = false;
+    }
+    port->start();
+    onboard->start();
     return result;
 
 }
