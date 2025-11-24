@@ -82,8 +82,8 @@ struct gimbal_mode_t{
 
 
 static sdk_process_t sdk;
-static Serial_Port *serial_port_quit;
-static Gimbal_Interface *gimbal_interface_quit;
+static Generic_Port *port;
+static Gimbal_Interface *gimbal_interface;
 
 static gimbal_mode_t gimbal_mode;
 static bool is_boot_mode = false;
@@ -96,36 +96,36 @@ static Gimbal_Interface::MAVLINK_PROTO    mav_gimbal_proto = Gimbal_Interface::M
 
 /* Private prototype ---------------------------------------------------------*/
 int  gGimbal_sample(int argc, char **argv);
-void gGimbal_displays(Gimbal_Interface &onboard);
+void gGimbal_displays(Gimbal_Interface *onboard);
 void parse_commandline(int argc, char **argv, char *&uart_name, int &baudrate);
 void quit_handler(int sig);
 
 //Function
-static void setting_sample_gimbal_setup_param_startup(Gimbal_Interface &onboard);
-static void setting_sample_gimbal_setup_message_rate(Gimbal_Interface &onboard);
-static void setting_sample_gimbal_set_follow_param(Gimbal_Interface &onboard);
-static void setting_sample_gimbal_set_stiffness_param(Gimbal_Interface &onboard);
+static void setting_sample_gimbal_setup_param_startup(Gimbal_Interface *onboard);
+static void setting_sample_gimbal_setup_message_rate(Gimbal_Interface *onboard);
+static void setting_sample_gimbal_set_follow_param(Gimbal_Interface *onboard);
+static void setting_sample_gimbal_set_stiffness_param(Gimbal_Interface *onboard);
 
-static void control_sample_gimbal_process(Gimbal_Interface &onboard, Serial_Port &serial_port);
+static void control_sample_gimbal_process(Gimbal_Interface *onboard, Generic_Port *port);
 
-static void control_sample_gimbal_off(Gimbal_Interface &onboard);
-static void control_sample_gimbal_on(Gimbal_Interface &onboard);
-static void control_sample_gimbal_change_mount_mode(Gimbal_Interface &onboard);
-static void control_sample_gimbal_config_follow_para(Gimbal_Interface &onboard);
-static void control_sample_gimbal_get_gimbal_information(Gimbal_Interface &onboard);
+static void control_sample_gimbal_off(Gimbal_Interface *onboard);
+static void control_sample_gimbal_on(Gimbal_Interface *onboard);
+static void control_sample_gimbal_change_mount_mode(Gimbal_Interface *onboard);
+static void control_sample_gimbal_config_follow_para(Gimbal_Interface *onboard);
+static void control_sample_gimbal_get_gimbal_information(Gimbal_Interface *onboard);
 
-static bool control_sample_gimbal_set_lock_mode(Gimbal_Interface &onboard);
-static bool control_sample_gimbal_set_follow_mode(Gimbal_Interface &onboard);
-static void control_sample_gimbal_set_mapping_mode(Gimbal_Interface &onboard);
-static void control_sample_gimbal_set_move_angle(Gimbal_Interface &onboard, float pitch_angle, float roll_angle, float yaw_angle);
-static void control_sample_gimbal_set_move_rate(Gimbal_Interface &onboard, float pitch_rate, float roll_rate, float yaw_rate, uint8_t duration);
+static bool control_sample_gimbal_set_lock_mode(Gimbal_Interface *onboard);
+static bool control_sample_gimbal_set_follow_mode(Gimbal_Interface *onboard);
+static void control_sample_gimbal_set_mapping_mode(Gimbal_Interface *onboard);
+static void control_sample_gimbal_set_move_angle(Gimbal_Interface *onboard, float pitch_angle, float roll_angle, float yaw_angle);
+static void control_sample_gimbal_set_move_rate(Gimbal_Interface *onboard, float pitch_rate, float roll_rate, float yaw_rate, uint8_t duration);
 
-static void control_sample_gimbal_return_home(Gimbal_Interface &onboard);
-static void control_sample_gimbal_reboot(Gimbal_Interface &onboard);
+static void control_sample_gimbal_return_home(Gimbal_Interface *onboard);
+static void control_sample_gimbal_reboot(Gimbal_Interface *onboard);
 
-static bool upgrade_firmware(Gimbal_Interface &onboard, Serial_Port &serial_port);
+static bool upgrade_firmware(Gimbal_Interface *onboard, Generic_Port *port);
 
-static void monitor_attitude_imu_encoder(Gimbal_Interface &onboard, uint8_t duration);
+static void monitor_attitude_imu_encoder(Gimbal_Interface *onboard, uint8_t duration);
 
 // ------------------------------------------------------------------------------
 //   Gimbal sample control and get data
@@ -157,7 +157,13 @@ int gGimbal_sample(int argc, char **argv)
      * pthread mutex lock.
      *
      */
-    Serial_Port serial_port(uart_name, baudrate);
+#if defined(PORT_TYPE_serial)
+    port = new Serial_Port(uart_name, baudrate);
+#elif defined(PORT_TYPE_udp)
+    port = new UDP_Port("0.0.0.0", 14550);
+#else
+    #error "Unsupported PORT_TYPE"
+#endif
     /*
      * Instantiate an autopilot interface object
      *
@@ -168,7 +174,8 @@ int gGimbal_sample(int argc, char **argv)
      * otherwise the vehicle will go into failsafe.
      *
      */
-    Gimbal_Interface gimbal_interface(&serial_port, 1, MAV_COMP_ID_ONBOARD_COMPUTER, mav_gimbal_proto, MAVLINK_COMM_0);    
+    // Gimbal_Interface gimbal_interface(&serial_port, 1, MAV_COMP_ID_ONBOARD_COMPUTER, mav_gimbal_proto, MAVLINK_COMM_0);
+    gimbal_interface = new Gimbal_Interface(port, 1, MAV_COMP_ID_ONBOARD_COMPUTER, mav_gimbal_proto, MAVLINK_COMM_0);   
     /*
      * Setup interrupt signal handler
      *
@@ -177,21 +184,18 @@ int gGimbal_sample(int argc, char **argv)
      * The handler in this example needs references to the above objects.
      *
      */
-    serial_port_quit      = &serial_port;
-    gimbal_interface_quit = &gimbal_interface;
     signal(SIGINT, quit_handler);
     /*
      * Start the port and Gimbal_interface
      * This is where the port is opened, and read and write threads are started.
      */
-    serial_port.start();
-    gimbal_interface.start();
+    port->start();
+    gimbal_interface->start();
 
     /// Process data
-    while (!gimbal_interface.get_flag_exit()) {
-        
+    while (!gimbal_interface->get_flag_exit()) {
         if(sdk.state == STATE_IDLE){
-            if (gimbal_interface.present()) {
+            if (gimbal_interface->present()) {
                 sdk.state = STATE_CONNECTED;
             }
         } else if(sdk.state == STATE_CONNECTED) {
@@ -199,7 +203,7 @@ int gGimbal_sample(int argc, char **argv)
 
             sdk.state = STATE_PROCESS;
         } else {
-            control_sample_gimbal_process(gimbal_interface,serial_port);
+            control_sample_gimbal_process(gimbal_interface, port);
 
         }
 
@@ -212,8 +216,8 @@ int gGimbal_sample(int argc, char **argv)
     /*
      * Now that we are done we can stop the threads and close the port
      */
-    gimbal_interface.stop();
-    serial_port.stop();
+    gimbal_interface->stop();
+    port->stop();
     // --------------------------------------------------------------------------
     //   DONE
     // --------------------------------------------------------------------------
@@ -221,9 +225,9 @@ int gGimbal_sample(int argc, char **argv)
     return 0;
 }
 
-void gGimbal_displays(Gimbal_Interface &onboard){
+void gGimbal_displays(Gimbal_Interface *onboard){
 
-    Gimbal_Interface::fw_version_t fw = onboard.get_gimbal_version();
+    Gimbal_Interface::fw_version_t fw = onboard->get_gimbal_version();
     GSDK_DebugInfo("Gimbal Firmware version is %d.%d.%d.%s\n", fw.x, fw.y, fw.z, fw.type);
 
     GSDK_DebugInfo("You selected gimbal mount mode ");
@@ -247,15 +251,15 @@ void gGimbal_displays(Gimbal_Interface &onboard){
     }
 
 
-    uint8_t gimbal_mode = onboard.get_gimbal_mode();
+    uint8_t gimbal_mode = onboard->get_gimbal_mode();
 
     GSDK_DebugInfo("Gimbal mode: %d\n",gimbal_mode);
 
-    uint8_t gimbal_state = onboard.get_gimbal_status().state;
+    uint8_t gimbal_state = onboard->get_gimbal_status().state;
 
     GSDK_DebugInfo("Gimbal state: %d\n",gimbal_state);
 
-    Gimbal_Interface::imu_t my_imu =  onboard.get_gimbal_raw_imu();
+    Gimbal_Interface::imu_t my_imu =  onboard->get_gimbal_raw_imu();
 
     GSDK_DebugInfo("Raw imu:  xacc:%d, yacc:%d, zacc:%d, xgyro:%d, xgyro:%d, xgyro:%d(raw)\n",
                                                     my_imu.accel.x,
@@ -265,38 +269,38 @@ void gGimbal_displays(Gimbal_Interface &onboard){
                                                     my_imu.gyro.y,
                                                     my_imu.gyro.z);
     Attitude_t<float> myattitude;
-    myattitude= onboard.get_gimbal_attitude();
+    myattitude= onboard->get_gimbal_attitude();
 
     GSDK_DebugInfo("Gimbal attitude Pitch - Roll - Yaw: (%.2f) - (%.2f) - (%.2f)\n" ,myattitude.pitch, myattitude.roll, myattitude.yaw);
     Attitude_t<int16_t> myencoder;
-    myencoder = onboard.get_gimbal_encoder();
+    myencoder = onboard->get_gimbal_encoder();
 
     GSDK_DebugInfo("Gimbal encoder Pitch - Roll - Yaw: (%d) - (%d) - (%d)\n" ,myencoder.pitch, myencoder.roll, myencoder.yaw);
 
-    Gimbal_Interface::gimbal_config_axis_t new_config = onboard.get_gimbal_config_tilt_axis();
+    Gimbal_Interface::gimbal_config_axis_t new_config = onboard->get_gimbal_config_tilt_axis();
 
     GSDK_DebugInfo("Config follow TILT: Dir: %d -- Speed control: %d -- Smooth control: %d -- Smooth follow: %d -- Window follow: %d\n" 
         , new_config.dir , new_config.speed_control ,new_config.smooth_control, new_config.smooth_follow, new_config.window_follow);
     
-    new_config = onboard.get_gimbal_config_roll_axis();
+    new_config = onboard->get_gimbal_config_roll_axis();
 
     GSDK_DebugInfo("Config follow ROLL: Dir: %d -- Speed control: %d -- Smooth control: %d -- Smooth follow: %d -- Window follow: %d\n" 
         , new_config.dir , new_config.speed_control ,new_config.smooth_control, new_config.smooth_follow, new_config.window_follow);
 
-    new_config = onboard.get_gimbal_config_pan_axis();
+    new_config = onboard->get_gimbal_config_pan_axis();
 
     GSDK_DebugInfo("Config follow PAN: Dir: %d -- Speed control: %d -- Smooth control: %d -- Smooth follow: %d -- Window follow: %d\n" 
         , new_config.dir , new_config.speed_control ,new_config.smooth_control, new_config.smooth_follow, new_config.window_follow);
 
-    Gimbal_Interface :: limit_angle_t limit =  onboard.get_limit_angle_pitch();
+    Gimbal_Interface :: limit_angle_t limit =  onboard->get_limit_angle_pitch();
 
     GSDK_DebugInfo("Pitch max: %d -- Pitch min: %d\n" , limit.angle_max, limit.angle_min);
 
-    limit =  onboard.get_limit_angle_roll();
+    limit =  onboard->get_limit_angle_roll();
 
     GSDK_DebugInfo("Roll max: %d -- Roll min: %d\n" , limit.angle_max, limit.angle_min);
 
-    limit =  onboard.get_limit_angle_yaw();
+    limit =  onboard->get_limit_angle_yaw();
 
     GSDK_DebugInfo("Yaw max: %d -- Yaw min: %d\n" , limit.angle_max, limit.angle_min);
 
@@ -306,7 +310,7 @@ void gGimbal_displays(Gimbal_Interface &onboard){
     Gimbal_Interface:: gimbal_motor_control_t pan;
     uint8_t gyro_filter ;
     uint8_t output_filter;
-    onboard.get_gimbal_motor_control(tilt,roll,pan,gyro_filter,output_filter);
+    onboard->get_gimbal_motor_control(tilt,roll,pan,gyro_filter,output_filter);
 
     GSDK_DebugInfo("Tilt hold strength: %d -- Tilt stiffness: %d\n" , tilt.holdstrength, tilt.stiffness);
     GSDK_DebugInfo("Roll hold strength: %d -- Roll stiffness: %d\n" , roll.holdstrength, roll.stiffness);
@@ -373,13 +377,13 @@ void quit_handler(int sig)
 
     // autopilot interface
     try {
-        gimbal_interface_quit->handle_quit(sig);
+        gimbal_interface->handle_quit(sig);
 
     } catch (int error) {}
 
     // serial port
     try {
-        serial_port_quit->handle_quit(sig);
+        port->stop();
 
     } catch (int error) {}
 
@@ -409,14 +413,14 @@ int main(int argc, char **argv)
 // ------------------------------------------------------------------------------
 //   Helper function
 // ------------------------------------------------------------------------------
-static void setting_sample_set_limit_angle(Gimbal_Interface &onboard){
+static void setting_sample_set_limit_angle(Gimbal_Interface *onboard){
 
         Gimbal_Interface :: limit_angle_t limit ;
 
         //setitng limit for pan axis
         limit.angle_max = 320;
         limit.angle_min = -320;
-        while (onboard.set_limit_angle_yaw(limit) != Gimbal_Protocol::SUCCESS)
+        while (onboard->set_limit_angle_yaw(limit) != Gimbal_Protocol::SUCCESS)
         {
             printf("Try to set yaw limit again!\r\n");
             usleep(1000);
@@ -426,7 +430,7 @@ static void setting_sample_set_limit_angle(Gimbal_Interface &onboard){
         // setting limit for titl axis
         limit.angle_max = 45;
         limit.angle_min = -45;
-        while (onboard.set_limit_angle_pitch(limit) != Gimbal_Protocol::SUCCESS)
+        while (onboard->set_limit_angle_pitch(limit) != Gimbal_Protocol::SUCCESS)
         {
             printf("Try to set titl limit again!\r\n");
             usleep(1000);
@@ -436,7 +440,7 @@ static void setting_sample_set_limit_angle(Gimbal_Interface &onboard){
         // setting limit for roll axis
         limit.angle_max = 40;
         limit.angle_min = -40;
-        while (onboard.set_limit_angle_roll(limit) != Gimbal_Protocol::SUCCESS)
+        while (onboard->set_limit_angle_roll(limit) != Gimbal_Protocol::SUCCESS)
         {
             printf("Try to set roll limit again!\r\n");
             usleep(1000);
@@ -452,9 +456,9 @@ static void get_input_duration(uint8_t &duration);
 
 static void get_encoder_mode(uint8_t &mode);
 
-static void control_sample_gimbal_process(Gimbal_Interface &onboard, Serial_Port &serial_port){
+static void control_sample_gimbal_process(Gimbal_Interface *onboard, Generic_Port *port){
 
-    if (onboard.present() == false) {
+    if (onboard->present() == false) {
         return;
     }
 
@@ -610,7 +614,7 @@ static void control_sample_gimbal_process(Gimbal_Interface &onboard, Serial_Port
         case 14: // upgrade firmware
         /* code */
         {
-            upgrade_firmware(onboard,serial_port);
+            upgrade_firmware(onboard, port);
         }
             break;
         case 15: // Monitoring
@@ -627,7 +631,7 @@ static void control_sample_gimbal_process(Gimbal_Interface &onboard, Serial_Port
     }
 }
 
-static void setting_sample_gimbal_setup_param_startup(Gimbal_Interface &onboard){
+static void setting_sample_gimbal_setup_param_startup(Gimbal_Interface *onboard){
     Gimbal_Protocol::result_t res = Gimbal_Protocol::UNKNOWN;
 
     if(mav_gimbal_proto == Gimbal_Interface::MAVLINK_GIMBAL_V1){
@@ -636,7 +640,7 @@ static void setting_sample_gimbal_setup_param_startup(Gimbal_Interface &onboard)
         GSDK_DebugInfo("Use mavlink gimbal V2");
     }
 
-    Gimbal_Interface::fw_version_t fw = onboard.get_gimbal_version();
+    Gimbal_Interface::fw_version_t fw = onboard->get_gimbal_version();
     GSDK_DebugInfo("Gimbal Firmware version is %d.%d.%d.%s", fw.x, fw.y, fw.z, fw.type);
 
     if(fw.x * 100 + fw.y * 10 + fw.z <= 773){
@@ -648,16 +652,16 @@ static void setting_sample_gimbal_setup_param_startup(Gimbal_Interface &onboard)
             usleep(1000000);
         }
     }
-    onboard.set_gimbal_encoder_type_send(true);
+    onboard->set_gimbal_encoder_type_send(true);
     GSDK_DebugSuccess("Set gimbal send raw encoder value.\n");
-    onboard.request_gimbal_device_info();
+    onboard->request_gimbal_device_info();
     GSDK_DebugSuccess("Request gimbal device information.\n");
 
     usleep(300000);
 
     {
         char gimbal_name[32] {0};
-        onboard.get_gimbal_name(gimbal_name);                
+        onboard->get_gimbal_name(gimbal_name);                
         std::string gimbal_str(gimbal_name);
         std::string search_str = "AEVO";
         if (gimbal_str.find(search_str) != std::string::npos) {
@@ -700,7 +704,7 @@ static void setting_sample_gimbal_setup_param_startup(Gimbal_Interface &onboard)
     /// Please Uncomment to enable return home when change gimbal mode
     // do{
     //     /* code */
-    //     res = onboard.set_gimbal_return_home_when_change_mode(true);
+    //     res = onboard->set_gimbal_return_home_when_change_mode(true);
     // } while (res != Gimbal_Protocol::SUCCESS);
     int temp_gimbal_type; 
     do
@@ -758,9 +762,9 @@ static void setting_sample_gimbal_setup_param_startup(Gimbal_Interface &onboard)
     }
 }
 
-static void setting_sample_gimbal_setup_message_rate(Gimbal_Interface &onboard){
+static void setting_sample_gimbal_setup_message_rate(Gimbal_Interface *onboard){
     char gimbal_name[32] {0};
-    onboard.get_gimbal_name(gimbal_name);                
+    onboard->get_gimbal_name(gimbal_name);                
     std::string gimbal_str(gimbal_name);
     std::string search_str = "AEVO";
     GSDK_DebugInfo("Setting gimbal mavlink message\n");
@@ -782,7 +786,7 @@ static void setting_sample_gimbal_setup_message_rate(Gimbal_Interface &onboard){
         do
         {
             usleep(10);
-            result = onboard.set_msg_encoder_rate((Gimbal_Interface::rate_action_t)enc_value_rate) ;
+            result = onboard->set_msg_encoder_rate((Gimbal_Interface::rate_action_t)enc_value_rate) ;
             GSDK_DebugInfo("Try to set encoder messages rate: %dHz\r\n",enc_value_rate);
 
             if(timeout++ > _TIMEOUT){
@@ -810,7 +814,7 @@ static void setting_sample_gimbal_setup_message_rate(Gimbal_Interface &onboard){
         do
         {
             usleep(10);
-            result = onboard.set_msg_mnt_orient_rate((Gimbal_Interface::rate_action_t)orien_rate);
+            result = onboard->set_msg_mnt_orient_rate((Gimbal_Interface::rate_action_t)orien_rate);
             GSDK_DebugInfo("Try to set mount orientation messages rate: %dHz\r\n",orien_rate);
             
             if(timeout++ > _TIMEOUT){
@@ -825,7 +829,7 @@ static void setting_sample_gimbal_setup_message_rate(Gimbal_Interface &onboard){
         do
         {
             usleep(10);
-            result = onboard.set_msg_attitude_status_rate((Gimbal_Interface::rate_action_t)orien_rate);
+            result = onboard->set_msg_attitude_status_rate((Gimbal_Interface::rate_action_t)orien_rate);
             GSDK_DebugInfo("Try to set gimbal device attitude status messages rate: %dHz\r\n",orien_rate);
 
             if(timeout++ > _TIMEOUT){
@@ -853,7 +857,7 @@ static void setting_sample_gimbal_setup_message_rate(Gimbal_Interface &onboard){
         do
         {
             usleep(10);
-            result = onboard.set_msg_raw_imu_rate((Gimbal_Interface::rate_action_t)imu_rate);
+            result = onboard->set_msg_raw_imu_rate((Gimbal_Interface::rate_action_t)imu_rate);
             GSDK_DebugInfo("Try to set raw imu messages rate: %d\r\n",imu_rate);
 
             if(timeout++ > _TIMEOUT){
@@ -868,7 +872,7 @@ static void setting_sample_gimbal_setup_message_rate(Gimbal_Interface &onboard){
     }
 }
 
-static void setting_sample_gimbal_set_follow_param(Gimbal_Interface &onboard){
+static void setting_sample_gimbal_set_follow_param(Gimbal_Interface *onboard){
     const int8_t tilt_dir               = Gimbal_Interface::DIR_CW;
     const uint8_t tilt_speed_control    = 30;
     const uint8_t tilt_smooth_control   = 80;
@@ -890,11 +894,11 @@ static void setting_sample_gimbal_set_follow_param(Gimbal_Interface &onboard){
     Gimbal_Interface::gimbal_config_axis_t config = { 0 };
     config = { tilt_dir, tilt_speed_control, tilt_smooth_control, tilt_smooth_follow, tilt_window_follow };   // Tilt
     uint8_t timeout = 0;
-    onboard.set_gimbal_config_tilt_axis(config);
+    onboard->set_gimbal_config_tilt_axis(config);
     do
     {
         usleep(500000);
-        Gimbal_Interface::gimbal_config_axis_t new_config = onboard.get_gimbal_config_tilt_axis();
+        Gimbal_Interface::gimbal_config_axis_t new_config = onboard->get_gimbal_config_tilt_axis();
         GSDK_DebugInfo("Config follow TILT: Dir: %u -- Speed control: %u -- Smooth control: %u -- Smooth follow: %u -- Window follow: %u\n" 
         , new_config.dir , new_config.speed_control ,new_config.smooth_control, new_config.smooth_follow, new_config.window_follow);
         
@@ -913,17 +917,17 @@ static void setting_sample_gimbal_set_follow_param(Gimbal_Interface &onboard){
             break;
         }
 
-        onboard.set_gimbal_config_tilt_axis(config);
+        onboard->set_gimbal_config_tilt_axis(config);
         GSDK_DebugWarning("Try setting it again!!!");
     } while (1);
     
     config = { roll_dir, roll_speed_control, roll_smooth_control, roll_smooth_follow, roll_window_follow };    // Roll
     timeout = 0;
-    onboard.set_gimbal_config_roll_axis(config);
+    onboard->set_gimbal_config_roll_axis(config);
     do
     {
         usleep(500000);
-        Gimbal_Interface::gimbal_config_axis_t new_config = onboard.get_gimbal_config_roll_axis();
+        Gimbal_Interface::gimbal_config_axis_t new_config = onboard->get_gimbal_config_roll_axis();
         GSDK_DebugInfo("Config follow ROLL: Dir: %u -- Speed control: %u -- Smooth control: %u -- Smooth follow: %u -- Window follow: %u\n" 
         , new_config.dir , new_config.speed_control ,new_config.smooth_control, new_config.smooth_follow, new_config.window_follow);
         
@@ -939,18 +943,18 @@ static void setting_sample_gimbal_set_follow_param(Gimbal_Interface &onboard){
             GSDK_DebugError("Cannot set up the roll axis due to timeout!");
             break;
         }
-        onboard.set_gimbal_config_roll_axis(config);
+        onboard->set_gimbal_config_roll_axis(config);
         GSDK_DebugWarning("Try setting it again!!!");
     } while (1);
     
     config = { pan_dir, pan_speed_control, pan_smooth_control, pan_smooth_follow, pan_window_follow };  // Yaw
     timeout = 0;
-    onboard.set_gimbal_config_pan_axis(config);
+    onboard->set_gimbal_config_pan_axis(config);
     do
     {
-        onboard.set_gimbal_config_pan_axis(config);
+        onboard->set_gimbal_config_pan_axis(config);
         usleep(500000);
-        Gimbal_Interface::gimbal_config_axis_t new_config = onboard.get_gimbal_config_pan_axis();
+        Gimbal_Interface::gimbal_config_axis_t new_config = onboard->get_gimbal_config_pan_axis();
         GSDK_DebugInfo("Config follow PAN: Dir: %u -- Speed control: %u -- Smooth control: %u -- Smooth follow: %u -- Window follow: %u\n" 
         , new_config.dir , new_config.speed_control ,new_config.smooth_control, new_config.smooth_follow, new_config.window_follow);
         
@@ -967,13 +971,13 @@ static void setting_sample_gimbal_set_follow_param(Gimbal_Interface &onboard){
             GSDK_DebugError("Cannot set up the pan axis due to timeout!");
             break;
         }
-        onboard.set_gimbal_config_pan_axis(config);
+        onboard->set_gimbal_config_pan_axis(config);
         GSDK_DebugWarning("Try setting it again!!!");
     } while (1);
     
 }
 
-static void setting_sample_gimbal_set_stiffness_param(Gimbal_Interface &onboard){
+static void setting_sample_gimbal_set_stiffness_param(Gimbal_Interface *onboard){
     const uint8_t tilt_stiffness        = 20;
     const uint8_t tilt_holdstrength     = 20;
 
@@ -991,7 +995,7 @@ static void setting_sample_gimbal_set_stiffness_param(Gimbal_Interface &onboard)
     Gimbal_Interface::gimbal_motor_control_t tilt = { tilt_stiffness, tilt_holdstrength };
     Gimbal_Interface::gimbal_motor_control_t roll = { roll_stiffness, roll_holdstrength };
     Gimbal_Interface::gimbal_motor_control_t pan = { pan_stiffness, pan_holdstrength };
-    onboard.set_gimbal_motor_control( tilt, roll, pan, gyro_filter, output_filter ); 
+    onboard->set_gimbal_motor_control( tilt, roll, pan, gyro_filter, output_filter ); 
     uint8_t timeout = 0;
     do
     {
@@ -1001,7 +1005,7 @@ static void setting_sample_gimbal_set_stiffness_param(Gimbal_Interface &onboard)
         Gimbal_Interface:: gimbal_motor_control_t n_pan;
         uint8_t n_gyro_filter ;
         uint8_t n_output_filter;
-        (void)onboard.get_gimbal_motor_control(n_tilt,n_roll,n_pan,n_gyro_filter,n_output_filter);
+        (void)onboard->get_gimbal_motor_control(n_tilt,n_roll,n_pan,n_gyro_filter,n_output_filter);
         if (n_tilt == tilt &&
             n_roll == roll &&
             n_pan  == pan  &&
@@ -1018,19 +1022,19 @@ static void setting_sample_gimbal_set_stiffness_param(Gimbal_Interface &onboard)
         }
 
         GSDK_DebugWarning("Try setting it again!!!")
-        onboard.set_gimbal_motor_control( tilt, roll, pan, gyro_filter, output_filter ); 
+        onboard->set_gimbal_motor_control( tilt, roll, pan, gyro_filter, output_filter ); 
     } while (1);
     
 }
 
-static void control_sample_gimbal_off(Gimbal_Interface &onboard){
+static void control_sample_gimbal_off(Gimbal_Interface *onboard){
     Gimbal_Protocol::result_t res = Gimbal_Protocol::UNKNOWN;
     static uint8_t timeout = 0;
 
     // Check gimbal is on
-    if (onboard.get_gimbal_status().state != Gimbal_Interface::GIMBAL_STATE_OFF) {
+    if (onboard->get_gimbal_status().state != Gimbal_Interface::GIMBAL_STATE_OFF) {
         do{
-            res = onboard.set_gimbal_motor(Gimbal_Interface::TURN_OFF);
+            res = onboard->set_gimbal_motor(Gimbal_Interface::TURN_OFF);
             usleep(500000);
 
             if(timeout++ > _TIMEOUT){
@@ -1042,19 +1046,19 @@ static void control_sample_gimbal_off(Gimbal_Interface &onboard){
 
         GSDK_DebugSuccess("TURN GIMBAL OFF Successfully!\n");
 
-    } else if (onboard.get_gimbal_status().state == Gimbal_Interface::GIMBAL_STATE_OFF) {
+    } else if (onboard->get_gimbal_status().state == Gimbal_Interface::GIMBAL_STATE_OFF) {
         GSDK_DebugWarning("Gimbal is OFF");
     }
 }
 
-static void control_sample_gimbal_on(Gimbal_Interface &onboard){
+static void control_sample_gimbal_on(Gimbal_Interface *onboard){
     Gimbal_Protocol::result_t res = Gimbal_Protocol::UNKNOWN;
     static uint8_t timeout = 0;
 
     // Check gimbal is off
-    if (onboard.get_gimbal_status().state == Gimbal_Interface::GIMBAL_STATE_OFF) {
+    if (onboard->get_gimbal_status().state == Gimbal_Interface::GIMBAL_STATE_OFF) {
         do{
-            res = onboard.set_gimbal_motor(Gimbal_Interface::TURN_ON);
+            res = onboard->set_gimbal_motor(Gimbal_Interface::TURN_ON);
             usleep(500000);
 
             if(timeout++ > _TIMEOUT){
@@ -1066,12 +1070,12 @@ static void control_sample_gimbal_on(Gimbal_Interface &onboard){
 
         GSDK_DebugSuccess("TURN GIMBAL ON Successfully!\n");
 
-    } else if (onboard.get_gimbal_status().state == Gimbal_Interface::GIMBAL_STATE_FOLLOW_MODE) {
+    } else if (onboard->get_gimbal_status().state == Gimbal_Interface::GIMBAL_STATE_FOLLOW_MODE) {
         GSDK_DebugWarning("Gimbal is ON");
     }
 }
 
-static void control_sample_gimbal_change_mount_mode(Gimbal_Interface &onboard)
+static void control_sample_gimbal_change_mount_mode(Gimbal_Interface *onboard)
 {
     int temp_gimbal_type; 
     do
@@ -1132,7 +1136,7 @@ static void control_sample_gimbal_change_mount_mode(Gimbal_Interface &onboard)
     control_sample_gimbal_return_home(onboard);
 }
 
-static void control_sample_gimbal_config_follow_para(Gimbal_Interface &onboard){
+static void control_sample_gimbal_config_follow_para(Gimbal_Interface *onboard){
     int axis;
     int dir;
     int speed_control  ;
@@ -1238,9 +1242,9 @@ static void control_sample_gimbal_config_follow_para(Gimbal_Interface &onboard){
         uint8_t timeout = 0;
         do
         {
-            onboard.set_gimbal_config_tilt_axis(config);
+            onboard->set_gimbal_config_tilt_axis(config);
             usleep(100000);
-            Gimbal_Interface::gimbal_config_axis_t new_config = onboard.get_gimbal_config_tilt_axis();
+            Gimbal_Interface::gimbal_config_axis_t new_config = onboard->get_gimbal_config_tilt_axis();
             GSDK_DebugInfo("Config follow TILT: Dir: %u -- Speed control: %u -- Smooth control: %u -- Smooth follow: %u -- Window follow: %u\n" 
             , new_config.dir , new_config.speed_control ,new_config.smooth_control, new_config.smooth_follow, new_config.window_follow);
             
@@ -1267,9 +1271,9 @@ static void control_sample_gimbal_config_follow_para(Gimbal_Interface &onboard){
         // Roll
         do
         {
-            onboard.set_gimbal_config_roll_axis(config);
+            onboard->set_gimbal_config_roll_axis(config);
             usleep(100000);
-            Gimbal_Interface::gimbal_config_axis_t new_config = onboard.get_gimbal_config_roll_axis();
+            Gimbal_Interface::gimbal_config_axis_t new_config = onboard->get_gimbal_config_roll_axis();
             GSDK_DebugInfo("Config follow ROLL: Dir: %u -- Speed control: %u -- Smooth control: %u -- Smooth follow: %u -- Window follow: %u\n" 
             , new_config.dir , new_config.speed_control ,new_config.smooth_control, new_config.smooth_follow, new_config.window_follow);
             
@@ -1294,9 +1298,9 @@ static void control_sample_gimbal_config_follow_para(Gimbal_Interface &onboard){
         // Yaw
         do
         {
-            onboard.set_gimbal_config_pan_axis(config);
+            onboard->set_gimbal_config_pan_axis(config);
             usleep(100000);
-            Gimbal_Interface::gimbal_config_axis_t new_config = onboard.get_gimbal_config_pan_axis();
+            Gimbal_Interface::gimbal_config_axis_t new_config = onboard->get_gimbal_config_pan_axis();
             GSDK_DebugInfo("Config follow PAN: Dir: %u -- Speed control: %u -- Smooth control: %u -- Smooth follow: %u -- Window follow: %u\n" 
             , new_config.dir , new_config.speed_control ,new_config.smooth_control, new_config.smooth_follow, new_config.window_follow);
             
@@ -1323,16 +1327,16 @@ static void control_sample_gimbal_config_follow_para(Gimbal_Interface &onboard){
 
 }
 
-static void control_sample_gimbal_get_gimbal_information(Gimbal_Interface &onboard){
+static void control_sample_gimbal_get_gimbal_information(Gimbal_Interface *onboard){
     gGimbal_displays(onboard);
 }
 
-static bool control_sample_gimbal_set_lock_mode(Gimbal_Interface &onboard){
+static bool control_sample_gimbal_set_lock_mode(Gimbal_Interface *onboard){
     Gimbal_Protocol::result_t res = Gimbal_Protocol::UNKNOWN;
     uint8_t timeout = 0;
 
     do{
-        res = onboard.set_gimbal_lock_mode_sync();
+        res = onboard->set_gimbal_lock_mode_sync();
         
         if(timeout++ > _TIMEOUT){
             GSDK_DebugError("Could not set gimbal to LOCK MODE! Result code: %d\n", res);
@@ -1346,12 +1350,12 @@ static bool control_sample_gimbal_set_lock_mode(Gimbal_Interface &onboard){
     return true;
 }
 
-static bool control_sample_gimbal_set_follow_mode(Gimbal_Interface &onboard){
+static bool control_sample_gimbal_set_follow_mode(Gimbal_Interface *onboard){
     Gimbal_Protocol::result_t res = Gimbal_Protocol::UNKNOWN;
     static uint8_t timeout = 0;
 
     do{
-        res = onboard.set_gimbal_follow_mode_sync();
+        res = onboard->set_gimbal_follow_mode_sync();
 
         if(timeout++ > _TIMEOUT){
             GSDK_DebugError("Could not set gimbal to FOLLOW MODE! Result code: %d\n", res);
@@ -1365,24 +1369,24 @@ static bool control_sample_gimbal_set_follow_mode(Gimbal_Interface &onboard){
     return true;
 }
 
-static void control_sample_gimbal_set_move_angle(Gimbal_Interface &onboard, float pitch_angle, float roll_angle, float yaw_angle){
+static void control_sample_gimbal_set_move_angle(Gimbal_Interface *onboard, float pitch_angle, float roll_angle, float yaw_angle){
     // Target attitude
     float setpoint_pitch = pitch_angle;
     float setpoint_roll  = roll_angle;
     float setpoint_yaw   = yaw_angle;
     GSDK_DebugInfo("Move gimbal to Pitch - Roll - Yaw: (%.2f) - (%.2f) - (%.2f)\n", setpoint_pitch, setpoint_roll, setpoint_yaw);
-    Gimbal_Protocol::result_t res = onboard.set_gimbal_rotation_sync(setpoint_pitch, setpoint_roll, setpoint_yaw);
+    Gimbal_Protocol::result_t res = onboard->set_gimbal_rotation_sync(setpoint_pitch, setpoint_roll, setpoint_yaw);
     if (res == Gimbal_Protocol::SUCCESS) {
         GSDK_DebugSuccess("\tSend command successfully!\n");
         Attitude_t<float> attitude;
-        uint32_t gimbal_attitude_flag = onboard.get_gimbal_attitude_flag();
+        uint32_t gimbal_attitude_flag = onboard->get_gimbal_attitude_flag();
         uint8_t timeout = 0;
         do {
 
             usleep(500000);
-            attitude = onboard.get_gimbal_attitude();
+            attitude = onboard->get_gimbal_attitude();
             
-            res = onboard.set_gimbal_rotation_sync(setpoint_pitch, setpoint_roll, setpoint_yaw);
+            res = onboard->set_gimbal_rotation_sync(setpoint_pitch, setpoint_roll, setpoint_yaw);
 
             if(gimbal_mode.mnt_mode == TWO_AXIS_GIMBAL_MOUNT_MODE_ROLL_TILT){
                 if(mav_gimbal_proto == Gimbal_Interface::MAVLINK_GIMBAL_V1) {
@@ -1507,7 +1511,7 @@ static void control_sample_gimbal_set_move_angle(Gimbal_Interface &onboard, floa
     }
 }
 
-static void control_sample_gimbal_set_move_rate(Gimbal_Interface &onboard, float pitch_rate, float roll_rate, float yaw_rate ,uint8_t duration){
+static void control_sample_gimbal_set_move_rate(Gimbal_Interface *onboard, float pitch_rate, float roll_rate, float yaw_rate ,uint8_t duration){
     Attitude_t<float> attitude;
     Gimbal_Protocol::result_t res = Gimbal_Protocol::UNKNOWN;
     auto start = std::chrono::steady_clock::now();
@@ -1520,7 +1524,7 @@ static void control_sample_gimbal_set_move_rate(Gimbal_Interface &onboard, float
         if (elapsed.count() >= duration) {
             break;
         }
-        attitude = onboard.get_gimbal_attitude();
+        attitude = onboard->get_gimbal_attitude();
         if(mav_gimbal_proto == Gimbal_Interface::MAVLINK_GIMBAL_V1){
             if(gimbal_mode.mnt_mode == TWO_AXIS_GIMBAL_MOUNT_MODE_ROLL_TILT) {
                 GSDK_DebugInfo("\tGimbal attitude Pitch - Roll: (%.2f) - (%.2f)\r\n",attitude.pitch,attitude.roll);
@@ -1543,25 +1547,25 @@ static void control_sample_gimbal_set_move_rate(Gimbal_Interface &onboard, float
         }
 
         usleep(10000);
-        res = onboard.set_gimbal_rotation_rate_sync(pitch_rate, roll_rate, yaw_rate);
+        res = onboard->set_gimbal_rotation_rate_sync(pitch_rate, roll_rate, yaw_rate);
     } while (res == Gimbal_Protocol::SUCCESS);
 
     /* Stop moving */
     do {
         usleep(500000);
-        res = onboard.set_gimbal_rotation_rate_sync(0.f, 0.f, 0.f);
+        res = onboard->set_gimbal_rotation_rate_sync(0.f, 0.f, 0.f);
     } while (res != Gimbal_Protocol::SUCCESS);
     
 }
 
-static void control_sample_gimbal_return_home(Gimbal_Interface &onboard){
+static void control_sample_gimbal_return_home(Gimbal_Interface *onboard){
     Attitude_t<float> attitude;
     uint8_t timeout = 0;
     Gimbal_Protocol::result_t res = Gimbal_Protocol::UNKNOWN;
     
     /* Wait for returning home */
     do {
-        res = onboard.set_gimbal_return_home_sync();
+        res = onboard->set_gimbal_return_home_sync();
         usleep(500000);
 
         if(++timeout >= _TIMEOUT_RETURN_HOME){
@@ -1569,7 +1573,7 @@ static void control_sample_gimbal_return_home(Gimbal_Interface &onboard){
             return;
         }
 
-        attitude = onboard.get_gimbal_attitude();
+        attitude = onboard->get_gimbal_attitude();
     } while (   res != Gimbal_Protocol::SUCCESS &&
                 (fabsf(attitude.pitch) > 0.5f ||
                 fabsf(attitude.roll) > 0.5f ||
@@ -1577,16 +1581,16 @@ static void control_sample_gimbal_return_home(Gimbal_Interface &onboard){
     GSDK_DebugSuccess("Gimbal RETURN HOME Successfully!\n");            
 }
 
-static void control_sample_gimbal_reboot(Gimbal_Interface &onboard) {
+static void control_sample_gimbal_reboot(Gimbal_Interface *onboard) {
 
-    Gimbal_Interface::fw_version_t fw = onboard.get_gimbal_version();
+    Gimbal_Interface::fw_version_t fw = onboard->get_gimbal_version();
 
     uint32_t version = fw.x * 100 + fw.y * 10 + fw.z;
 
     /* Check firmware version */
     if(version > 0 && version < 787) {
-        if (onboard.set_gimbal_reboot() == Gimbal_Protocol::SUCCESS) {
-            while (onboard.get_gimbal_status().state != Gimbal_Interface::GIMBAL_STATE_ON)
+        if (onboard->set_gimbal_reboot() == Gimbal_Protocol::SUCCESS) {
+            while (onboard->get_gimbal_status().state != Gimbal_Interface::GIMBAL_STATE_ON)
                 usleep(2000000);
 
         usleep(15000000); // wait to gimbal reboot  
@@ -1595,13 +1599,13 @@ static void control_sample_gimbal_reboot(Gimbal_Interface &onboard) {
         }   
     }
     else{
-        if (onboard.set_gimbal_reboot(Gimbal_Interface::REBOOT_ACTION_REBOOT) == Gimbal_Protocol::SUCCESS) {
+        if (onboard->set_gimbal_reboot(Gimbal_Interface::REBOOT_ACTION_REBOOT) == Gimbal_Protocol::SUCCESS) {
             bool reboot_started = false;
             bool reboot_done = false;
             int retries = 200; // 200 * 100ms = 20s timeout
 
             while (retries-- > 0) {
-                auto status = onboard.get_gimbal_status();
+                auto status = onboard->get_gimbal_status();
 
                 if (!reboot_started && status.state != Gimbal_Interface::GIMBAL_STATE_ON) {
                     reboot_started = true;
@@ -1627,12 +1631,12 @@ static void control_sample_gimbal_reboot(Gimbal_Interface &onboard) {
     GSDK_DebugError("Gimbal cannot reboot (command failed)!\n");
 }
 
-static void control_sample_gimbal_set_mapping_mode(Gimbal_Interface &onboard){
+static void control_sample_gimbal_set_mapping_mode(Gimbal_Interface *onboard){
     Gimbal_Protocol::result_t res = Gimbal_Protocol::UNKNOWN;
     static uint8_t timeout = 0;
 
     do{
-        res = onboard.set_gimbal_mapping_sync();
+        res = onboard->set_gimbal_mapping_sync();
         
         if(++timeout >= _TIMEOUT){
             GSDK_DebugError("Could not set gimbal to MAPPING MODE! Result code: %d\n", res);
@@ -1643,46 +1647,46 @@ static void control_sample_gimbal_set_mapping_mode(Gimbal_Interface &onboard){
 
     GSDK_DebugSuccess("Set gimbal to MAPPING MODE Successfully!\n");
 }
-static bool upgrade_firmware(Gimbal_Interface &onboard, Serial_Port &serial_port)
+static bool upgrade_firmware(Gimbal_Interface *onboard, Generic_Port *port)
 {
-    std::string path = "";
-    std::cout << "Enter a path: ";
-    std::cin >> path;
+    // std::string path = "";
+    // std::cout << "Enter a path: ";
+    // std::cin >> path;
     bool result = false;
-    if (path == "")
-    {
-        GSDK_DebugError("The path is empty!");
-        return false;
-    }else
-    {
-        GSDK_DebugInfo("The path: %s",path.c_str());
-    }
+    // if (path == "")
+    // {
+    //     GSDK_DebugError("The path is empty!");
+    //     return false;
+    // }else
+    // {
+    //     GSDK_DebugInfo("The path: %s",path.c_str());
+    // }
     
-    onboard.stop();
-    usleep(500000);
-    serial_port.stop();
-    const char * name = serial_port.uart_name;
-    usleep(500000);
-    {
-        is_boot_mode = true;
-        Serial_Port _serial_port(name,460800);
-        Boot_loader boot_loader(&_serial_port, path);
-        usleep(500000);
-        boot_loader.init();
-        uint8_t timeout = 0;
-        if(boot_loader.run())
-        {
-            result = true;
-        }
-        is_boot_mode = false;
-    }
-    serial_port.start();
-    onboard.start();
+    // onboard->stop();
+    // usleep(500000);
+    // serial_port.stop();
+    // const char * name = serial_port.uart_name;
+    // usleep(500000);
+    // {
+    //     is_boot_mode = true;
+    //     Serial_Port _serial_port(name,460800);
+    //     Boot_loader boot_loader(&_serial_port, path);
+    //     usleep(500000);
+    //     boot_loader.init();
+    //     uint8_t timeout = 0;
+    //     if(boot_loader.run())
+    //     {
+    //         result = true;
+    //     }
+    //     is_boot_mode = false;
+    // }
+    // serial_port.start();
+    // onboard->start();
     return result;
 
 }
 
-static void monitor_attitude_imu_encoder(Gimbal_Interface &onboard,  uint8_t duration)
+static void monitor_attitude_imu_encoder(Gimbal_Interface *onboard,  uint8_t duration)
 {
     Gimbal_Interface::imu_t my_imu;
     Attitude_t<float> myattitude;
@@ -1693,7 +1697,7 @@ static void monitor_attitude_imu_encoder(Gimbal_Interface &onboard,  uint8_t dur
     get_encoder_mode(mode);
     if (mode == 0 || mode == 1)
     {
-        onboard.set_gimbal_encoder_type_send((mode == 0 ? false : true));
+        onboard->set_gimbal_encoder_type_send((mode == 0 ? false : true));
         usleep(500000);
     }
     
@@ -1703,7 +1707,7 @@ static void monitor_attitude_imu_encoder(Gimbal_Interface &onboard,  uint8_t dur
         if (elapsed.count() >= duration) {
             break;
         }
-        my_imu =  onboard.get_gimbal_raw_imu();
+        my_imu =  onboard->get_gimbal_raw_imu();
         GSDK_DebugInfo("\n\nRaw imu:  xacc:%d, yacc:%d, zacc:%d, xgyro:%d, xgyro:%d, xgyro:%d(raw)\n",
                                                         my_imu.accel.x,
                                                         my_imu.accel.y,
@@ -1711,7 +1715,7 @@ static void monitor_attitude_imu_encoder(Gimbal_Interface &onboard,  uint8_t dur
                                                         my_imu.gyro.x,
                                                         my_imu.gyro.y,
                                                         my_imu.gyro.z);
-        myattitude= onboard.get_gimbal_attitude();
+        myattitude= onboard->get_gimbal_attitude();
         if(mav_gimbal_proto == Gimbal_Interface::MAVLINK_GIMBAL_V1){
         GSDK_DebugInfo("Gimbal attitude Pitch - Roll -Yaw: (%.2f) - (%.2f) - (%.2f)\n",myattitude.pitch,myattitude.roll,myattitude.yaw);       
         }
@@ -1719,7 +1723,7 @@ static void monitor_attitude_imu_encoder(Gimbal_Interface &onboard,  uint8_t dur
         GSDK_DebugInfo("Gimbal attitude Pitch - Roll - Yaw in earth frame: (%.2f) - (%.2f) - (%.2f)\n" , myattitude.eu_angle_north.pitch, myattitude.eu_angle_north.roll, myattitude.eu_angle_north.yaw);
         GSDK_DebugInfo("Gimbal attitude Pitch - Roll - Yaw in vehicle frame: (%.2f) - (%.2f) - (%.2f)\n" , myattitude.eu_angle_forward.pitch, myattitude.eu_angle_forward.roll, myattitude.eu_angle_forward.yaw);
         }
-        myencoder = onboard.get_gimbal_encoder();
+        myencoder = onboard->get_gimbal_encoder();
 
         GSDK_DebugInfo("Gimbal encoder Pitch - Roll - Yaw: (%d) - (%d) - (%d)\n" ,myencoder.pitch, myencoder.roll, myencoder.yaw);
         usleep(500000);

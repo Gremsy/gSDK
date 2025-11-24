@@ -37,6 +37,8 @@
 #include <stdint.h>
 
 #include "serial_port.h"
+#include "udp_port.h"
+#include "generic_port.h"
 
 #include <ardupilotmega/mavlink.h>
 
@@ -202,7 +204,7 @@ public:
         INPUT_SPEED = 2
     };
 
-    Gimbal_Protocol(Serial_Port *serial_port, const mavlink_system_t &system, mavlink_channel_t channel);
+    Gimbal_Protocol(Generic_Port *port, const mavlink_system_t &system, mavlink_channel_t channel);
     virtual ~Gimbal_Protocol();
 
     /**
@@ -293,7 +295,7 @@ public:
 
 protected:
 
-    Serial_Port *_serial_port;
+    Generic_Port *_port;
 
     pthread_mutex_t _mutex;
     pthread_cond_t _condition;

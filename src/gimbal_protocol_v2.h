@@ -47,7 +47,7 @@
 class Gimbal_Protocol_V2 : public Gimbal_Protocol
 {
 public:
-    Gimbal_Protocol_V2(Serial_Port *serial_port,
+    Gimbal_Protocol_V2(Generic_Port *port,
                        const mavlink_system_t &system,
                        mavlink_channel_t channel);
     ~Gimbal_Protocol_V2() = default;

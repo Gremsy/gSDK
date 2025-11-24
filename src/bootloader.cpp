@@ -898,7 +898,7 @@ void Boot_loader::read_thread(){
             if (result > 0)
             {
                 write_buffer((uint8_t *)buf,result);
-            }
+		}
         }
     }
 }

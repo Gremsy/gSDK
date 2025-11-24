@@ -47,5 +47,7 @@
 
 #include "gimbal_interface.h"
 #include "serial_port.h"
+#include "udp_port.h"
+#include "generic_port.h"
 #include "bootloader.h"
 /************************ (C) COPYRIGHT Gremsy *****END OF FILE****************/

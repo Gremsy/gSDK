@@ -32,6 +32,8 @@
 #include <signal.h>
 #include <time.h>
 #include <sys/time.h>
+#include <mutex>
+#include <queue>
 
 #include "gimbal_protocol_v1.h"
 #include "gimbal_protocol_v2.h"
@@ -117,7 +119,7 @@ static inline uint64_t time_since_ms(uint64_t start_time)
  * @param proto MAVLink Gimbal Protocol version
  * @param channel MAVLink communication channel
  */
-Gimbal_Interface::Gimbal_Interface(Serial_Port *serial_port,
+Gimbal_Interface::Gimbal_Interface(Generic_Port *port,
                                    uint8_t sysid /*= 1 */,
                                    uint8_t compid /*= MAV_COMP_ID_ONBOARD_COMPUTER */,
                                    MAVLINK_PROTO proto /*= MAVLINK_GIMBAL_V2 */,
@@ -127,14 +129,18 @@ Gimbal_Interface::Gimbal_Interface(Serial_Port *serial_port,
     _system.sysid  = sysid;
     _system.compid = compid;
     _proto         = proto;
-    _serial_port   = serial_port;
+    _port          = port;
     _channel       = channel;
 
+	_port->set_mav_channel(channel);
+	_port->set_mav_version(2);
+	mavlink_set_proto_version(channel, 2);
+
     if (_proto == MAVLINK_GIMBAL_V1) {
-        _gimbal_proto = new Gimbal_Protocol_V1(serial_port, _system, _channel);
+        _gimbal_proto = new Gimbal_Protocol_V1(port, _system, _channel);
 
     } else {
-        _gimbal_proto = new Gimbal_Protocol_V2(serial_port, _system, _channel);
+        _gimbal_proto = new Gimbal_Protocol_V2(port, _system, _channel);
     }
 }
 
@@ -301,14 +307,51 @@ void Gimbal_Interface::messages_handler(const mavlink_message_t &message)
 // ------------------------------------------------------------------------------
 //   Write Message
 // ------------------------------------------------------------------------------
+void Gimbal_Interface::read_messages()
+{
+	// printf("%s \n", __func__);
+
+	bool success = false;               // receive success flag
+	bool received_all = false;  // receive only one message
+
+	// Blocking wait for new data
+	// while ( !received_all and !time_to_exit )
+	if ( !time_to_exit )
+	{
+		// ----------------------------------------------------------------------
+		//   READ MESSAGE
+		// ----------------------------------------------------------------------
+
+		std::queue<mavlink_message_t> queue_message;
+		success = _port->read_message(queue_message);
+
+		if(success){
+			pthread_mutex_lock(&read_queue_mutex);
+			while(!queue_message.empty()){
+				// printf("got msg id: %d\n", queue_message.front().msgid);
+				m_mav_message.push(queue_message.front());
+				queue_message.pop();
+			}
+			pthread_mutex_unlock(&read_queue_mutex);
+		}
+		
+		// give the write thread time to use the port
+		if ( writing_status > false ) {
+			usleep(100); // look for components of batches at 10kHz
+		}	
+		
+	} // end: while not received all
+	return;
+}
+
 int Gimbal_Interface::write_message(const mavlink_message_t &message)
 {
-    if (_serial_port == nullptr) {
+    if (_port == nullptr) {
         GSDK_DebugError("ERROR: serial port not exist\n");
         throw 1;
     }
 
-    return _serial_port->write_message(message);
+    return _port->write_message(message);
 }
 
 // ------------------------------------------------------------------------------
@@ -1872,10 +1915,25 @@ void Gimbal_Interface::write_heartbeat(void)
     // --------------------------------------------------------------------------
     //   WRITE
     // --------------------------------------------------------------------------
-    if (write_message(message) <= 0)
-        GSDK_DebugError("WARNING: could not send HEARTBEAT\n");
+    push_message_to_queue(message);
+}
 
-    
+int8_t Gimbal_Interface::get_nxt_message(mavlink_message_t& _message){
+	int success = 0;
+	pthread_mutex_lock(&read_queue_mutex);
+	if(m_mav_message.size() > 0){
+		_message = m_mav_message.front();
+		m_mav_message.pop();
+		success = 1;
+	}
+	
+	pthread_mutex_unlock(&read_queue_mutex);
+	return success;
+}
+void Gimbal_Interface::push_message_to_queue(mavlink_message_t message){
+	pthread_mutex_lock(&write_queue_mutex);
+	m_mav_write_message.push(message);
+	pthread_mutex_unlock(&write_queue_mutex);
 }
 
 // ------------------------------------------------------------------------------
@@ -1889,8 +1947,8 @@ void Gimbal_Interface::start()
     // --------------------------------------------------------------------------
     //   CHECK SERIAL PORT
     // --------------------------------------------------------------------------
-    if (_serial_port != nullptr) {
-        if (_serial_port->status != SERIAL_PORT_OPEN) { // SERIAL_PORT_OPEN
+    if (_port != nullptr) {
+        if (!_port->is_running()) { // port is open
             GSDK_DebugError("ERROR: serial port not open\n");
             throw 1;
         }
@@ -1918,6 +1976,14 @@ void Gimbal_Interface::start()
     // --------------------------------------------------------------------------
     GSDK_DebugMsg("START READ THREAD \n");
     result = pthread_create(&read_tid, NULL, &start_gimbal_interface_read_thread, this);
+
+    if (result) throw result;
+
+    // --------------------------------------------------------------------------
+    //   MSG QUEUE THREAD
+    // --------------------------------------------------------------------------
+    GSDK_DebugMsg("START MSG QUEUE THREAD \n");
+    result = pthread_create(&msg_queue_tid, NULL, &start_gimbal_interface_msg_queue_thread, this);
 
     if (result) throw result;
 
@@ -1952,12 +2018,12 @@ void Gimbal_Interface::stop()
     // signal exit
     time_to_exit = true;
     // wait for exit
-    // pthread_join(read_tid, NULL);
-    // pthread_join(write_tid, NULL);
-    writing_status = THREAD_NOT_INIT;
-    reading_status = THREAD_NOT_INIT;
+    writing_status      = THREAD_NOT_INIT;
+    reading_status      = THREAD_NOT_INIT;
+    msg_queue_status    = THREAD_NOT_INIT;
     pthread_cancel(read_tid);
     pthread_cancel(write_tid);
+    pthread_cancel(msg_queue_tid);
     // now the read and write threads are closed
     // still need to close the _serial_port separately
 }
@@ -1985,6 +2051,16 @@ void Gimbal_Interface::start_write_thread(void)
 
     } else {
         write_thread();
+    }
+}
+
+void Gimbal_Interface::start_msg_queue_thread(void)
+{
+    if (msg_queue_status != THREAD_NOT_INIT) {
+        GSDK_DebugError("Write thread already running\n");
+
+    } else {
+        msg_queue_thread();
     }
 }
 
@@ -2046,46 +2122,21 @@ bool Gimbal_Interface::present()
 // ------------------------------------------------------------------------------
 void Gimbal_Interface::read_thread(void)
 {
-    mavlink_message_t message     = { 0 };
-    mavlink_status_t mav_status;
 
-    if (_serial_port == nullptr) {
+    reading_status = THREAD_RUNNING;
+
+    if (_port == nullptr) {
         GSDK_DebugError("ERROR: serial port not exist\n");
         throw 1;
     }
 
     while (!time_to_exit) {
-        if (writing_status != THREAD_RUNNING) {
-            reading_status = THREAD_RUNNING;
-            // ----------------------------------------------------------------------
-            //   READ MESSAGE
-            // ----------------------------------------------------------------------
-            char buf[256] = { 0 };
-            int result = _serial_port->read_message(buf, 256);
-
-            // --------------------------------------------------------------------------
-            //   PARSE MESSAGE
-            // --------------------------------------------------------------------------
-            if (result > 0) {
-                for (int i = 0; i < result; ++i) {
-                    // the parsing
-                    if (mavlink_parse_char(_channel, (uint8_t)buf[i], &message, &mav_status)) {
-                        // printf("Parse error: %u, Drop: %u, Success: %u\n",mav_status.parse_error,mav_status.packet_rx_drop_count,mav_status.packet_rx_success_count);
-                        messages_handler(message);
-                    }
-                }
-            }
-
-            // Couldn't read from port
-            else {
-                GSDK_DebugError("ERROR: Could not read port\n");
-            }
-
-            reading_status = THREAD_IDLING;
-        }
+        read_messages();
 
         usleep(100);   // sleep 1000us
     } // end: while not received all
+
+    reading_status = THREAD_IDLING;
 }
 
 // ------------------------------------------------------------------------------
@@ -2120,6 +2171,32 @@ void Gimbal_Interface::write_thread(void)
     }
 }
 
+void Gimbal_Interface::msg_queue_thread(void){
+    while (!time_to_exit) {
+        msg_queue_status = THREAD_RUNNING;
+
+        mavlink_message_t msg;
+        if(get_nxt_message(msg)){
+            messages_handler(msg);
+        }
+
+        pthread_mutex_lock(&write_queue_mutex);
+        if(m_mav_write_message.size() > 0){
+            int len = write_message(m_mav_write_message.front());
+            m_mav_write_message.pop();
+
+            if ( len <= 0 )
+                fprintf(stderr,"WARNING: could not write mesage \n");
+        }
+
+        pthread_mutex_unlock(&write_queue_mutex);
+
+        usleep(1000);
+
+        msg_queue_status = THREAD_IDLING;
+    }
+}
+
 // End Gimbal_Interface
 
 // ------------------------------------------------------------------------------
@@ -2141,6 +2218,16 @@ void *start_gimbal_interface_write_thread(void *args)
     Gimbal_Interface *gimbal_interface = (Gimbal_Interface *)args;
     // run the object's read thread
     gimbal_interface->start_write_thread();
+    // done!
+    return NULL;
+}
+
+void *start_gimbal_interface_msg_queue_thread(void *args)
+{
+    // takes an gimbal object argument
+    Gimbal_Interface *gimbal_interface = (Gimbal_Interface *)args;
+    // run the object's read thread
+    gimbal_interface->start_msg_queue_thread();
     // done!
     return NULL;
 }

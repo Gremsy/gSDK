@@ -33,10 +33,10 @@
 
 #include "gimbal_protocol_v1.h"
 
-Gimbal_Protocol_V1::Gimbal_Protocol_V1(Serial_Port *serial_port,
+Gimbal_Protocol_V1::Gimbal_Protocol_V1(Generic_Port *port,
                                        const mavlink_system_t &system,
                                         mavlink_channel_t channel) :
-    Gimbal_Protocol(serial_port, system, channel) {}
+    Gimbal_Protocol(port, system, channel) {}
 
 /**
  * @brief  This function set gimbal mode

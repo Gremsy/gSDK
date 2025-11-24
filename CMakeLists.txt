@@ -11,14 +11,14 @@ set(MAVLINK_INCLUDES
 set(MAVLINK_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/src")
     
-# Set default value if not passed from command line
-if(NOT DEFINED ENABLE_DTR_RTS)
-    set(ENABLE_DTR_RTS 0)   # Default: disabled
+# Select port type
+if(NOT DEFINED PORT_TYPE)
+    set(PORT_TYPE "serial" CACHE STRING "Port type: serial or udp")
 endif()
 
-message(STATUS "ENABLE_DTR_RTS = ${ENABLE_DTR_RTS}")
+message(STATUS "PORT_TYPE = ${PORT_TYPE}")
 
-add_definitions(-DENABLE_DTR_RTS=${ENABLE_DTR_RTS})
+add_definitions(-DPORT_TYPE_${PORT_TYPE})
 
 ###############################################################################
 #### INCLUDES #################################################################
@@ -46,6 +46,7 @@ set(GSDK_APP_SRC
     ${MAVLINK_SRC}/gimbal_protocol_v1.cpp
     ${MAVLINK_SRC}/gimbal_protocol_v2.cpp
     ${MAVLINK_SRC}/serial_port.cpp
+    ${MAVLINK_SRC}/udp_port.cpp
 )
 
 add_executable(gSDK ${GSDK_APP_SRC})
@@ -59,4 +60,4 @@ target_link_libraries(gSDK
 #        gSDK
 #        RUNTIME DESTINATION usr/bin/gSDK)
 
-add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/examples")
+# add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/examples")

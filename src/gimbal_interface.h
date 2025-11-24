@@ -56,6 +56,7 @@
 // uint64_t get_time_msec();
 void *start_gimbal_interface_read_thread(void *args);
 void *start_gimbal_interface_write_thread(void *args);
+void *start_gimbal_interface_msg_queue_thread(void *args);
 
 // ------------------------------------------------------------------------------
 //   Gimbal Interface Class
@@ -334,7 +335,7 @@ public:
      * @param proto MAVLink Gimbal Protocol version
      * @param channel MAVLink communication channel
      */
-    Gimbal_Interface(Serial_Port *serial_port,
+    Gimbal_Interface(Generic_Port *port,
                                    uint8_t sysid /*= 1 */,
                                    uint8_t compid /*= MAV_COMP_ID_ONBOARD_COMPUTER */,
                                    MAVLINK_PROTO proto /*= MAVLINK_GIMBAL_V2 */,
@@ -346,6 +347,7 @@ public:
 
     void start_read_thread();
     void start_write_thread(void);
+    void start_msg_queue_thread(void);
 
     void handle_quit(int sig);
 
@@ -809,7 +811,7 @@ public:
         }
     };
 
-    enum serial_thread_status_t {
+    enum thread_status_t {
         THREAD_NOT_INIT = 0,
         THREAD_RUNNING,
         THREAD_IDLING,        
@@ -838,7 +840,7 @@ public:
         PARAM_STATE_NONEXISTANT       = 4    // parameter does not seem to exist
     };
 
-    Serial_Port *_serial_port;
+    Generic_Port *_port;
 
     Gimbal_Protocol *_gimbal_proto;
     MAVLINK_PROTO _proto;
@@ -850,19 +852,32 @@ public:
     bool time_to_exit = false;
     bool has_detected = false;
 
-    pthread_t read_tid  = 0;
-    pthread_t write_tid = 0;
+    pthread_t read_tid      = 0;
+    pthread_t write_tid     = 0;
+    pthread_t msg_queue_tid = 0;
 
-    volatile serial_thread_status_t reading_status = THREAD_NOT_INIT;
-    volatile serial_thread_status_t writing_status = THREAD_NOT_INIT;
+    volatile thread_status_t reading_status     = THREAD_NOT_INIT;
+    volatile thread_status_t writing_status     = THREAD_NOT_INIT;
+    volatile thread_status_t msg_queue_status   = THREAD_NOT_INIT;
 
     virtual void messages_handler(const mavlink_message_t &message);
+    void read_messages();
     int write_message(const mavlink_message_t &message);
 
     void read_thread(void);
     void write_thread(void);
+    void msg_queue_thread(void);
+
+	// mavlink message queue
+	pthread_mutex_t read_queue_mutex = PTHREAD_MUTEX_INITIALIZER;
+	std::queue<mavlink_message_t> m_mav_message;
+
+	pthread_mutex_t write_queue_mutex = PTHREAD_MUTEX_INITIALIZER;
+	std::queue<mavlink_message_t> m_mav_write_message;
 
     void write_heartbeat(void);
+    int8_t get_nxt_message(mavlink_message_t& _message);
+	void push_message_to_queue(mavlink_message_t message);
 
     messages_t _messages;
 

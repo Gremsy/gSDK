@@ -1,7 +1,8 @@
 /****************************************************************************
  *
- *   Copyright (c) 2014 MAVlink Development Team. All rights reserved.
- *   Author: Trent Lukaczyk, <aerialhedgehog@gmail.com>
+ *   Copyright (c) 2018 MAVlink Development Team. All rights reserved.
+ *   Author: Hannes Diethelm, <hannes.diethelm@gmail.com>
+ *           Trent Lukaczyk, <aerialhedgehog@gmail.com>
  *           Jaycee Lock,    <jaycee.lock@gmail.com>
  *           Lorenz Meier,   <lm@inf.ethz.ch>
  *
@@ -35,36 +36,44 @@
  ****************************************************************************/
 
 /**
- * @file serial_port.h
+ * @file udp_port.h
  *
- * @brief Serial interface definition
+ * @brief UDP interface definition
  *
- * Functions for opening, closing, reading and writing via serial ports
+ * Functions for opening, closing, reading and writing via UDP ports
  *
+ * @author Hannes Diethelm, <hannes.diethelm@gmail.com>
  * @author Trent Lukaczyk, <aerialhedgehog@gmail.com>
  * @author Jaycee Lock,    <jaycee.lock@gmail.com>
  * @author Lorenz Meier,   <lm@inf.ethz.ch>
  *
  */
 
-#ifndef SERIAL_PORT_H_
-#define SERIAL_PORT_H_
+#ifndef UDP_PORT_H_
+#define UDP_PORT_H_
 
 // ------------------------------------------------------------------------------
 //   Includes
 // ------------------------------------------------------------------------------
 
 #include <cstdlib>
-#include <stdio.h>   // Standard input/output definitions
-#include <unistd.h>  // UNIX standard function definitions
-#include <fcntl.h>   // File control definitions
-#include <termios.h> // POSIX terminal control definitions
+#include <stdio.h>
+#include <errno.h>
+#include <string.h>
 #include <pthread.h> // This uses POSIX Threads
-#include <signal.h>
-#include <queue>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <time.h>
+#include <sys/time.h>
+#include <time.h>
+#include <arpa/inet.h>
+#include <stdbool.h>
 
-// #include <common/mavlink.h>
-#include <ardupilotmega/mavlink.h>
+#include <common/mavlink.h>
 
 #include "generic_port.h"
 
@@ -72,108 +81,77 @@
 //   Defines
 // ------------------------------------------------------------------------------
 
-// The following two non-standard baudrates should have been defined by the system
-// If not, just fallback to number
-#ifndef B460800
-#define B460800 460800
-#endif
-
-#ifndef B921600
-#define B921600 921600
-#endif
-
-// Status flags
-#define SERIAL_PORT_BOOT   2
-#define SERIAL_PORT_OPEN   1
-#define SERIAL_PORT_CLOSED 0
-#define SERIAL_PORT_ERROR -1
-
 // ------------------------------------------------------------------------------
 //   Prototypes
 // ------------------------------------------------------------------------------
 
-//class Serial_Port;
-
-
-
 // ----------------------------------------------------------------------------------
-//   Serial Port Manager Class
+//   UDP Port Manager Class
 // ----------------------------------------------------------------------------------
 /*
- * Serial Port Class
+ * UDP Port Class
  *
  * This object handles the opening and closing of the offboard computer's
- * serial port over which we'll communicate.  It also has methods to write
+ * UDP port over which we'll communicate.  It also has methods to write
  * a byte stream buffer.  MAVlink is not used in this object yet, it's just
  * a serialization interface.  To help with read and write pthreading, it
  * gaurds any port operation with a pthread mutex.
  */
-class Serial_Port: public Generic_Port
+class UDP_Port: public Generic_Port
 {
 
 public:
-    enum Serial_Mode{
-        BOOT_MODE,
-        RUNNING_MODE
-    };
 
-	Serial_Port();
-	Serial_Port(const char *uart_name_, int baudrate_);
-	virtual ~Serial_Port();
+	UDP_Port();
+	UDP_Port(const char *target_ip_, int udp_port_);
+	virtual ~UDP_Port();
 
-	int  status;
+    #if 0
+	int read_message(mavlink_message_t &message);
+	#else
+    int read_message(std::queue<mavlink_message_t> &message);
+    #endif
+    int write_message(const mavlink_message_t &message);
 
-	int read_message(std::queue<mavlink_message_t> &message);
-	int write_message(const mavlink_message_t &message);
-	int write_buf(uint8_t *buf, uint16_t len);
 	bool is_running(){
 		return is_open;
 	}
 	void start();
 	void stop();
 
-	void set_mav_channel(int _ch);
-	int get_mav_channel();
-	void set_mav_version(int _ver);
-	int get_mav_version();
+    void set_mav_channel(int _ch);
+    int get_mav_channel();
+    void set_mav_version(int _ver);
+    int get_mav_version();
 
-	void open_serial();
-    void boot_serial();
-    void open_serial(Serial_Mode mode);
-    void close_serial();
-	bool boot();
-    bool reset();
 private:
 
-	int  fd;
 	mavlink_status_t lastStatus;
 	pthread_mutex_t  lock;
 
 	void initialize_defaults();
 
+	const static int BUFF_LEN=2041;
+	char buff[BUFF_LEN];
+	int buff_ptr;
+	int buff_len;
 	bool debug;
-	const char *uart_name;
-	int  baudrate;
+	const char *target_ip;
+	int rx_port;
+	int tx_port;
+	int sock;
 	bool is_open;
 
-	int  _open_port(const char* port);
-	bool _setup_port(int baud, int data_bits, int stop_bits, bool parity, bool hardware_control);
 	int  _read_port(uint8_t &cp);
 	int _write_port(char *buf, unsigned len);
-    void _set_boot(bool level);
-    void _set_reset(bool level);
-	char serial_read_buf [256];
-    uint16_t serial_read_buf_size = 256;
-    
-    char mavlink_receive_buf [512];
 
-	int mav_channel;
-	int mav_ver;
-	int cnt=0;
+    int mav_channel;
+    int mav_ver;
+
 };
 
 
 
-#endif // SERIAL_PORT_H_
+#endif // UDP_PORT_H_
 
 

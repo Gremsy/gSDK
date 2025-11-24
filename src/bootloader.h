@@ -21,6 +21,8 @@ using namespace std;
 #define STM32_MAX_PAGES		0x0000ffff
 #define STM32_MASS_ERASE	0x00100000 /* > 2 x max_pages */
 
+
+
 class Boot_loader
 {
 public:

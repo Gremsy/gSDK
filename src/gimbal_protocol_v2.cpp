@@ -33,10 +33,10 @@
 
 #include "gimbal_protocol_v2.h"
 
-Gimbal_Protocol_V2::Gimbal_Protocol_V2(Serial_Port *serial_port,
+Gimbal_Protocol_V2::Gimbal_Protocol_V2(Generic_Port *port,
                                        const mavlink_system_t &system, 
                                        mavlink_channel_t channel) :
-    Gimbal_Protocol(serial_port, system, channel) {}
+    Gimbal_Protocol(port, system, channel) {}
 
 /**
  * @brief  This function set gimbal mode
@@ -110,7 +110,7 @@ Gimbal_Protocol_V2::result_t Gimbal_Protocol_V2::set_gimbal_reset_mode(gimbal_re
 Gimbal_Protocol::result_t Gimbal_Protocol_V2::set_gimbal_move_sync(float pitch, float roll, float yaw,
         input_mode_t mode)
 {
-    if (_serial_port == nullptr) {
+    if (_port == nullptr) {
         GSDK_DebugError("ERROR: serial port not exist\n");
         throw 1;
     }
@@ -172,5 +172,5 @@ Gimbal_Protocol::result_t Gimbal_Protocol_V2::set_gimbal_move_sync(float pitch, 
     // --------------------------------------------------------------------------
     //   WRITE
     // --------------------------------------------------------------------------
-    return (_serial_port->write_message(message) > 0) ? SUCCESS : ERROR;
+    return (_port->write_message(message) > 0) ? SUCCESS : ERROR;
 }
