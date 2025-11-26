@@ -130,8 +130,12 @@ public:
 	bool is_running(){
 		return is_open;
 	}
-	void start();
-	void stop();
+	void start() override {
+		open_serial();
+	};
+	void stop() override {
+		close_serial();
+	};
 
 	void set_mav_channel(int _ch);
 	int get_mav_channel();
@@ -163,7 +167,7 @@ private:
 	bool _setup_port(int baud, int data_bits, int stop_bits, bool parity, bool hardware_control);
 	int  _read_port(uint8_t &cp);
 	int  _read_port(char *buf, uint16_t len);
-	int _write_port(char *buf, unsigned len);
+	int  _write_port(char *buf, unsigned len);
     void _set_boot(bool level);
     void _set_reset(bool level);
 	char serial_read_buf [256];

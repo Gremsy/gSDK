@@ -193,86 +193,7 @@ write_message(const mavlink_message_t &message)
 }
 
 
-// ------------------------------------------------------------------------------
-//   Open Serial Port
-// ------------------------------------------------------------------------------
-/**
- * throws EXIT_FAILURE if could not open the port
- */
-void
-Serial_Port::
-start()
-{
 
-	// --------------------------------------------------------------------------
-	//   OPEN PORT
-	// --------------------------------------------------------------------------
-	printf("OPEN PORT\n");
-
-	fd = _open_port(uart_name);
-
-	// Check success
-	if (fd == -1)
-	{
-		printf("[SERIAL] failure, could not open port.\n");
-		throw EXIT_FAILURE;
-	}
-
-	// --------------------------------------------------------------------------
-	//   SETUP PORT
-	// --------------------------------------------------------------------------
-	bool success = _setup_port(baudrate, 8, 1, false, false);
-
-	// --------------------------------------------------------------------------
-	//   CHECK STATUS
-	// --------------------------------------------------------------------------
-	if (!success)
-	{
-		printf("failure, could not configure port.\n");
-		throw EXIT_FAILURE;
-	}
-	if (fd <= 0)
-	{
-		printf("Connection attempt to port %s with %d baud, 8N1 failed, exiting.\n", uart_name, baudrate);
-		throw EXIT_FAILURE;
-	}
-
-	// --------------------------------------------------------------------------
-	//   CONNECTED!
-	// --------------------------------------------------------------------------
-	printf("[SERIAL] Connected to %s with %d baud, 8 data bits, no parity, 1 stop bit (8N1)\n", uart_name, baudrate);
-	lastStatus.packet_rx_drop_count = 0;
-
-	is_open = true;
-
-	printf("\n");
-
-	return;
-
-}
-
-
-// ------------------------------------------------------------------------------
-//   Close Serial Port
-// ------------------------------------------------------------------------------
-void
-Serial_Port::
-stop()
-{
-	printf("CLOSE PORT\n");
-
-	int result = close(fd);
-
-	if ( result )
-	{
-		fprintf(stderr,"WARNING: Error on port close (%i)\n", result );
-	}
-
-	is_open = false;
-
-	printf("\n");
-
-}
 void Serial_Port::handle_quit( int sig )
 {
     try {
@@ -467,15 +388,6 @@ _setup_port(int baud, int data_bits, int stop_bits, bool parity, bool hardware_c
 		return false;
 	}
 
-	int RTS_flag = TIOCM_RTS;
-    int DTR_flag = TIOCM_DTR;
-
-    ioctl(fd, TIOCMBIS, &DTR_flag);  // Set DTR
-    ioctl(fd, TIOCMBIC, &RTS_flag);  // Clear RTS
-    usleep(1000000);
-    ioctl(fd, TIOCMBIC, &DTR_flag);  // Clear DTR
-
-	// Done!
 	return true;
 }
 
@@ -571,16 +483,21 @@ void Serial_Port::open_serial()
     // --------------------------------------------------------------------------
     //   CONTROL DTR & RTS
     // --------------------------------------------------------------------------
-    reset();
+#if ENABLE_DTR_RTS
+printf("Set DTR/RTS\n");
+	reset();
+#endif
     // --------------------------------------------------------------------------
     //   FOOTER
     // --------------------------------------------------------------------------
     status = SERIAL_PORT_OPEN;
+	lastStatus.packet_rx_drop_count = 0;
+	is_open = true;
     printf("\n");
 }
 void Serial_Port::boot_serial()
 {
-printf("OPEN PORT\n");
+		printf("OPEN PORT\n");
         fd = _open_port(uart_name);
 
         // Check success
@@ -647,7 +564,7 @@ void Serial_Port::close_serial()
     if ( result ) {
         fprintf(stderr, "WARNING: Error on port close (%i)\n", result );
     }
-
+	is_open = false;
     status = SERIAL_PORT_CLOSED;
     printf("\n");
 }

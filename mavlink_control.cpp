@@ -33,7 +33,7 @@
 /* Private define-------------------------------------------------------------*/
 
 /* Uncomment line below to use MAVLink Gimbal Protocol V1 */
- #define _USE_MAVLINK_GIMBAL_V1
+//  #define _USE_MAVLINK_GIMBAL_V1
 
 #define _TIMEOUT                    30
 #define _TIMEOUT_RETURN_HOME        3
@@ -1665,12 +1665,10 @@ static bool upgrade_firmware(Gimbal_Interface *onboard, Generic_Port *port)
     onboard->stop();
     usleep(500000);
     port->stop();
-    // const char * name = port->uart_name;
     Serial_Port * serial_port = dynamic_cast<Serial_Port *>(port);
     usleep(500000);
     {
         is_boot_mode = true;
-        // Serial_Port _serial_port(uart_name,115200);
         Boot_loader boot_loader(serial_port, path);
         usleep(5000000);
         boot_loader.init();
