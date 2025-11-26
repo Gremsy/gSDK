@@ -118,7 +118,7 @@ private:
     buffer      rxBuffer        = {0};
     uint8_t	    bl_version      = 0;
     uint16_t    pid             = 0;
-    bool        debug           = 0;
+    bool        debug           = 1;
     bool        time_to_exit    = false;
     bool        init_flag       = false;
     uint8_t     state           = 0;

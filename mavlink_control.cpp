@@ -33,7 +33,7 @@
 /* Private define-------------------------------------------------------------*/
 
 /* Uncomment line below to use MAVLink Gimbal Protocol V1 */
-// #define _USE_MAVLINK_GIMBAL_V1
+ #define _USE_MAVLINK_GIMBAL_V1
 
 #define _TIMEOUT                    30
 #define _TIMEOUT_RETURN_HOME        3
@@ -157,9 +157,9 @@ int gGimbal_sample(int argc, char **argv)
      * pthread mutex lock.
      *
      */
-#if defined(PORT_TYPE_serial)
+#if PORT_TYPE_serial
     port = new Serial_Port(uart_name, baudrate);
-#elif defined(PORT_TYPE_udp)
+#elif PORT_TYPE_udp
     port = new UDP_Port("0.0.0.0", 14550);
 #else
     #error "Unsupported PORT_TYPE"
@@ -1665,12 +1665,13 @@ static bool upgrade_firmware(Gimbal_Interface *onboard, Generic_Port *port)
     onboard->stop();
     usleep(500000);
     port->stop();
-    //const char * name = port->uart_name;
+    // const char * name = port->uart_name;
+    Serial_Port * serial_port = dynamic_cast<Serial_Port *>(port);
     usleep(500000);
     {
         is_boot_mode = true;
-        Serial_Port _serial_port((char *)"/dev/ttyUSB1",115200);
-        Boot_loader boot_loader(&_serial_port, path);
+        // Serial_Port _serial_port(uart_name,115200);
+        Boot_loader boot_loader(serial_port, path);
         usleep(5000000);
         boot_loader.init();
         uint8_t timeout = 0;

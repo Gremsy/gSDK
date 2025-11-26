@@ -1,6 +1,6 @@
-project(gSDK)
-
 cmake_minimum_required(VERSION 3.5)
+
+project(gSDK)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
@@ -20,6 +20,22 @@ message(STATUS "PORT_TYPE = ${PORT_TYPE}")
 
 add_definitions(-DPORT_TYPE_${PORT_TYPE})
 
+
+# Set default value if not passed from command line
+# --- ENABLE_DTR_RTS logic ---
+if(PORT_TYPE STREQUAL "serial")
+    # User can override: default = 1
+    if(NOT DEFINED ENABLE_DTR_RTS)
+        set(ENABLE_DTR_RTS 1)
+    endif()
+else()
+    # For UDP: force OFF, ignore user input
+    set(ENABLE_DTR_RTS 0)
+endif()
+
+message(STATUS "ENABLE_DTR_RTS = ${ENABLE_DTR_RTS}")
+
+add_definitions(-DENABLE_DTR_RTS=${ENABLE_DTR_RTS})
 ###############################################################################
 #### INCLUDES #################################################################
 ###############################################################################

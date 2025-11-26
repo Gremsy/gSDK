@@ -90,6 +90,7 @@ public:
 	virtual int get_mav_channel()=0;
 	virtual void set_mav_version(int _ver)=0;
 	virtual int get_mav_version()=0;
+
 };
 
 

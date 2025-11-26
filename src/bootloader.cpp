@@ -85,7 +85,7 @@ Boot_loader::~Boot_loader()
     time_to_exit = true;
     usleep(1000);
     _serial_port->reset();
-    usleep(10000000);
+    usleep(1000000);
     this -> _serial_port->close_serial();
     this -> _serial_port = NULL;
     pthread_mutex_destroy(&mutex);
@@ -104,7 +104,8 @@ bool Boot_loader::init()
 {
     uint8_t len, val, buf[257];
     int i, new_cmds;
-
+    _serial_port->reset();
+    usleep(1000000);
     if (_serial_port->status != SERIAL_PORT_BOOT)
     {
         _serial_port->open_serial(Serial_Port::BOOT_MODE);
@@ -170,6 +171,7 @@ bool Boot_loader::run()
                 GSDK_DebugSuccess("[\u2713] %s",status.c_str());
                 status  = "Get CMD";
                 state = GET_CMD;   
+                usleep(4000000);
             }
             else
             {

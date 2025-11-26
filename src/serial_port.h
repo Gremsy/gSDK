@@ -145,6 +145,7 @@ public:
 	bool boot();
     bool reset();
 	void handle_quit( int sig );
+
 private:
 
 	int  fd;
