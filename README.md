@@ -59,7 +59,7 @@ Building
 $ cd gSDK/
 $ git submodule update --init --recursive
 $ mkdir build && cd build
-$ cmake ..
+$ cmake -DPORT_TYPE=serial ..
 $ make
 ```
 Note: If you are using USB to control the gimbal, you should enable DTR/RTS control by using the following command:
@@ -67,7 +67,15 @@ Note: If you are using USB to control the gimbal, you should enable DTR/RTS cont
 $ cd gSDK/
 $ git submodule update --init --recursive
 $ mkdir build && cd build
-$ cmake -DENABLE_DTR_RTS=1 ..
+$ cmake -DPORT_TYPE=serial -DENABLE_DTR_RTS=1 ..
+$ make
+```
+Note: If you are using UDP to control the gimbal, use the following command:
+```
+$ cd gSDK/
+$ git submodule update --init --recursive
+$ mkdir build && cd build
+$ cmake -DPORT_TYPE=udp ..
 $ make
 ```
 Hardware Setup
