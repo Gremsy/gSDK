@@ -1798,7 +1798,7 @@ bool Gimbal_Interface::is_gimbal(uint8_t compid)
 Gimbal_Protocol::result_t Gimbal_Interface::set_msg_rate(uint32_t msgid, rate_action_t rate)
 {
     if(rate >= MAX_RATE) {
-        GSDK_DebugError("ERROR: The rate is invalid, the range [0 - 50Hz]\n");
+        GSDK_DebugError("ERROR: The rate is invalid\n");
         return Gimbal_Protocol::ERROR;
     }
 

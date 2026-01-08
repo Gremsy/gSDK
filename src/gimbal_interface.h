@@ -126,6 +126,9 @@ public:
 
         RATE_41HZ, RATE_42HZ, RATE_43HZ, RATE_44HZ, RATE_45HZ,
         RATE_46HZ, RATE_47HZ, RATE_48HZ, RATE_49HZ, RATE_50HZ, 
+
+        RATE_75HZ  = 75,
+        RATE_100HZ = 100,
         
         MAX_RATE
     };
