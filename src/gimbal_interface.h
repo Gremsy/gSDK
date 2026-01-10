@@ -274,6 +274,9 @@ public:
         GMB_PARAM_OUTPUT_FILTER,
         GMB_PARAM_GYRO_FILTER,
 
+        GMB_PARAM_SPEED_FOLLOW_PITCH,
+        GMB_PARAM_SPEED_FOLLOW_YAW,
+
         GMB_PARAM_SMOOTH_FOLLOW_PITCH,
         GMB_PARAM_SMOOTH_FOLLOW_YAW,
 
@@ -947,65 +950,69 @@ public:
     static constexpr uint8_t _MAX_FETCH_TIME     = 5;         // times
 
     struct {
-        const uint8_t gmb_idx;
+        uint8_t       gmb_idx;   // Update in run time
         const char   *gmb_id;
         int16_t       value;
 
         volatile param_state_t state;
         uint8_t                fetch_attempts;
         bool                   seen;
-        int16_t        set_value;
+        int16_t                set_value;
     } _params_list[GIMBAL_NUM_TRACKED_PARAMS] = {
 
         // Gimbal version
         {0, "VERSION_X", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {45, "VERSION_Y", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {46, "VERSION_Z", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        {0, "VERSION_Y", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        {0, "VERSION_Z", 0, PARAM_STATE_NOT_YET_READ, 0, false},
 
         // Gimbal stiffness
-        {2, "STIFF_TILT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {4, "STIFF_ROLL", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {5, "STIFF_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        {0, "STIFF_TILT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        {0, "STIFF_ROLL", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        {0, "STIFF_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false},
 
         // Gimbal hold strength
-        {8, "PWR_TILT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {9, "PWR_ROLL", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {10, "PWR_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        {0, "PWR_TILT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        {0, "PWR_ROLL", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        {0, "PWR_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false},
 
-        {6, "FILTER_OUT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {22, "GYRO_LPF", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        {0, "FILTER_OUT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        {0, "GYRO_LPF", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+
+        // Gimbal follow speed
+        {0, "FLW_SP_TILT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        {0, "FLW_SP_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false},
 
         // Gimbal follow filter
-        {14, "FLW_LPF_TILT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {16, "FLW_LPF_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        {0, "FLW_LPF_TILT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        {0, "FLW_LPF_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false},
 
         // Gimbal follow windown
-        {39, "FLW_WD_TILT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {40, "FLW_WD_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        {0, "FLW_WD_TILT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        {0, "FLW_WD_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false},
 
         // Gimbal speed control
-        {41, "RC_SPD_TILT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {42, "RC_SPD_ROLL", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {43, "RC_SPD_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        {0, "RC_SPD_TILT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        {0, "RC_SPD_ROLL", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        {0, "RC_SPD_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false},
 
         // Gimbal smooth control
-        {27, "RC_LPF_TILT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {28, "RC_LPF_ROLL", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {29, "RC_LPF_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        {0, "RC_LPF_TILT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        {0, "RC_LPF_ROLL", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        {0, "RC_LPF_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false},
 
         // Direction
-        {44, "RC_REVERSE_AXIS", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        {0, "RC_REVERSE_AXIS", 0, PARAM_STATE_NOT_YET_READ, 0, false},
 
-        {52, "MAV_TS_ENCNT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        {0, "MAV_TS_ENCNT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
 
-        {23, "RC_LIM_MIN_TILT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {24, "RC_LIM_MAX_TILT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {25, "RC_LIM_MIN_ROLL", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {26, "RC_LIM_MAX_ROLL", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {47, "RC_LIM_MIN_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {48, "RC_LIM_MAX_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        {0, "RC_LIM_MIN_TILT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        {0, "RC_LIM_MAX_TILT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        {0, "RC_LIM_MIN_ROLL", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        {0, "RC_LIM_MAX_ROLL", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        {0, "RC_LIM_MIN_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        {0, "RC_LIM_MAX_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false},
 
-        {21, "RC_TYPE", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        {0, "RC_TYPE", 0, PARAM_STATE_NOT_YET_READ, 0, false},
     };
 
     uint64_t _last_request_ms;

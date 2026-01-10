@@ -264,6 +264,8 @@ void Gimbal_Interface::messages_handler(const mavlink_message_t &message)
 
                         if (strcmp(packet.param_id,_params_list[i].gmb_id) == 0) {
                             _params_list[i].fetch_attempts = 0;
+                            _params_list[i].gmb_idx         = packet.param_index;
+
                             switch (_params_list[i].state) {
                                 case PARAM_STATE_NONEXISTANT:
                                 case PARAM_STATE_NOT_YET_READ:
