@@ -304,6 +304,8 @@ public:
 
         GMB_PARAM_RC_TYPE,
 
+        GMB_PARAM_ENABLE_ADRC,
+
         GIMBAL_NUM_TRACKED_PARAMS
     };
     /**
@@ -1013,6 +1015,8 @@ public:
         {0, "RC_LIM_MAX_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false},
 
         {0, "RC_TYPE", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+
+        {0, "ENABLE_ADRC", 0, PARAM_STATE_NOT_YET_READ, 0, false},
     };
 
     uint64_t _last_request_ms;
