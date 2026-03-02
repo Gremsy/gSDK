@@ -704,19 +704,19 @@ Gimbal_Protocol::control_mode_t Gimbal_Interface::get_gimbal_mode(void)
     const uint16_t attitude_flag = _messages.atttitude_status.flags;
     /* Check gimbal is follow mode*/
     if (attitude_flag & GIMBAL_DEVICE_FLAGS_YAW_LOCK) {
-        _status.mode = (uint8_t)Gimbal_Protocol::GIMBAL_LOCK_MODE;
+        _status.mode = (uint16_t)Gimbal_Protocol::GIMBAL_LOCK_MODE;
     } 
     else if (attitude_flag & GIMBAL_DEVICE_FLAGS_RETRACT){
-        _status.mode = (uint8_t)Gimbal_Protocol::GIMBAL_OFF;
+        _status.mode = (uint16_t)Gimbal_Protocol::GIMBAL_OFF;
     }
     else if (attitude_flag & GIMBAL_DEVICE_FLAGS_NEUTRAL){
-        _status.mode = (uint8_t)Gimbal_Protocol::GIMBAL_RESET_MODE;
+        _status.mode = (uint16_t)Gimbal_Protocol::GIMBAL_RESET_MODE;
     }
     else if(attitude_flag & 0x4000) {
-        _status.mode = (uint8_t)Gimbal_Protocol::GIMBAL_MAPPING_MODE;
+        _status.mode = (uint16_t)Gimbal_Protocol::GIMBAL_MAPPING_MODE;
     }
     else if (attitude_flag & ~GIMBAL_DEVICE_FLAGS_YAW_LOCK) {
-        _status.mode = (uint8_t)Gimbal_Protocol::GIMBAL_FOLLOW_MODE;
+        _status.mode = (uint16_t)Gimbal_Protocol::GIMBAL_FOLLOW_MODE;
     }
     pthread_mutex_unlock(&_messages.mutex);
     return (Gimbal_Protocol::control_mode_t)_status.mode;

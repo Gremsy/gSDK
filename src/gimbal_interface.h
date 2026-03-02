@@ -194,7 +194,7 @@ public:
         uint16_t voltage_battery; /*< [V] Battery voltage*/
         uint8_t sensor;			  /*< Specific sensor occur error (encorder, imu) refer sensor_state_t*/
         uint8_t state;			  /* System state of gimbal. Refer operation_state_t*/
-        uint8_t mode;
+        uint16_t mode;
     };
 
     /**
