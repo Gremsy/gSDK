@@ -251,9 +251,9 @@ void gGimbal_displays(Gimbal_Interface *onboard){
     }
 
 
-    uint8_t gimbal_mode = onboard->get_gimbal_mode();
+    uint16_t gimbal_mode = onboard->get_gimbal_mode();
 
-    GSDK_DebugInfo("Gimbal mode: %d\n",gimbal_mode);
+    GSDK_DebugInfo("Gimbal mode: %ld\n",gimbal_mode);
 
     uint8_t gimbal_state = onboard->get_gimbal_status().state;
 
