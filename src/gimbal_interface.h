@@ -35,7 +35,7 @@
 // ------------------------------------------------------------------------------
 
 #include "gimbal_protocol.h"
-
+#include <string>
 // ------------------------------------------------------------------------------
 //   Define
 // ------------------------------------------------------------------------------
@@ -172,7 +172,8 @@ public:
         uint8_t x;
         uint8_t y;
         uint8_t z;
-        const char *type;
+        uint8_t t;
+        std::string type;
 
         // Equality operator
         bool operator==(const fw_version_t& other) const {
@@ -493,28 +494,7 @@ public:
      * @param: None
      * @ret: see fw_version_t structure
      */
-    fw_version_t get_gimbal_version(void)
-    {
-        fw_version_t fw = { 0 };
-        fw.x = _params_list[GMB_PARAM_VERSION_X].value;
-        fw.y = _params_list[GMB_PARAM_VERSION_Y].value;
-        fw.z = (_params_list[GMB_PARAM_VERSION_Z].value & 0x3F);
-
-        if ((_params_list[GMB_PARAM_VERSION_Z].value & 0xC0) == FIRMWARE_VERSION_TYPE_ALPHA) {
-            fw.type = alpha;
-
-        } else if ((_params_list[GMB_PARAM_VERSION_Z].value & 0xC0) == FIRMWARE_VERSION_TYPE_BETA) {
-            fw.type = beta;
-
-        } else if ((_params_list[GMB_PARAM_VERSION_Z].value & 0xC0) == FIRMWARE_VERSION_TYPE_RC) {
-            fw.type = preview;
-
-        } else if ((_params_list[GMB_PARAM_VERSION_Z].value & 0xC0) == 00) {
-            fw.type = official;
-        }
-
-        return fw;
-    }
+    fw_version_t get_gimbal_version(void);
 
     /**
      * @brief  This function shall configure on the tilt axis
