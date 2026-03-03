@@ -228,7 +228,7 @@ int gGimbal_sample(int argc, char **argv)
 void gGimbal_displays(Gimbal_Interface *onboard){
 
     Gimbal_Interface::fw_version_t fw = onboard->get_gimbal_version();
-    GSDK_DebugInfo("Gimbal Firmware version is %d.%d.%d.%s\n", fw.x, fw.y, fw.z, fw.type);
+    GSDK_DebugInfo("Gimbal Firmware version is %d.%d.%d.%s\n", fw.x, fw.y, fw.z, fw.type.c_str());
 
     GSDK_DebugInfo("You selected gimbal mount mode ");
     std :: string mode ;
@@ -639,9 +639,11 @@ static void setting_sample_gimbal_setup_param_startup(Gimbal_Interface *onboard)
     }else{
         GSDK_DebugInfo("Use mavlink gimbal V2");
     }
-
+    onboard->request_gimbal_device_info();
+    GSDK_DebugSuccess("Request gimbal device information.\n");
+    usleep(500000);
     Gimbal_Interface::fw_version_t fw = onboard->get_gimbal_version();
-    GSDK_DebugInfo("Gimbal Firmware version is %d.%d.%d.%s", fw.x, fw.y, fw.z, fw.type);
+    GSDK_DebugInfo("Gimbal Firmware version is %d.%d.%d.%s", fw.x, fw.y, fw.z, fw.type.c_str());
 
     if(fw.x * 100 + fw.y * 10 + fw.z <= 773){
         while(1){

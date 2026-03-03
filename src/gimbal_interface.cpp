@@ -1529,6 +1529,38 @@ Attitude_t<int16_t> Gimbal_Interface::get_gimbal_encoder(void)
 
     return Attitude_t<int16_t>();
 }
+/**
+ * @brief  This function get the firmware version from gimbal
+ * @param: None
+ * @ret: see fw_version_t structure
+ */
+Gimbal_Interface::fw_version_t Gimbal_Interface::get_gimbal_version(void){
+    fw_version_t fw = { 0 };
+    char dev_num_str[4];
+    pthread_mutex_lock(&_messages.mutex);
+    uint32_t firmware_version = _messages.gimbal_device_info.firmware_version;
+    pthread_mutex_unlock(&_messages.mutex);
+    fw.x=firmware_version & 0x000000FF;
+    fw.y=(firmware_version & 0x0000FF00)>>8;
+    fw.z=(firmware_version & 0x00FF0000)>>16;
+    if ((fw.y==8 && fw.z > 8 )|| (fw.y>8)) {
+    fw.t=(firmware_version & 0xFF000000)>>24;}
+    else fw.t=_params_list[GMB_PARAM_VERSION_Z].value & 0xC0;
+
+
+    if ((fw.t) == FIRMWARE_VERSION_TYPE_ALPHA) {
+        fw.type = alpha;    
+    } else if ((fw.t) == FIRMWARE_VERSION_TYPE_BETA) {
+        fw.type = beta;    
+    } else if ((fw.t) == FIRMWARE_VERSION_TYPE_RC) {
+        fw.type = preview;    
+    } else if ((fw.t) == 00) {
+        fw.type = official;
+    } else {
+        fw.type = std::to_string(fw.t); 
+    }
+    return fw;
+}
 
 /**
  * @brief  This function get gimbal timestamps
