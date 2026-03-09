@@ -151,6 +151,14 @@ public:
     };
 
     /**
+     * @brief Gimbal angle control mode
+     */
+    enum gbl_ctrl_angle_mode_t {
+        GBL_ANGLE_MODE_SHORTEST,
+        GBL_ANGLE_MODE_DIRECT,
+    };
+
+    /**
      * @brief Gimbal Operation status
      */
     enum operation_state_t {
@@ -306,6 +314,9 @@ public:
         GMB_PARAM_RC_TYPE,
 
         GMB_PARAM_ENABLE_ADRC,
+        
+        GMB_PARAM_ANGLE_CTRL_MODE,
+        GMB_PARAM_MOTOR_ELEC_POWER,
 
         GIMBAL_NUM_TRACKED_PARAMS
     };
@@ -729,7 +740,8 @@ public:
      * @ret: None
      */
     Gimbal_Protocol::result_t set_param(param_index_t param, int16_t value);  
-        /**
+    
+    /**
      * @brief Set the msg rate
      *
      * @param msgid
@@ -737,6 +749,36 @@ public:
      * @return Gimbal_Protocol::result_t
      */
     Gimbal_Protocol::result_t set_msg_rate(uint32_t msgid, rate_action_t rate);
+
+    /**
+     * @brief Set the gimbal angle control mode
+     *
+     * @param angle_mode
+     * @return Gimbal_Protocol::result_t
+     */
+    Gimbal_Protocol::result_t set_angle_ctrl_mode(gbl_ctrl_angle_mode_t angle_mode);
+
+    /**
+     * @brief Get the gimbal angle control mode
+     *
+     * @return  gbl_ctrl_angle_mode_t
+     */
+    gbl_ctrl_angle_mode_t get_angle_ctrl_mode(void);
+
+    /**
+     * @brief Set the motor electronic power
+     *
+     * @param percent percentage of the power, range [50 - 100]
+     * @return Gimbal_Protocol::result_t
+     */
+    Gimbal_Protocol::result_t set_motor_electronic_power(float percent);
+
+    /**
+     * @brief Get the motor electronic power
+     *
+     * @return percentage of the power, range [50 - 100]
+     */
+    float get_motor_electronic_power(void);
 
     private:
 
@@ -997,6 +1039,9 @@ public:
         {0, "RC_TYPE", 0, PARAM_STATE_NOT_YET_READ, 0, false},
 
         {0, "ENABLE_ADRC", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+
+        {0, "CTRL_ANGLE_MODE", 0, PARAM_STATE_NOT_YET_READ, 0, false},
+        {0, "MT_ELEC_PWR", 0, PARAM_STATE_NOT_YET_READ, 0, false},
     };
 
     uint64_t _last_request_ms;

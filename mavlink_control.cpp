@@ -33,7 +33,7 @@
 /* Private define-------------------------------------------------------------*/
 
 /* Uncomment line below to use MAVLink Gimbal Protocol V1 */
-//  #define _USE_MAVLINK_GIMBAL_V1
+ #define _USE_MAVLINK_GIMBAL_V1
 
 #define _TIMEOUT                    30
 #define _TIMEOUT_RETURN_HOME        3
@@ -481,6 +481,8 @@ static void control_sample_gimbal_process(Gimbal_Interface *onboard, Generic_Por
     printf("\t 13.  Set Gimbal Reboot\n\r");
     printf("\t 14.  Upgrade Firmware\n\r");
     printf("\t 15.  Monitoring Encoder - Attitude - IMU\n\r");
+    printf("\t 16.  Set Gimbal Control ANGLE mode\n\r");
+    printf("\t 17.  Set Gimbal Electronic Power\n\r");
     printf("\33[32mSelect ->  ");
 
     scanf("%d", &number);
@@ -493,14 +495,12 @@ static void control_sample_gimbal_process(Gimbal_Interface *onboard, Generic_Por
             control_sample_gimbal_off(onboard);
         }
             break;
-
         case 1: // ON Gimbal
 
         {
             control_sample_gimbal_on(onboard);
         }
             break;
-
         case 2: //Change mount mode
         {
             control_sample_gimbal_change_mount_mode(onboard);
@@ -531,7 +531,6 @@ static void control_sample_gimbal_process(Gimbal_Interface *onboard, Generic_Por
             control_sample_gimbal_set_lock_mode(onboard);
         }
             break;
-
         case 6: // Set Gimbal to move angle in LOCK mode
         {
             /// set gimbal to LOCK mode
@@ -544,7 +543,6 @@ static void control_sample_gimbal_process(Gimbal_Interface *onboard, Generic_Por
             }
         }
             break;
-
         case 7: // Set Gimbal to move rate in LOCK mode
         {
             // set gimbal to LOCK mode
@@ -559,13 +557,11 @@ static void control_sample_gimbal_process(Gimbal_Interface *onboard, Generic_Por
             }
         }
             break;
-
         case 8: // Set Gimbal to FOLLOW mode
         {
             control_sample_gimbal_set_follow_mode(onboard);
         }
             break;
-
         case 9: // Set Gimbal to move angle in FOLLOW mode
         {
             /// set gimbal to FOLLOW mode
@@ -577,8 +573,7 @@ static void control_sample_gimbal_process(Gimbal_Interface *onboard, Generic_Por
                 control_sample_gimbal_set_move_angle(onboard,pitch,roll,yaw);
             }
         }
-        break;
-
+            break;
         case 10: // Set Gimbal to move rate in FOLLOW mode
         {
             /// set gimbal to FOLLOW mode
@@ -592,19 +587,17 @@ static void control_sample_gimbal_process(Gimbal_Interface *onboard, Generic_Por
                 control_sample_gimbal_set_move_rate(onboard,pitch_rate,roll_rate,yaw_rate,duration);
             }
         }
-        break;
+            break;
         case 11: // Set Gimbal to MAPPING mode
         {
             control_sample_gimbal_set_mapping_mode(onboard);
         }
-        break;
-
+            break;
         case 12: // Set Gimbal to Return Home
         {
             control_sample_gimbal_return_home(onboard);
         }
-            break;
-        
+            break;      
         case 13: // Set Gimbal Reboot
         /* code */
         {
@@ -624,6 +617,58 @@ static void control_sample_gimbal_process(Gimbal_Interface *onboard, Generic_Por
             monitor_attitude_imu_encoder(onboard,duration);
         }
             break;
+        case 16: // Set gimbal angle control mode
+        {   
+            Gimbal_Interface::gbl_ctrl_angle_mode_t angle_mode;
+            GSDK_DebugMsg("Please Enter angle mode: \n\r \t 0. SHORTEST\n\r \t 1. DIRECT\n\r");
+            scanf("%d" , &angle_mode);
+            printf("\n");
+
+            if(angle_mode == Gimbal_Interface::GBL_ANGLE_MODE_SHORTEST){
+                GSDK_DebugInfo("Set gimbal angle control mode to SHORTEST\n");
+                onboard->set_angle_ctrl_mode(Gimbal_Interface::GBL_ANGLE_MODE_SHORTEST);
+
+            }else if(angle_mode == Gimbal_Interface::GBL_ANGLE_MODE_DIRECT){
+                GSDK_DebugInfo("Set gimbal angle control mode to DIRECT\n");
+                onboard->set_angle_ctrl_mode(Gimbal_Interface::GBL_ANGLE_MODE_DIRECT);
+
+            }else{
+                GSDK_DebugError("Invalid angle control mode\n");
+                break;
+            }
+
+            usleep(1000000); // wait for 1 second to let gimbal update the angle control mode
+
+            // Get back the angle control mode to check
+            Gimbal_Interface::gbl_ctrl_angle_mode_t current_mode = onboard->get_angle_ctrl_mode();
+            if(current_mode == Gimbal_Interface::GBL_ANGLE_MODE_SHORTEST){
+                GSDK_DebugInfo("Current gimbal angle control mode is SHORTEST\n");
+            }else if(current_mode == Gimbal_Interface::GBL_ANGLE_MODE_DIRECT){
+                GSDK_DebugInfo("Current gimbal angle control mode is DIRECT\n");
+            }
+        }
+            break;
+        case 17: // Set motor electronic power
+        {
+            float pwer_percent;
+            GSDK_DebugMsg("Please Enter electronic power percentage (50-100) : \n\r");
+            scanf("%f" , &pwer_percent);
+            printf("\n");
+
+            if(pwer_percent < 50.0f || pwer_percent > 100.0f){
+                GSDK_DebugError("Invalid power percentage\n");
+                break;
+            }
+
+            GSDK_DebugInfo("Set motor electronic power percentage to %.2f\n", pwer_percent);
+            onboard->set_motor_electronic_power(pwer_percent);
+
+            usleep(1000000); // wait for 1 second to let gimbal update the power percentage
+
+            // Get back the electronic power percentage to check
+            float current_power = onboard->get_motor_electronic_power();
+            GSDK_DebugInfo("Current motor electronic power percentage is %.2f\n", current_power);
+        }
         default:
         {
         }

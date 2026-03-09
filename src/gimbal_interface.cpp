@@ -1855,6 +1855,76 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_msg_rate(uint32_t msgid, rate_ac
 }
 
 /**
+ * @brief Set the gimbal angle control mode
+ *
+ * @param angle_mode
+ * @return Gimbal_Protocol::result_t
+ */
+Gimbal_Protocol::result_t Gimbal_Interface::set_angle_ctrl_mode(Gimbal_Interface::gbl_ctrl_angle_mode_t angle_mode){
+    if (angle_mode == GBL_ANGLE_MODE_SHORTEST) {
+        return set_param(GMB_PARAM_ANGLE_CTRL_MODE, GBL_ANGLE_MODE_SHORTEST);
+
+    } else if (angle_mode == GBL_ANGLE_MODE_DIRECT) {
+        return set_param(GMB_PARAM_ANGLE_CTRL_MODE, GBL_ANGLE_MODE_DIRECT);
+
+    } else {
+        GSDK_DebugError("ERROR: The angle control mode is invalid\n");
+        return Gimbal_Protocol::ERROR;
+    }
+}
+
+/**
+ * @brief Get the gimbal angle control mode
+ *
+ * @return  gbl_ctrl_angle_mode_t
+ */
+Gimbal_Interface::gbl_ctrl_angle_mode_t Gimbal_Interface::get_angle_ctrl_mode(void){
+    int16_t ret = 0;
+    if (get_param(GMB_PARAM_ANGLE_CTRL_MODE, ret) == Gimbal_Protocol::SUCCESS) {
+        if (ret == GBL_ANGLE_MODE_SHORTEST) {
+            return GBL_ANGLE_MODE_SHORTEST;
+
+        } else if (ret == GBL_ANGLE_MODE_DIRECT) {
+            return GBL_ANGLE_MODE_DIRECT;
+        }
+    }
+
+    GSDK_DebugError("ERROR: Failed to get angle control mode\n");
+    return (gbl_ctrl_angle_mode_t)-1;
+}
+
+/**
+ * @brief Set the motor electronic power
+ *
+ * @param percent percentage of the power, range [50 - 100]
+ * @return Gimbal_Protocol::result_t
+ */
+Gimbal_Protocol::result_t Gimbal_Interface::set_motor_electronic_power(float percent){
+    if (percent < 50.0f || percent > 100.0f) {
+        GSDK_DebugError("ERROR: The power percentage is out of range [50 - 100]\n");
+        return Gimbal_Protocol::ERROR;
+    }
+
+    return set_param(GMB_PARAM_MOTOR_ELEC_POWER, (int16_t)percent);
+}
+
+/**
+ * @brief Get the motor electronic power
+ *
+ * @return percentage of the power, range [50 - 100]
+ */
+float Gimbal_Interface::get_motor_electronic_power(void)
+{
+    int16_t ret = 0;
+    if (get_param(GMB_PARAM_MOTOR_ELEC_POWER, ret) == Gimbal_Protocol::SUCCESS) {
+        return (float)ret;
+    }
+
+    GSDK_DebugError("ERROR: Failed to get motor electronic power\n");
+    return -1.0f;
+}
+
+/**
  * @brief Request msg from gimbal
  *
  * @param msgid
