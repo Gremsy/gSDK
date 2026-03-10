@@ -894,6 +894,18 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_return_home_sync(void)
     return set_gimbal_reset_mode(Gimbal_Protocol::GIMBAL_RESET_MODE_PITCH_AND_YAW);
 }
 
+Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_rotation_sync(float q[4])
+{
+    if (_gimbal_proto == nullptr) {
+        return Gimbal_Protocol::ERROR;
+    }
+    
+    if (_proto != MAVLINK_GIMBAL_V2) {
+        GSDK_DebugError("ERROR: Only using quaternion for gimbal_v2");
+        return Gimbal_Protocol::ERROR;
+    }
+    return dynamic_cast<Gimbal_Protocol_V2 *> (_gimbal_proto) -> set_gimbal_attitude_sync(q);
+}
 /**
  * @brief  This function rotate to target angle (deg)
  * @param: pitch control pitch value

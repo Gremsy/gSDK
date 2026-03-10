@@ -457,6 +457,13 @@ public:
     Gimbal_Protocol::result_t set_gimbal_rotation_sync(float pitch, float roll, float yaw);
 
     /**
+     * @brief  This function rotate to target angle (quaternion)
+     * @param: q[4]
+     * @ret: result
+     */
+    Gimbal_Protocol::result_t set_gimbal_rotation_sync(float q[4]);
+
+    /**
      * @brief  This function rotate target rate (deg/s)
      * @param: pitch control pitch value
      * @param: roll control roll value

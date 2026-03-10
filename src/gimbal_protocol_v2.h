@@ -77,6 +77,15 @@ public:
      */
     result_t set_gimbal_move_sync(float pitch, float roll, float yaw,
                                   input_mode_t mode) override;
+                           
+    /**
+     * @brief Set the gimbal move sync
+     * 
+     * @param q     Target orientation represented as a quaternion [w, x, y, z].
+     * @param mode  see input_mode_t
+     * @return      result_t 
+     */
+    result_t set_gimbal_attitude_sync(float q[4]);
 
 private:
 

@@ -101,6 +101,70 @@ Gimbal_Protocol_V2::result_t Gimbal_Protocol_V2::set_gimbal_reset_mode(gimbal_re
 /**
  * @brief Set the gimbal move sync
  *
+ * @param q     Target orientation represented as a quaternion [w, x, y, z].
+ * @param mode  see input_mode_t
+ * @return      result_t
+ */
+Gimbal_Protocol::result_t Gimbal_Protocol_V2::set_gimbal_attitude_sync(float q[4])
+{
+    if (_port == nullptr) {
+        GSDK_DebugError("ERROR: serial port not exist\n");
+        throw 1;
+    }
+
+    if (!_is_init) {
+        GSDK_DebugError("ERROR: could not MOVE GIMBAL, gimbal proto has not been initialized\n");
+        return ERROR;
+    }
+        /* Pack message */
+    mavlink_gimbal_device_set_attitude_t attitude = { 0 };
+    attitude.target_system    = _gimbal.sysid;
+    attitude.target_component = _gimbal.compid;
+    attitude.flags = GIMBAL_DEVICE_FLAGS_ROLL_LOCK | GIMBAL_DEVICE_FLAGS_PITCH_LOCK |
+                     ((_control_mode == GIMBAL_OFF)             ? GIMBAL_DEVICE_FLAGS_RETRACT   : 0) |
+                     ((_control_mode == GIMBAL_LOCK_MODE)       ? GIMBAL_DEVICE_FLAGS_YAW_LOCK  : 0) |
+                     ((_control_mode == GIMBAL_MAPPING_MODE)    ? GIMBAL_MAPPING_MODE           : 0) |
+                     ((_control_mode == GIMBAL_RESET_HOME)      ? GIMBAL_DEVICE_FLAGS_NEUTRAL   : 0);
+
+    float norm = sqrtf(q[0]*q[0] +
+                       q[1]*q[1] +
+                       q[2]*q[2] +
+                       q[3]*q[3]);
+
+    if ((norm < 1e-6f) || (fabsf(norm - 1.0f) > 0.1f)) {
+        GSDK_DebugError("ERROR: Invalid quaternion\n");
+        return ERROR;
+    }
+
+    if (norm > 0.0f)
+    {
+        q[0] /= norm;
+        q[1] /= norm;
+        q[2] /= norm;
+        q[3] /= norm;
+    }
+    
+    memcpy(attitude.q, q, 4 * sizeof(float));
+
+    attitude.angular_velocity_x = NAN;
+    attitude.angular_velocity_y = NAN;
+    attitude.angular_velocity_z = NAN;
+    printf("Send value\n");
+    // --------------------------------------------------------------------------
+    //   ENCODE
+    // --------------------------------------------------------------------------
+    mavlink_message_t message = { 0 };
+
+    mavlink_msg_gimbal_device_set_attitude_encode_chan(_system.sysid, _system.compid, _channel, &message, &attitude);
+    // --------------------------------------------------------------------------
+    //   WRITE
+    // --------------------------------------------------------------------------
+    return (_port->write_message(message) > 0) ? SUCCESS : ERROR;
+}
+
+/**
+ * @brief Set the gimbal move sync
+ *
  * @param pitch control pitch value
  * @param roll control roll value
  * @param yaw control yaw value
