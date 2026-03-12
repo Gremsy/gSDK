@@ -1399,7 +1399,7 @@ static bool control_sample_gimbal_set_lock_mode(Gimbal_Interface *onboard){
 
 static bool control_sample_gimbal_set_follow_mode(Gimbal_Interface *onboard){
     Gimbal_Protocol::result_t res = Gimbal_Protocol::UNKNOWN;
-    static uint8_t timeout = 0;
+    uint8_t timeout = 0;
 
     do{
         res = onboard->set_gimbal_follow_mode_sync();
