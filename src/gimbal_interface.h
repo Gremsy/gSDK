@@ -209,6 +209,10 @@ public:
     /**
      * @brief gimbal_config_axis_t
      * This structure will contain the gimbal configuration related to speed, smooth, direction
+     * speed_control is units degrees/second,
+     * window_follow is units degrees
+     * Please refer to https://docs.gremsy.com/gremsy-app/gtune-desktop/how-to-use 
+     * for more details about how those setting will affect the gimbal performance
      */
     struct gimbal_config_axis_t {
         int8_t dir;
@@ -227,6 +231,8 @@ public:
     * 			The higher you can run the setting without vibration or oscillation, the better.
     * Holdstrength: Power level required for the corresponding axis.
     *				This option is only recommended for advanced users. Set 40 as defaults
+    * Please refer to https://docs.gremsy.com/gremsy-app/gtune-desktop/how-to-use 
+    * for more details about how those setting will affect the gimbal performance
     */
     struct gimbal_motor_control_t {
         uint8_t stiffness;
@@ -244,6 +250,10 @@ public:
 
     /**
      * @brief Limit angle data structure
+     * limit angle is units degrees
+     * example: if you want to set yaw limit angle to -90 degrees and 30 degrees,
+     *          set angle_min to -90 and angle_max to 30
+     * not support setting float value for limit angle
      */
     struct limit_angle_t {
         int16_t angle_min;
@@ -252,7 +262,8 @@ public:
 
     /**
      * @brief imu data type
-     *
+     * Acceleration (raw (LSB)): range: ±4g, 8192 LSB/g  (1g = 8192)
+     * Gyro(raw (LSB)): range ±1000º/s. 32.8 LSB/(º/s) (1º/s = 32.8)
      */
     struct imu_t {
         vector3<int16_t> accel;
