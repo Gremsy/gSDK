@@ -149,7 +149,6 @@ Gimbal_Protocol::result_t Gimbal_Protocol_V2::set_gimbal_attitude_sync(float q[4
     attitude.angular_velocity_x = NAN;
     attitude.angular_velocity_y = NAN;
     attitude.angular_velocity_z = NAN;
-    printf("Send value\n");
     // --------------------------------------------------------------------------
     //   ENCODE
     // --------------------------------------------------------------------------

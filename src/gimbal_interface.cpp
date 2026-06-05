@@ -311,7 +311,6 @@ void Gimbal_Interface::messages_handler(const mavlink_message_t &message)
 // ------------------------------------------------------------------------------
 void Gimbal_Interface::read_messages()
 {
-	// printf("%s \n", __func__);
 
 	bool success = false;               // receive success flag
 	bool received_all = false;  // receive only one message
@@ -330,7 +329,6 @@ void Gimbal_Interface::read_messages()
 		if(success){
 			pthread_mutex_lock(&read_queue_mutex);
 			while(!queue_message.empty()){
-				// printf("got msg id: %d\n", queue_message.front().msgid);
 				m_mav_message.push(queue_message.front());
 				queue_message.pop();
 			}

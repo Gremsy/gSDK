@@ -334,7 +334,7 @@ void parse_commandline(int argc, char **argv, char *&uart_name, int &baudrate)
 
         // Help
         if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
-            printf("%s\n", commandline_usage);
+            GSDK_DebugMsg("%s\n", commandline_usage);
             throw EXIT_FAILURE;
         }
 
@@ -344,7 +344,7 @@ void parse_commandline(int argc, char **argv, char *&uart_name, int &baudrate)
                 uart_name = argv[i + 1];
 
             } else {
-                printf("%s\n", commandline_usage);
+                GSDK_DebugMsg("%s\n", commandline_usage);
                 throw EXIT_FAILURE;
             }
         }
@@ -355,7 +355,7 @@ void parse_commandline(int argc, char **argv, char *&uart_name, int &baudrate)
                 baudrate = atoi(argv[i + 1]);
 
             } else {
-                printf("%s\n", commandline_usage);
+                GSDK_DebugMsg("%s\n", commandline_usage);
                 throw EXIT_FAILURE;
             }
         }
@@ -371,9 +371,9 @@ void parse_commandline(int argc, char **argv, char *&uart_name, int &baudrate)
 // this function is called when you press Ctrl-C
 void quit_handler(int sig)
 {
-    printf("\n");
-    printf("TERMINATING AT USER REQUEST\n");
-    printf("\n");
+    GSDK_DebugMsg("\n");
+    GSDK_DebugMsg("TERMINATING AT USER REQUEST\n");
+    GSDK_DebugMsg("\n");
 
     // autopilot interface
     try {
@@ -422,30 +422,30 @@ static void setting_sample_set_limit_angle(Gimbal_Interface *onboard){
         limit.angle_min = -320;
         while (onboard->set_limit_angle_yaw(limit) != Gimbal_Protocol::SUCCESS)
         {
-            printf("Try to set yaw limit again!\r\n");
+            GSDK_DebugMsg("Try to set yaw limit again!\r\n");
             usleep(1000);
         }
-        printf("Set yaw max: %d -- Set yaw min: %d\n" , limit.angle_max, limit.angle_min);
+        GSDK_DebugMsg("Set yaw max: %d -- Set yaw min: %d\n" , limit.angle_max, limit.angle_min);
 
         // setting limit for titl axis
         limit.angle_max = 45;
         limit.angle_min = -45;
         while (onboard->set_limit_angle_pitch(limit) != Gimbal_Protocol::SUCCESS)
         {
-            printf("Try to set titl limit again!\r\n");
+            GSDK_DebugMsg("Try to set titl limit again!\r\n");
             usleep(1000);
         }
-        printf("Set yaw max: %d -- Set yaw min: %d\n" , limit.angle_max, limit.angle_min);
+        GSDK_DebugMsg("Set yaw max: %d -- Set yaw min: %d\n" , limit.angle_max, limit.angle_min);
 
         // setting limit for roll axis
         limit.angle_max = 40;
         limit.angle_min = -40;
         while (onboard->set_limit_angle_roll(limit) != Gimbal_Protocol::SUCCESS)
         {
-            printf("Try to set roll limit again!\r\n");
+            GSDK_DebugMsg("Try to set roll limit again!\r\n");
             usleep(1000);
         }
-        printf("Set roll max: %d -- Set roll min: %d\n" , limit.angle_max, limit.angle_min);
+        GSDK_DebugMsg("Set roll max: %d -- Set roll min: %d\n" , limit.angle_max, limit.angle_min);
 }
 
 static void get_input_angle(float &pitch,float &roll, float &yaw);
@@ -464,26 +464,26 @@ static void control_sample_gimbal_process(Gimbal_Interface *onboard, Generic_Por
 
     int number = 0;
 
-    printf("\33[39m\n\r Please Enter number [0-15] to select Gimbal control mode\n\r");
-    printf("\t 0.   OFF Gimbal\n\r");
-    printf("\t 1.   ON Gimbal\n\r");
-    printf("\t 2.   Change mount mode\n\r");
-    printf("\t 3.   Gimbal information\n\r");
-    printf("\t 4.   Config gimbal follow parameter\n\r");
-    printf("\t 5.   Set Gimbal to LOCK mode\n\r");
-    printf("\t 6.   Set Gimbal to move angle in LOCK mode\n\r");
-    printf("\t 7.   Set Gimbal to move rate in LOCK mode\n\r");
-    printf("\t 8.   Set Gimbal to FOLLOW mode\n\r");
-    printf("\t 9.   Set Gimbal to move angle in FOLLOW mode\n\r");
-    printf("\t 10.  Set Gimbal to move rate in FOLLOW mode\n\r");
-    printf("\t 11.  Set Gimbal to MAPPING mode\n\r");
-    printf("\t 12.  Set Gimbal to Return Home\n\r");\
-    printf("\t 13.  Set Gimbal Reboot\n\r");
-    printf("\t 14.  Upgrade Firmware\n\r");
-    printf("\t 15.  Monitoring Encoder - Attitude - IMU\n\r");
-    printf("\t 16.  Set Gimbal Control ANGLE mode\n\r");
-    printf("\t 17.  Set Gimbal Electronic Power\n\r");
-    printf("\33[32mSelect ->  ");
+    GSDK_DebugMsg("\33[39m\n\r Please Enter number [0-15] to select Gimbal control mode\n\r");
+    GSDK_DebugMsg("\t 0.   OFF Gimbal\n\r");
+    GSDK_DebugMsg("\t 1.   ON Gimbal\n\r");
+    GSDK_DebugMsg("\t 2.   Change mount mode\n\r");
+    GSDK_DebugMsg("\t 3.   Gimbal information\n\r");
+    GSDK_DebugMsg("\t 4.   Config gimbal follow parameter\n\r");
+    GSDK_DebugMsg("\t 5.   Set Gimbal to LOCK mode\n\r");
+    GSDK_DebugMsg("\t 6.   Set Gimbal to move angle in LOCK mode\n\r");
+    GSDK_DebugMsg("\t 7.   Set Gimbal to move rate in LOCK mode\n\r");
+    GSDK_DebugMsg("\t 8.   Set Gimbal to FOLLOW mode\n\r");
+    GSDK_DebugMsg("\t 9.   Set Gimbal to move angle in FOLLOW mode\n\r");
+    GSDK_DebugMsg("\t 10.  Set Gimbal to move rate in FOLLOW mode\n\r");
+    GSDK_DebugMsg("\t 11.  Set Gimbal to MAPPING mode\n\r");
+    GSDK_DebugMsg("\t 12.  Set Gimbal to Return Home\n\r");\
+    GSDK_DebugMsg("\t 13.  Set Gimbal Reboot\n\r");
+    GSDK_DebugMsg("\t 14.  Upgrade Firmware\n\r");
+    GSDK_DebugMsg("\t 15.  Monitoring Encoder - Attitude - IMU\n\r");
+    GSDK_DebugMsg("\t 16.  Set Gimbal Control ANGLE mode\n\r");
+    GSDK_DebugMsg("\t 17.  Set Gimbal Electronic Power\n\r");
+    GSDK_DebugMsg("\33[32mSelect ->  ");
 
     scanf("%d", &number);
 
@@ -517,7 +517,7 @@ static void control_sample_gimbal_process(Gimbal_Interface *onboard, Generic_Por
             {
                char input = 0;
                control_sample_gimbal_config_follow_para(onboard);
-               printf("\t\n\rContinue (Y/N)?\n\r");
+               GSDK_DebugMsg("\t\n\rContinue (Y/N)?\n\r");
                scanf(" %c", &input);
                if(input != 'Y' && input != 'y'){
                     break;
@@ -622,7 +622,7 @@ static void control_sample_gimbal_process(Gimbal_Interface *onboard, Generic_Por
             Gimbal_Interface::gbl_ctrl_angle_mode_t angle_mode;
             GSDK_DebugMsg("Please Enter angle mode: \n\r \t 0. SHORTEST\n\r \t 1. DIRECT\n\r");
             scanf("%d" , &angle_mode);
-            printf("\n");
+            GSDK_DebugMsg("\n");
 
             if(angle_mode == Gimbal_Interface::GBL_ANGLE_MODE_SHORTEST){
                 GSDK_DebugInfo("Set gimbal angle control mode to SHORTEST\n");
@@ -653,7 +653,7 @@ static void control_sample_gimbal_process(Gimbal_Interface *onboard, Generic_Por
             float pwer_percent;
             GSDK_DebugMsg("Please Enter electronic power percentage (50-100) : \n\r");
             scanf("%f" , &pwer_percent);
-            printf("\n");
+            GSDK_DebugMsg("\n");
 
             if(pwer_percent < 50.0f || pwer_percent > 100.0f){
                 GSDK_DebugError("Invalid power percentage\n");
@@ -1785,10 +1785,10 @@ static void get_input_angle(float &pitch,float &roll, float &yaw){
 
         GSDK_DebugMsg("PITCH angle: ");
         scanf("%f" , &pitch);
-        printf("\n");
+        GSDK_DebugMsg("\n");
         GSDK_DebugMsg("ROLL angle: ");
         scanf("%f" , &roll);
-        printf("\n");
+        GSDK_DebugMsg("\n");
         GSDK_DebugMsg("YAW angle: ");
         scanf("%f" , &yaw);
     }
@@ -1796,10 +1796,10 @@ static void get_input_angle(float &pitch,float &roll, float &yaw){
     {
         GSDK_DebugMsg("PITCH angle: ");
         scanf("%f" , &pitch);
-        printf("\n");
+        GSDK_DebugMsg("\n");
         GSDK_DebugMsg("ROLL angle: ");
         scanf("%f" , &roll);
-        printf("\n");
+        GSDK_DebugMsg("\n");
         yaw = 0;
     }
     else if (gimbal_mode.gimbal_type == TWO_AXIS && gimbal_mode.mnt_mode == TWO_AXIS_GIMBAL_MOUNT_MODE_PAN_TILT)
@@ -1807,7 +1807,7 @@ static void get_input_angle(float &pitch,float &roll, float &yaw){
         roll = 0;
         GSDK_DebugMsg("PITCH angle: ");
         scanf("%f" , &pitch);
-        printf("\n");
+        GSDK_DebugMsg("\n");
         GSDK_DebugMsg("YAW angle: ");
         scanf("%f" , &yaw);
     }
@@ -1819,10 +1819,10 @@ static void get_input_rate(float &pitch_rate,float &roll_rate, float &yaw_rate, 
     {
         GSDK_DebugMsg("ROLL rate: ");
         scanf("%f" , &roll_rate);
-        printf("\n");
+        GSDK_DebugMsg("\n");
         GSDK_DebugMsg("PITCH rate: ");
         scanf("%f" , &pitch_rate);
-        printf("\n");
+        GSDK_DebugMsg("\n");
         GSDK_DebugMsg("YAW rate: ");
         scanf("%f" , &yaw_rate);
     }
@@ -1830,10 +1830,10 @@ static void get_input_rate(float &pitch_rate,float &roll_rate, float &yaw_rate, 
     {
         GSDK_DebugMsg("ROLL rate: ");
         scanf("%f" , &roll_rate);
-        printf("\n");
+        GSDK_DebugMsg("\n");
         GSDK_DebugMsg("PITCH rate: ");
         scanf("%f" , &pitch_rate);
-        printf("\n");
+        GSDK_DebugMsg("\n");
         yaw_rate = 0;
     }
     else if (gimbal_mode.gimbal_type == TWO_AXIS && gimbal_mode.mnt_mode == TWO_AXIS_GIMBAL_MOUNT_MODE_PAN_TILT)
@@ -1841,26 +1841,26 @@ static void get_input_rate(float &pitch_rate,float &roll_rate, float &yaw_rate, 
         roll_rate = 0;
         GSDK_DebugMsg("PITCH rate: ");
         scanf("%f" , &pitch_rate);
-        printf("\n");
+        GSDK_DebugMsg("\n");
         GSDK_DebugMsg("YAW rate: ");
         scanf("%f" , &yaw_rate);
     }
 
-    printf("\n");
+    GSDK_DebugMsg("\n");
     GSDK_DebugMsg("Duration (in seconds): ");
     scanf("%hhu" , &duration);
 }
 
 static void get_encoder_mode(uint8_t &mode)
 {
-    printf("\n");
+    GSDK_DebugMsg("\n");
     GSDK_DebugMsg("Enter encoder mode: 0 - Angle, 1 - Count , Else - skip");
     scanf("%hhu" , &mode);
 }
 
 static void get_input_duration(uint8_t &duration)
 {
-    printf("\n");
+    GSDK_DebugMsg("\n");
     GSDK_DebugMsg("Duration (in seconds): ");
     scanf("%hhu" , &duration);
 }
