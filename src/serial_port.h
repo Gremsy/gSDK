@@ -62,7 +62,7 @@
 #include <pthread.h> // This uses POSIX Threads
 #include <signal.h>
 #include <queue>
-
+#include <poll.h>
 // #include <common/mavlink.h>
 #include <ardupilotmega/mavlink.h>
 

@@ -418,24 +418,39 @@ _read_port(uint8_t &cp)
 // ------------------------------------------------------------------------------
 //   Write Port with Lock
 // ------------------------------------------------------------------------------
-int
-Serial_Port::
-_write_port(char *buf, unsigned len)
+// int
+// Serial_Port::
+// _write_port(char *buf, unsigned len)
+// {
+
+// 	// Lock
+// 	// pthread_mutex_lock(&lock);
+
+// 	// Write packet via serial link
+// 	const int bytesWritten = static_cast<int>(write(fd, buf, len));
+
+// 	// Wait until all data has been written
+// 	tcdrain(fd);
+
+// 	// Unlock
+// 	// pthread_mutex_unlock(&lock);
+
+
+// 	return bytesWritten;
+// }
+int Serial_Port::_write_port(char *buf, unsigned len)
 {
-
-	// Lock
-	// pthread_mutex_lock(&lock);
-
-	// Write packet via serial link
-	const int bytesWritten = static_cast<int>(write(fd, buf, len));
-
-	// Wait until all data has been written
-	tcdrain(fd);
-
-	// Unlock
-	// pthread_mutex_unlock(&lock);
-
-
+    struct pollfd pfd;
+    pfd.fd = fd;
+    pfd.events = POLLOUT;
+    int bytesWritten = -1;
+    // Poll cho đến khi file descriptor sẵn sàng để ghi
+    while (poll(&pfd, 1, -1) > 0) {
+        if (pfd.revents & POLLOUT) {
+            bytesWritten = static_cast<int>(write(fd, buf, len));
+            break;
+        }
+    }
 	return bytesWritten;
 }
 int Serial_Port::write_buf(uint8_t *buf, uint16_t len)
