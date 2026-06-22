@@ -421,6 +421,10 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_param(param_index_t param, int16
     }
 
     if (_params_list[param].state == PARAM_STATE_NONEXISTANT) {
+        GSDK_DebugError(
+            "Error: Parameter '%s' does not exist. Please disconnect gTune, reboot the device, and try again.\n",
+            get_param_name(param)
+        );
         return Gimbal_Protocol::ERROR;
     }
     _params_list[param].state = PARAM_STATE_ATTEMPTING_TO_SET;
@@ -458,7 +462,7 @@ void Gimbal_Interface::param_update()
     /// Retry initia param retrieval
     if (!params_received_all()) {
         for (uint8_t i = 0; i < GIMBAL_NUM_TRACKED_PARAMS; i++) {
-            if (!_params_list[i].seen && (tnow_ms - _last_request_ms > 10)) {
+            if (!_params_list[i].seen && (tnow_ms - _last_request_ms > 10) &&_params_list[i].state != PARAM_STATE_NONEXISTANT) {
                 if (request_param((param_index_t)i) == Gimbal_Protocol::SUCCESS) {
                     _last_request_ms = tnow_ms;
                     _params_list[i].fetch_attempts++;
@@ -478,7 +482,7 @@ void Gimbal_Interface::param_update()
         }
 
         // Check for nonexistent parameters
-        if (!_params_list[i].seen && _params_list[i].fetch_attempts > _MAX_FETCH_TIME) {
+        if (!_params_list[i].seen && _params_list[i].fetch_attempts > _MAX_FETCH_TIME && _params_list[i].state != PARAM_STATE_NONEXISTANT) {
             _params_list[i].state = PARAM_STATE_NONEXISTANT;
             GSDK_DebugWarning("Gimbal parameter %s timed out\n", get_param_name((param_index_t)i));
         }
