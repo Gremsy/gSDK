@@ -1833,7 +1833,19 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_rc_type(rc_type_t type)
  */
 bool Gimbal_Interface::is_gimbal(uint8_t compid)
 {
-    return (compid >= MAV_COMP_ID_GIMBAL && compid <= MAV_COMP_ID_GIMBAL6);
+    switch (compid) {
+        case MAV_COMP_ID_GIMBAL:
+        case MAV_COMP_ID_GIMBAL2:
+        case MAV_COMP_ID_GIMBAL3:
+        case MAV_COMP_ID_GIMBAL4:
+        case MAV_COMP_ID_GIMBAL5:
+        case MAV_COMP_ID_GIMBAL6:
+            return true;
+        default:
+            return false;
+    }
+
+    return false;
 }
 
 /**

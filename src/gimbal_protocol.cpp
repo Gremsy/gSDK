@@ -112,28 +112,34 @@ Gimbal_Protocol::result_t Gimbal_Protocol::send_command_long(uint16_t command, c
 Gimbal_Protocol::result_t Gimbal_Protocol::send_command_long_sync(uint16_t command, const float param[7])
 {
 
-    struct timespec time_wait;
-    int rt = 0;
-    result_t result = UNKNOWN;
-    // get current time
-    clock_gettime(CLOCK_REALTIME, &time_wait);
-    // Wait for 1 sec timeout
-    time_wait.tv_sec += 1;
-    pthread_mutex_lock(&_mutex);
-    if (send_command_long(command, param) == SUCCESS){
-        rt = pthread_cond_timedwait(&_condition, &_mutex, &time_wait);
-        // check result
-        if (rt == ETIMEDOUT) {
-            result = TIMEOUT;
+    auto request = std::make_shared<PendingRequest>();
 
-        } else {
-            if (_ack.command == command) {
-                result = from_mav_result((MAV_RESULT)_ack.result);
-            }
-        }
+    request->command = command;
+
+    auto future = request->promise.get_future();
+
+    {
+        std::lock_guard<std::mutex> lock(_pending_mutex);
+        _pending_requests[command] = request;
     }
-    pthread_mutex_unlock(&_mutex);
-    return result;
+
+    if (send_command_long(command, param) != SUCCESS)
+    {
+        std::lock_guard<std::mutex> lock(_pending_mutex);
+        _pending_requests.erase(command);
+        return UNKNOWN;
+    }
+
+    auto status = future.wait_for(std::chrono::seconds(1));
+
+    if (status == std::future_status::timeout)
+    {
+        std::lock_guard<std::mutex> lock(_pending_mutex);
+        _pending_requests.erase(command);
+        return TIMEOUT;
+    }
+
+    return future.get();
 }
 
 /**
@@ -151,13 +157,29 @@ void Gimbal_Protocol::command_ack_callback(const mavlink_message_t &message)
     memset(&_ack, 0, sizeof(mavlink_command_ack_t));
     mavlink_msg_command_ack_decode(&message, &_ack);
 
-    if (_ack.target_system == _system.sysid && _ack.target_component == _system.compid) {
-        // Lock mutex
-        pthread_mutex_lock(&_mutex);
-        pthread_cond_signal(&_condition);
-        // Unlock mutex
-        pthread_mutex_unlock(&_mutex);
+    if (_ack.target_system != _system.sysid ||
+        _ack.target_component != _system.compid)
+    {
+        return;
     }
+
+    std::shared_ptr<PendingRequest> request;
+
+    {
+        std::lock_guard<std::mutex> lock(_pending_mutex);
+
+        auto it = _pending_requests.find(_ack.command);
+
+        if (it == _pending_requests.end())
+            return;
+
+        request = it->second;
+
+        _pending_requests.erase(it);
+    }
+
+    request->promise.set_value(
+        from_mav_result((MAV_RESULT)_ack.result));
 }
 
 /**

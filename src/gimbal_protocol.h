@@ -35,6 +35,9 @@
 // ------------------------------------------------------------------------------
 
 #include <stdint.h>
+#include <future>
+#include <mutex>
+#include <unordered_map>
 
 #include "serial_port.h"
 #include "udp_port.h"
@@ -316,6 +319,21 @@ protected:
      * @return result_t 
      */
     result_t from_mav_result(MAV_RESULT res);
+
+
+    struct PendingRequest
+    {
+        uint16_t command;
+        std::promise<Gimbal_Protocol::result_t> promise;
+    };
+    
+    std::mutex _pending_mutex;
+
+    std::unordered_map<
+        uint16_t,
+        std::shared_ptr<PendingRequest>
+    > _pending_requests;
+
 };
 
 #endif // GIMBAL_PROTOCOL_H_
