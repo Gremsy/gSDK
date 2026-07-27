@@ -1179,7 +1179,8 @@ Gimbal_Interface::imu_t Gimbal_Interface::get_gimbal_raw_imu(void)
         _messages.timestamps.raw_imu = 0;
         const mavlink_raw_imu_t &raw = _messages.raw_imu;
         pthread_mutex_unlock(&_messages.mutex);
-        return imu_t(vector3<int16_t>(raw.xacc, raw.yacc, raw.zacc), 
+        return imu_t(raw.time_usec,
+                    vector3<int16_t>(raw.xacc, raw.yacc, raw.zacc), 
                     vector3<int16_t>(raw.xgyro, raw.ygyro, raw.zgyro));
     }
 
@@ -1861,6 +1862,21 @@ float Gimbal_Interface::get_motor_electronic_power(void)
 }
 
 /**
+ * @brief Set the gimbal COM2 baudrate
+ *
+ * @param baudrate baudrate in bps, range [1200 - 3000000]
+ * @return Gimbal_Protocol::result_t
+ */
+Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_baudrate_com2(uint32_t baudrate){
+    if (baudrate < 1200 || baudrate > 3000000) {
+        GSDK_DebugError("ERROR: The baudrate is out of range [1200 - 3000000]\n");
+        return Gimbal_Protocol::ERROR;
+    }
+
+    return set_param("BAUDRATE_COM2", static_cast<float>(baudrate / 100));
+}
+
+/**
  * @brief Request msg from gimbal
  *
  * @param msgid
@@ -2235,6 +2251,93 @@ Quaternion_angle_t operator*(const Quaternion_angle_t& lhs, const Quaternion_ang
     result.z = lhs.w * rhs.z + lhs.z * rhs.w + lhs.x * rhs.y + lhs.y * rhs.x;
 
     return result;
+}
+
+// ------------------------------------------------------------------------------
+//   Gimbal Euler rate from raw IMU (Complementary Filter)
+// ------------------------------------------------------------------------------
+
+static constexpr float _ACCEL_SCALE = 1.0f / 8192.0f;   // LSB -> g  (±4g, 8192 LSB/g)
+static constexpr float _GYRO_SCALE  = 1.0f / 32.8f;     // LSB -> deg/s (±1000°/s, 32.8 LSB/°/s)
+static constexpr float _CF_ALPHA    = 0.98f;             // Complementary filter gyro weight
+static constexpr float _DEG2RAD     = static_cast<float>(M_PI) / 180.0f;
+static constexpr float _RAD2DEG     = 180.0f / static_cast<float>(M_PI);
+
+Angular_velocity_t<float> Gimbal_Interface::compute_gimbal_euler_rate(
+    const imu_t &raw_imu, gimbal_attitude_filter_t &state)
+{
+    Angular_velocity_t<float> rate;
+
+    // Convert raw LSB to physical units
+    const float ax = raw_imu.accel.x * _ACCEL_SCALE; // LSB -> g, subtract 1g for gravity
+    const float ay = raw_imu.accel.y * _ACCEL_SCALE; // LSB -> g, subtract 1g for gravity
+    const float az = raw_imu.accel.z * _ACCEL_SCALE; // LSB -> g, subtract 1g for gravity
+    const float gx = raw_imu.gyro.x  * _GYRO_SCALE;   // deg/s
+    const float gy = raw_imu.gyro.y  * _GYRO_SCALE;
+    const float gz = raw_imu.gyro.z  * _GYRO_SCALE;
+
+    float dt = (raw_imu.timestamp - state.last_timestamp) * 1e-6f; // us -> s
+    state.last_timestamp = raw_imu.timestamp;
+
+    GSDK_DebugInfo("IMU: ax=%.3f, ay=%.3f, az=%.3f, gx=%.3f, gy=%.3f, gz=%.3f, dt=%.6f\n",
+        ax, ay, az, gx, gy, gz, dt);
+
+    // NOTE: on this gimbal's IMU mounting, accel.x/gyro.x track the pitch axis
+    // and accel.y/gyro.y track the roll axis (confirmed by physically rotating
+    // each axis and observing which output responds) -- hence the x/y cross
+    // mapping below and in the p/q assignment.
+    // Seed attitude from accel on first call
+    if (!state.initialized) {
+        state.roll  = atan2f(ax, az) * _RAD2DEG;
+        state.pitch = atan2f(-ay, sqrtf(ax * ax + az * az)) * _RAD2DEG;
+        state.yaw   = 0.0f;
+        state.initialized = true;
+    }
+
+    // Body rates (rad/s) -> Euler rates (deg/s) using current attitude
+    const float roll_rad  = state.roll  * _DEG2RAD;
+    const float pitch_rad = state.pitch * _DEG2RAD;
+
+    const float p  = gy * _DEG2RAD;
+    const float q  = gx * _DEG2RAD;
+    const float r  = gz * _DEG2RAD;
+    const float sin_roll = sinf(roll_rad);
+    const float cos_roll = cosf(roll_rad);
+    const float tan_pitch = tanf(pitch_rad);
+    float       cos_pitch = cosf(pitch_rad);
+    if (fabsf(cos_pitch) < 1e-6f) {
+        cos_pitch = (cos_pitch >= 0.0f) ? 1e-6f : -1e-6f;
+    }
+
+    rate.roll_vel  = (p + q * sin_roll * tan_pitch + r * cos_roll * tan_pitch)  * _RAD2DEG;
+    rate.pitch_vel = (q * cos_roll - r * sin_roll)                              * _RAD2DEG;
+    rate.yaw_vel   = ((q * sin_roll + r * cos_roll) / cos_pitch)                * _RAD2DEG;
+
+    // Clamp Euler-rate vector to the raw body-rate magnitude (guards against
+    // blow-up from the tan/cos singularity near gimbal lock)
+    const float body_mag  = sqrtf(gx * gx + gy * gy + gz * gz);
+    const float euler_mag = sqrtf(rate.roll_vel  * rate.roll_vel +
+                                   rate.pitch_vel * rate.pitch_vel +
+                                   rate.yaw_vel   * rate.yaw_vel);
+
+    if (euler_mag > 1e-6f) {
+        const float normalize_ratio = body_mag / euler_mag;
+        if (normalize_ratio < 1.0f) {
+            rate.roll_vel  *= normalize_ratio;
+            rate.pitch_vel *= normalize_ratio;
+            rate.yaw_vel   *= normalize_ratio;
+        }
+    }
+
+    // Complementary filter: fuse gyro integration with accel-derived tilt
+    const float roll_acc  = atan2f(ax, az) * _RAD2DEG;
+    const float pitch_acc = atan2f(-ay, sqrtf(ax * ax + az * az)) * _RAD2DEG;
+
+    state.roll  = _CF_ALPHA * (state.roll  + rate.roll_vel  * dt) + (1.0f - _CF_ALPHA) * roll_acc;
+    state.pitch = _CF_ALPHA * (state.pitch + rate.pitch_vel * dt) + (1.0f - _CF_ALPHA) * pitch_acc;
+    state.yaw  += rate.yaw_vel * dt;  // gyro-only; will drift without magnetometer
+
+    return rate;
 }
 
 /************************ (C) COPYRIGHT Gremsy *****END OF FILE****************/

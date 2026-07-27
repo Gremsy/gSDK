@@ -54,6 +54,36 @@
 #include <sys/ioctl.h> //ioctl() call defenitions
 #include "serial_port.h"
 
+// Linux-specific custom baud rate support (BOTHER + termios2), used for
+// non-standard rates that have no POSIX termios B* constant (e.g. 9200).
+// Not including <asm/termios.h> directly since it redefines struct termios
+// and conflicts with the glibc <termios.h> already pulled in above.
+#if defined(__linux__)
+#ifndef BOTHER
+#define BOTHER  0010000
+#endif
+#ifndef CBAUD
+#define CBAUD   0010017
+#endif
+#ifndef TCGETS2
+#define TCGETS2 0x542A
+#endif
+#ifndef TCSETS2
+#define TCSETS2 0x542B
+#endif
+
+struct termios2 {
+	tcflag_t c_iflag;
+	tcflag_t c_oflag;
+	tcflag_t c_cflag;
+	tcflag_t c_lflag;
+	cc_t     c_line;
+	cc_t     c_cc[19];
+	speed_t  c_ispeed;
+	speed_t  c_ospeed;
+};
+#endif
+
 
 // ----------------------------------------------------------------------------------
 //   Serial Port Manager Class
@@ -375,9 +405,51 @@ _setup_port(int baud, int data_bits, int stop_bits, bool parity, bool hardware_c
 			}
 			break;
 		default:
+		{
+			// Non-standard rate with no POSIX B* constant (e.g. 9200):
+			// fall back to Linux's BOTHER + termios2 ioctl interface,
+			// which takes the baud rate as a plain integer.
+#if defined(__linux__)
+			struct termios2 tio2;
+			if (ioctl(fd, TCGETS2, &tio2) < 0)
+			{
+				fprintf(stderr, "\nERROR: could not read termios2 configuration of fd %d\n", fd);
+				return false;
+			}
+
+			tio2.c_iflag = config.c_iflag;
+			tio2.c_oflag = config.c_oflag;
+			tio2.c_lflag = config.c_lflag;
+			tio2.c_cflag = (config.c_cflag & ~CBAUD) | BOTHER;
+			tio2.c_ispeed = baud;
+			tio2.c_ospeed = baud;
+			for (int i = 0; i < 19; ++i)
+			{
+				tio2.c_cc[i] = config.c_cc[i];
+			}
+
+			if (ioctl(fd, TCSETS2, &tio2) < 0)
+			{
+				fprintf(stderr, "\nERROR: Desired custom baud rate %d could not be set, aborting.\n", baud);
+				return false;
+			}
+
+			// Read back what the driver actually applied -- some USB-serial
+			// chips silently snap an arbitrary rate to the nearest one their
+			// clock divider supports, so this may differ from `baud`.
+			struct termios2 tio2_check;
+			if (ioctl(fd, TCGETS2, &tio2_check) == 0)
+			{
+				fprintf(stderr, "INFO: custom baud requested %d, driver reports ispeed=%u ospeed=%u\n",
+						baud, tio2_check.c_ispeed, tio2_check.c_ospeed);
+			}
+
+			return true;
+#else
 			fprintf(stderr, "ERROR: Desired baud rate %d could not be set, aborting.\n", baud);
 			return false;
-
+#endif
+		}
 			break;
 	}
 

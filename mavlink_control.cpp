@@ -126,6 +126,7 @@ static void control_sample_gimbal_reboot(Gimbal_Interface *onboard);
 static bool upgrade_firmware(Gimbal_Interface *onboard, Generic_Port *port);
 
 static void monitor_attitude_imu_encoder(Gimbal_Interface *onboard, uint8_t duration);
+static void monitor_gimbal_euler_rate(Gimbal_Interface *onboard, uint8_t duration);
 
 // ------------------------------------------------------------------------------
 //   Gimbal sample control and get data
@@ -482,6 +483,8 @@ static void control_sample_gimbal_process(Gimbal_Interface *onboard, Generic_Por
     GSDK_DebugMsg("\t 15.  Monitoring Encoder - Attitude - IMU\n\r");
     GSDK_DebugMsg("\t 16.  Set Gimbal Control ANGLE mode\n\r");
     GSDK_DebugMsg("\t 17.  Set Gimbal Electronic Power\n\r");
+    GSDK_DebugMsg("\t 18.  Monitor Gimbal Euler Rate (from raw IMU)\n\r");
+    GSDK_DebugMsg("\t 19.  Set Gimbal COM2 Baudrate\n\r");
     GSDK_DebugMsg("\33[32mSelect ->  ");
 
     scanf("%d", &number);
@@ -668,6 +671,30 @@ static void control_sample_gimbal_process(Gimbal_Interface *onboard, Generic_Por
             float current_power = onboard->get_motor_electronic_power();
             GSDK_DebugInfo("Current motor electronic power percentage is %.2f\n", current_power);
         }
+            break;
+        case 18: // Monitor Gimbal Euler Rate from raw IMU
+        {
+            uint8_t duration = 0;
+            get_input_duration(duration);
+            monitor_gimbal_euler_rate(onboard, duration);
+        }
+            break;
+        case 19: // Set gimbal COM2 baudrate
+        {
+            uint32_t baudrate;
+            GSDK_DebugMsg("Please Enter COM2 baudrate (1200-3000000) : \n\r");
+            scanf("%u" , &baudrate);
+            GSDK_DebugMsg("\n");
+
+            if(baudrate < 1200 || baudrate > 3000000){
+                GSDK_DebugError("Invalid baudrate\n");
+                break;
+            }
+
+            GSDK_DebugInfo("Set gimbal COM2 baudrate to %u\n", baudrate);
+            onboard->set_gimbal_baudrate_com2(baudrate);
+        }
+            break;
         default:
         {
         }
@@ -1776,6 +1803,49 @@ static void monitor_attitude_imu_encoder(Gimbal_Interface *onboard,  uint8_t dur
 
     
 
+}
+
+static void monitor_gimbal_euler_rate(Gimbal_Interface *onboard, uint8_t duration)
+{
+    Gimbal_Interface::gimbal_attitude_filter_t filter_state;
+
+    auto start    = std::chrono::steady_clock::now();
+    auto prev_tp  = start;
+    auto last_log = start;
+    const auto log_period = std::chrono::milliseconds(500);
+
+    GSDK_DebugInfo("Monitoring Gimbal Euler Rate from raw IMU for %u seconds... (Ctrl-C to stop early)\n", duration);
+
+    do {
+        auto now     = std::chrono::steady_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - start);
+        if (elapsed.count() >= duration) {
+            break;
+        }
+
+        Gimbal_Interface::imu_t raw_imu = onboard->get_gimbal_raw_imu();
+
+        // Skip if no new IMU data (timestamp == 0 means no message arrived yet)
+        if (raw_imu.timestamp == 0) {
+            usleep(5000);
+            continue;
+        }
+
+        Angular_velocity_t<float> rate =
+            Gimbal_Interface::compute_gimbal_euler_rate(raw_imu, filter_state);
+
+        if (now - last_log >= log_period) {
+            GSDK_DebugInfo("Euler Rate  Roll: %7.2f  Pitch: %7.2f  Yaw: %7.2f  deg/s"
+                           "   |  CF Attitude  Roll: %6.2f  Pitch: %6.2f  Yaw: %6.2f  deg\n",
+                           rate.roll_vel,  rate.pitch_vel,  rate.yaw_vel,
+                           filter_state.roll, filter_state.pitch, filter_state.yaw);
+            last_log = now;
+        }
+
+        usleep(10000);  // ~100 Hz polling, CF updated every cycle regardless of log rate
+    } while (1);
+
+    GSDK_DebugSuccess("Euler Rate monitoring done.\n");
 }
 
 static void get_input_angle(float &pitch,float &roll, float &yaw){

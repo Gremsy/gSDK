@@ -36,6 +36,7 @@
 
 #include "gimbal_protocol.h"
 #include <string>
+#include <cmath>
 // ------------------------------------------------------------------------------
 //   Define
 // ------------------------------------------------------------------------------
@@ -43,7 +44,7 @@
 //Be careful when modifying those definitions. It can cause your gimbal to malfunction.
 #define MAX_ORIENTATION_RATE    55
 #define MAX_ATTITUDE_RATE       MAX_ORIENTATION_RATE
-#define MAX_IMU_RAW_RATE        55
+#define MAX_IMU_RAW_RATE        105
 #define MAX_ENCODER_RATE        20
 // Max rotation rate in deg/s
 #define MAX_ROTATION_RATE       30
@@ -267,12 +268,28 @@ public:
      * Gyro(raw (LSB)): range ±1000º/s. 32.8 LSB/(º/s) (1º/s = 32.8)
      */
     struct imu_t {
+        uint64_t timestamp = 0;
         vector3<int16_t> accel;
         vector3<int16_t> gyro;
 
         imu_t() : accel(0), gyro(0) {};
         imu_t(const vector3<int16_t> &_a, const vector3<int16_t> &_g) :
             accel(_a), gyro(_g) {};
+        imu_t(uint64_t ts, const vector3<int16_t> &_a, const vector3<int16_t> &_g) :
+            timestamp(ts), accel(_a), gyro(_g) {};
+    };
+
+    /**
+     * @brief Complementary filter state for gimbal attitude estimation from raw IMU.
+     *        Pass one instance per gimbal and keep it alive across calls.
+     */
+    struct gimbal_attitude_filter_t {
+        float roll        = 0.0f;   // deg
+        float pitch       = 0.0f;   // deg
+        float yaw         = 0.0f;   // deg
+        uint64_t last_timestamp = 0; // us
+        bool  initialized = false;
+        float log_timer   = 0.0f;   // sec, accumulates dt to throttle debug logging
     };
 
     /**
@@ -440,6 +457,24 @@ public:
      * @ret: Gimbal raw imu
      */
     imu_t get_gimbal_raw_imu(void);
+
+    /**
+     * @brief Compute gimbal Euler angular rates from raw IMU using a complementary filter.
+     *
+     * Converts raw LSB values to physical units, runs a complementary filter
+     * (alpha * gyro_integral + (1-alpha) * accel_tilt) to track roll/pitch, then
+     * applies the full kinematic rotation matrix to obtain true Euler rates with
+     * cross-axis compensation. Yaw is gyro-only integration (will drift without mag).
+     *
+     * On first call (state.initialized == false) attitude is seeded from accel only.
+     *
+     * @param raw_imu  Raw IMU from get_gimbal_raw_imu()
+     * @param dt       Sample period in seconds
+     * @param state    [in/out] Filter state; must persist across calls
+     * @return Angular_velocity_t<float>  Euler rates in deg/s {roll_vel, pitch_vel, yaw_vel}
+     */
+    static Angular_velocity_t<float> compute_gimbal_euler_rate(
+        const imu_t &raw_imu, gimbal_attitude_filter_t &state);
 
     /**
      * @brief  This function get gimbal attitude (deg)
@@ -770,6 +805,14 @@ public:
      * @return percentage of the power, range [50 - 100]
      */
     float get_motor_electronic_power(void);
+
+    /**
+     * @brief Set the gimbal COM2 baudrate
+     *
+     * @param baudrate baudrate in bps, range [1200 - 3000000]
+     * @return Gimbal_Protocol::result_t
+     */
+    Gimbal_Protocol::result_t set_gimbal_baudrate_com2(uint32_t baudrate);
 
     private:
 
