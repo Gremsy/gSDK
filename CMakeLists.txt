@@ -10,6 +10,9 @@ set(MAVLINK_INCLUDES
 
 set(MAVLINK_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/src")
+
+set(ASIO_INCLUDES
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/third_party/asio-1.38.2/include")
     
 # Select port type
 if(NOT DEFINED PORT_TYPE)
@@ -20,7 +23,7 @@ message(STATUS "PORT_TYPE = ${PORT_TYPE}")
 
 add_definitions(-DPORT_TYPE_${PORT_TYPE})
 
-
+add_definitions(-DASIO_STANDALONE)
 # Set default value if not passed from command line
 # --- ENABLE_DTR_RTS logic ---
 if(PORT_TYPE STREQUAL "serial")
@@ -42,7 +45,9 @@ add_definitions(-DENABLE_DTR_RTS=${ENABLE_DTR_RTS})
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}
                     ${CMAKE_CURRENT_SOURCE_DIR}/src
+                    ${CMAKE_CURRENT_SOURCE_DIR}/src/param_handler
                     ${MAVLINK_INCLUDES}
+                    ${ASIO_INCLUDES}
                     )
 
 ###############################################################################
@@ -63,6 +68,8 @@ set(GSDK_APP_SRC
     ${MAVLINK_SRC}/gimbal_protocol_v2.cpp
     ${MAVLINK_SRC}/serial_port.cpp
     ${MAVLINK_SRC}/udp_port.cpp
+    ${MAVLINK_SRC}/param_handler/mavlink_parameter_cache.cpp
+    ${MAVLINK_SRC}/param_handler/mavlink_parameter_client.cpp
 )
 
 add_executable(gSDK ${GSDK_APP_SRC})

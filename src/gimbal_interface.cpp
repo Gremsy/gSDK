@@ -173,6 +173,20 @@ void Gimbal_Interface::messages_handler(const mavlink_message_t &message)
 
                         if (_gimbal_proto != nullptr) {
                             _gimbal_proto->initialize(_gimbal);
+                            
+
+                            _gimbal_proto->request_all_params(
+                                [this](paramio::MavlinkParameterClient::Result result,
+                                std::map<std::string, paramio::ParamValue>) {
+                                    if (result == paramio::MavlinkParameterClient::Result::Success) {
+                                        GSDK_DebugSuccess("Fetched full gimbal param list");
+                                    } else {
+                                        GSDK_DebugError("Failed to fetch full gimbal param list");
+                                    }
+                                
+                                    _state = GIMBAL_STATE_PRESENT_RUNNING;
+                                }
+                            );
                         }
 
                         has_detected = true;
@@ -187,6 +201,10 @@ void Gimbal_Interface::messages_handler(const mavlink_message_t &message)
                     mavlink_msg_sys_status_decode(&message, &_messages.sys_status);
                     _messages.timestamps.sys_status = get_time_usec();
                     pthread_mutex_unlock(&_messages.mutex);
+                    if(_messages.sys_status.errors_count2 != 0x0)
+                    {
+                        GSDK_DebugError("Gimbal Error with code: %d\n", _messages.sys_status.errors_count2);
+                    }
                     break;
                 }
 
@@ -253,49 +271,7 @@ void Gimbal_Interface::messages_handler(const mavlink_message_t &message)
                 }
 
             case MAVLINK_MSG_ID_PARAM_VALUE: {
-                    mavlink_param_value_t packet = { 0 };
-                    pthread_mutex_lock(&_messages.mutex);
-                    mavlink_msg_param_value_decode(&message, &packet);
-                    _messages.timestamps.param = get_time_usec();
-                    pthread_mutex_unlock(&_messages.mutex);
-
-                    for (uint8_t i = 0; i < GIMBAL_NUM_TRACKED_PARAMS; i++) {
-                        // Compare the index from gimbal with the param list
-
-                        if (strcmp(packet.param_id,_params_list[i].gmb_id) == 0) {
-                            _params_list[i].fetch_attempts = 0;
-                            _params_list[i].gmb_idx         = packet.param_index;
-
-                            switch (_params_list[i].state) {
-                                case PARAM_STATE_NONEXISTANT:
-                                case PARAM_STATE_NOT_YET_READ:
-                                case PARAM_STATE_FETCH_AGAIN:
-                                    _params_list[i].seen           = true;
-                                    _params_list[i].value = (int16_t)packet.param_value;
-                                    _params_list[i].state = PARAM_STATE_CONSISTENT;
-                                    GSDK_DebugInfo("GOT [%s] %d\n", _params_list[i].gmb_id , _params_list[i].value);
-                                    break;
-
-                                case PARAM_STATE_CONSISTENT:
-                                    _params_list[i].value = (int16_t)packet.param_value;
-                                    GSDK_DebugInfo("GOT [%s] %d\n", _params_list[i].gmb_id , _params_list[i].value);
-                                    break;
-
-                                case PARAM_STATE_ATTEMPTING_TO_SET:
-                                    if (packet.param_value == _params_list[i].set_value) {
-                                        _params_list[i].seen           = true;
-                                        _params_list[i].value = (int16_t)packet.param_value;
-                                        _params_list[i].state = PARAM_STATE_CONSISTENT;
-                                        GSDK_DebugInfo("SET [%s] %d\n", _params_list[i].gmb_id , _params_list[i].value);
-                                    }
-
-                                    break;
-                            }
-                           
-                            break;
-                        }
-                    }
-
+                    _gimbal_proto->param_value_callback(message);
                     break;
                 }
 
@@ -355,219 +331,58 @@ int Gimbal_Interface::write_message(const mavlink_message_t &message)
 }
 
 // ------------------------------------------------------------------------------
-//   GIMBAL Parameters
+//   GIMBAL Parameter
 // ------------------------------------------------------------------------------
-void Gimbal_Interface::reset_params()
+std::optional<float> Gimbal_Interface::get_param(const std::string& name) 
 {
-    _last_request_ms = 0;
-
-    for (uint8_t i = 0; i < GIMBAL_NUM_TRACKED_PARAMS; i++) {
-        _params_list[i].value          = 0;
-        _params_list[i].state          = PARAM_STATE_NOT_YET_READ;
-        _params_list[i].fetch_attempts = 0;
-        _params_list[i].seen           = 0;
-    }
+    return _gimbal_proto->get_param_float(name);
 }
 
-void Gimbal_Interface::fetch_params()
+Gimbal_Protocol::result_t Gimbal_Interface::set_param(const std::string& name, float value)
 {
-    for (uint8_t i = 0; i < GIMBAL_NUM_TRACKED_PARAMS; i++) {
-        /// Check the param has been read before
-        if (_params_list[i].state != PARAM_STATE_NOT_YET_READ) {
-            // Then set the state to allow read again
-            _params_list[i].state = PARAM_STATE_FETCH_AGAIN;
-        }
-    }
-}
-
-bool Gimbal_Interface::params_initialized()
-{
-    for (uint8_t i = 0; i < GIMBAL_NUM_TRACKED_PARAMS; i++) {
-        if (_params_list[i].state == PARAM_STATE_NOT_YET_READ) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-
-bool Gimbal_Interface::params_received_all()
-{
-    for (uint8_t i = 0; i < GIMBAL_NUM_TRACKED_PARAMS; i++) {
-        if (_params_list[i].state == PARAM_STATE_NOT_YET_READ ||
-                _params_list[i].state == PARAM_STATE_FETCH_AGAIN) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-Gimbal_Protocol::result_t Gimbal_Interface::get_param(param_index_t param, int16_t &value)
-{
-    if (_params_list[param].seen) {
-        value = _params_list[param].value;
+    MavlinkParameterClient::Result res = _gimbal_proto->set_param_float(name,value);
+    switch (res)
+    {
+    case (MavlinkParameterClient::Result::Success):
         return Gimbal_Protocol::SUCCESS;
-    }
-    value = -1;
-    return Gimbal_Protocol::Gimbal_Protocol::ERROR;
-}
-
-Gimbal_Protocol::result_t Gimbal_Interface::set_param(param_index_t param, int16_t value)
-{
-    if ((_params_list[param].state == PARAM_STATE_CONSISTENT) && (_params_list[param].value == value)) {
-        return Gimbal_Protocol::SUCCESS;
-    }
-
-    if (_params_list[param].state == PARAM_STATE_NONEXISTANT) {
-        GSDK_DebugError(
-            "Error: Parameter '%s' does not exist. Please disconnect gTune, reboot the device, and try again.\n",
-            get_param_name(param)
-        );
+    case (MavlinkParameterClient::Result::Timeout):
+        return Gimbal_Protocol::TIMEOUT;
+    case (MavlinkParameterClient::Result::NotFound):
+    case (MavlinkParameterClient::Result::ParamNameTooLong):
+    case (MavlinkParameterClient::Result::UnknownError):
+        return Gimbal_Protocol::DENIED;
+    default:
         return Gimbal_Protocol::ERROR;
     }
-    _params_list[param].state = PARAM_STATE_ATTEMPTING_TO_SET;
-    _params_list[param].seen = false;
-    _params_list[param].set_value = value;
-    // Prepare command for off-board mode
-    mavlink_param_set_t param_set = { 0 };
-    param_set.param_value		= value; 		/*<  Onboard parameter value*/
-    param_set.target_system		= _gimbal.sysid; 	/*<  System ID*/
-    param_set.target_component	= _gimbal.compid; 	/*<  Component ID*/
-    strncpy(param_set.param_id, get_param_name(param), 16);
-    param_set.param_type		= MAVLINK_TYPE_INT16_T;
-    // --------------------------------------------------------------------------
-    //   ENCODE
-    // --------------------------------------------------------------------------
-    mavlink_message_t message = { 0 };
-    // mavlink_msg_param_set_encode(_system.sysid, _system.compid, &message, &param_set);
-    mavlink_msg_param_set_encode_chan(_system.sysid, _system.compid, _channel, &message, &param_set);
-
-    // --------------------------------------------------------------------------
-    //   WRITE
-    // --------------------------------------------------------------------------
-    // do the write
-    if (write_message(message) <= 0) {
-        GSDK_DebugError("WARNING: could not set param: %s\n", get_param_name(param));
-    }
-
-    _last_request_ms = get_time_msec();
-    return Gimbal_Protocol::SUCCESS;
 }
 
-void Gimbal_Interface::param_update()
+std::pair<Gimbal_Protocol::result_t, float>
+Gimbal_Interface::request_param(const std::string& name)
 {
-    uint64_t tnow_ms = get_time_msec();
-    /// Retry initia param retrieval
-    if (!params_received_all()) {
-        for (uint8_t i = 0; i < GIMBAL_NUM_TRACKED_PARAMS; i++) {
-            if (!_params_list[i].seen && (tnow_ms - _last_request_ms > 10) &&_params_list[i].state != PARAM_STATE_NONEXISTANT) {
-                if (request_param((param_index_t)i) == Gimbal_Protocol::SUCCESS) {
-                    _last_request_ms = tnow_ms;
-                    _params_list[i].fetch_attempts++;
-                }
-            }
-        }
-    }
+    auto [res, value] = _gimbal_proto->request_param_float(name);
 
-    for (uint8_t i = 0; i < GIMBAL_NUM_TRACKED_PARAMS; i++) {
-        // retry param set
-        if (_params_list[i].state == PARAM_STATE_ATTEMPTING_TO_SET && (tnow_ms - _last_request_ms > _RETRY_PERIOD)) {
-            if (request_param((param_index_t)i) == Gimbal_Protocol::SUCCESS) {
-                _params_list[i].state = PARAM_STATE_FETCH_AGAIN;
-                _params_list[i].seen  = false;
-                _last_set_ms = tnow_ms;
-            }
-        }
+    switch (res)
+    {
+    case MavlinkParameterClient::Result::Success:
+        return {Gimbal_Protocol::SUCCESS, value};
 
-        // Check for nonexistent parameters
-        if (!_params_list[i].seen && _params_list[i].fetch_attempts > _MAX_FETCH_TIME && _params_list[i].state != PARAM_STATE_NONEXISTANT) {
-            _params_list[i].state = PARAM_STATE_NONEXISTANT;
-            GSDK_DebugWarning("Gimbal parameter %s timed out\n", get_param_name((param_index_t)i));
-        }
+    case MavlinkParameterClient::Result::Timeout:
+        return {Gimbal_Protocol::TIMEOUT, 0.0f};
+
+    case MavlinkParameterClient::Result::NotFound:
+    case MavlinkParameterClient::Result::ParamNameTooLong:
+    case MavlinkParameterClient::Result::UnknownError:
+        return {Gimbal_Protocol::DENIED, 0.0f};
+
+    default:
+        return {Gimbal_Protocol::ERROR, 0.0f};
     }
 }
 
-// ------------------------------------------------------------------------------
-//   Process when gimbal conntected
-// ------------------------------------------------------------------------------
-void Gimbal_Interface::param_process(void)
+void Gimbal_Interface::request_all_params()
 {
-
-    if (!get_connection()) {
-        _state = GIMBAL_STATE_NOT_PRESENT;
-    }
-
-    switch (_state) {
-        case GIMBAL_STATE_NOT_PRESENT: {
-                // gimbal was just connected or we just rebooted, transition to PRESENT_INITIALIZING
-                reset_params();
-
-                if (get_connection() && request_param_list() == Gimbal_Protocol::SUCCESS) {
-                    _state = GIMBAL_STATE_PRESENT_IDLING;
-                }
-            }
-            break;
-        case GIMBAL_STATE_PRESENT_IDLING: {
-                pthread_mutex_lock(&_messages.mutex);
-                uint64_t param_timestamps = _messages.timestamps.param;
-                pthread_mutex_unlock(&_messages.mutex);
-
-                if (get_time_usec() - param_timestamps > 1000000) {
-                    _state = GIMBAL_STATE_PRESENT_INITIALIZING;
-                }
-            }
-            break;
-
-        case GIMBAL_STATE_PRESENT_INITIALIZING: {
-                param_update();
-
-                // // parameters done initializing,
-                if (params_initialized()) {
-                    for (uint8_t i = 0; i < GIMBAL_NUM_TRACKED_PARAMS; i++) {
-                        if ((strcmp("RC_LIM_MIN_TILT",_params_list[i].gmb_id) == 0))
-                        {
-                            GSDK_DebugInfo("CHECK [%s] %d\n", "RC_LIM_MAX_TILT_UP",- _params_list[i].value);
-                            continue;
-                        }
-                        
-                        if ((strcmp("RC_LIM_MAX_TILT",_params_list[i].gmb_id) == 0))
-                        {
-                            GSDK_DebugInfo("CHECK [%s] %d\n", "RC_LIM_MAX_TILT_DOWN",- _params_list[i].value);
-                            continue;
-                        }
-
-                        GSDK_DebugInfo("CHECK [%s] %d\n", _params_list[i].gmb_id, _params_list[i].value);
-                    }
-
-                    _state = GIMBAL_STATE_PRESENT_ALIGNING;
-                }
-            }
-            break;
-
-        case GIMBAL_STATE_PRESENT_ALIGNING: {
-                param_update();
-                pthread_mutex_lock(&_messages.mutex);
-                uint16_t error_count2 = _messages.sys_status.errors_count2;
-                pthread_mutex_unlock(&_messages.mutex);
-
-                if (error_count2 == 0x00) {
-                    _state = GIMBAL_STATE_PRESENT_RUNNING;
-
-                } else {
-                    GSDK_DebugError("Gimbal Error with code: %d\n", error_count2);
-                }
-            }
-            break;
-
-        case GIMBAL_STATE_PRESENT_RUNNING: {
-                param_update();
-            }
-            break;
-    }
+    _gimbal_proto->request_all_params();
 }
-
 // ------------------------------------------------------------------------------
 //   GIMBAL Command
 // ------------------------------------------------------------------------------
@@ -609,7 +424,7 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_reboot(reboot_action_t re
         0,
         0,
         (float)reboot,
-        MAV_COMP_ID_GIMBAL,  // param 4
+        _gimbal.compid,  // param 4
         0,
         0,
         0
@@ -952,25 +767,30 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_rotation_sync(float pitch
  * @param: yaw control yaw value
  * @ret: result
  */
-Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_rotation_rate_sync(float pitch, float roll, float yaw)
+Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_rotation_rate_sync(
+    float pitch, float roll, float yaw)
 {
     if (_gimbal_proto == nullptr) {
         return Gimbal_Protocol::ERROR;
     }
-    int16_t PITCH_RATE_MAX, ROLL_RATE_MAX, YAW_RATE_MAX;
-    get_param(GMB_PARAM_SPEED_CONTROL_PITCH,PITCH_RATE_MAX);
-    get_param(GMB_PARAM_SPEED_CONTROL_ROLL,ROLL_RATE_MAX);
-    get_param(GMB_PARAM_SPEED_CONTROL_YAW,YAW_RATE_MAX);
-    if (pitch >  PITCH_RATE_MAX || pitch < -PITCH_RATE_MAX ||
-        roll  >  ROLL_RATE_MAX || roll  < -ROLL_RATE_MAX ||
-        yaw   >  YAW_RATE_MAX || yaw   < -YAW_RATE_MAX    )
-    {
-        GSDK_DebugWarning("WARNING: You are moving the gimbal too fast!!!");
-      //  return Gimbal_Protocol::ERROR;
-    }
-    
+    auto pitch_rate_max = get_param("RC_SPD_TILT");
+    auto roll_rate_max  = get_param("RC_SPD_ROLL");
+    auto yaw_rate_max   = get_param("RC_SPD_PAN");
 
-    return _gimbal_proto->set_gimbal_move_sync(pitch, roll, yaw, Gimbal_Protocol::INPUT_SPEED);
+    if (pitch_rate_max.has_value() &&
+        roll_rate_max.has_value() &&
+        yaw_rate_max.has_value())
+    {
+        if (pitch >  pitch_rate_max.value() || pitch < -pitch_rate_max.value() ||
+            roll  >  roll_rate_max.value()  || roll  < -roll_rate_max.value()  ||
+            yaw   >  yaw_rate_max.value()   || yaw   < -yaw_rate_max.value())
+        {
+            GSDK_DebugWarning("WARNING: You are moving the gimbal too fast!!!");
+        }
+    }
+
+    return _gimbal_proto->set_gimbal_move_sync(
+        pitch, roll, yaw, Gimbal_Protocol::INPUT_SPEED);
 }
 
 /**
@@ -988,19 +808,23 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_rotation_rate_sync(float 
  *	HOLD STRENGTH 	TILT 	ROLL 	PAN
  *					40 		40 		40
  */
-Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_motor_control(const gimbal_motor_control_t &tilt,
-        const gimbal_motor_control_t &roll,
-        const gimbal_motor_control_t &pan,
-        uint8_t gyro_filter, uint8_t output_filter)
+Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_motor_control(
+    const gimbal_motor_control_t &tilt,
+    const gimbal_motor_control_t &roll,
+    const gimbal_motor_control_t &pan,
+    uint8_t gyro_filter,
+    uint8_t output_filter)
 {
-    return (set_param(GMB_PARAM_STIFFNESS_PITCH, (int16_t)tilt.stiffness) == Gimbal_Protocol::SUCCESS &&
-            set_param(GMB_PARAM_HOLDSTRENGTH_PITCH, (int16_t)tilt.holdstrength) == Gimbal_Protocol::SUCCESS &&
-            set_param(GMB_PARAM_STIFFNESS_ROLL, (int16_t)roll.stiffness) == Gimbal_Protocol::SUCCESS &&
-            set_param(GMB_PARAM_HOLDSTRENGTH_ROLL, (int16_t)roll.holdstrength) == Gimbal_Protocol::SUCCESS &&
-            set_param(GMB_PARAM_STIFFNESS_YAW, (int16_t)pan.stiffness) == Gimbal_Protocol::SUCCESS &&
-            set_param(GMB_PARAM_HOLDSTRENGTH_YAW, (int16_t)pan.holdstrength) == Gimbal_Protocol::SUCCESS &&
-            set_param(GMB_PARAM_OUTPUT_FILTER, (int16_t)output_filter) == Gimbal_Protocol::SUCCESS &&
-            set_param(GMB_PARAM_GYRO_FILTER, (int16_t)gyro_filter) == Gimbal_Protocol::SUCCESS) ? Gimbal_Protocol::SUCCESS : Gimbal_Protocol::ERROR;
+    return (set_param("STIFF_TILT", static_cast<float>(tilt.stiffness)) == Gimbal_Protocol::SUCCESS &&
+            set_param("PWR_TILT", static_cast<float>(tilt.holdstrength)) == Gimbal_Protocol::SUCCESS &&
+            set_param("STIFF_ROLL", static_cast<float>(roll.stiffness)) == Gimbal_Protocol::SUCCESS &&
+            set_param("PWR_ROLL", static_cast<float>(roll.holdstrength)) == Gimbal_Protocol::SUCCESS &&
+            set_param("STIFF_PAN", static_cast<float>(pan.stiffness)) == Gimbal_Protocol::SUCCESS &&
+            set_param("PWR_PAN", static_cast<float>(pan.holdstrength)) == Gimbal_Protocol::SUCCESS &&
+            set_param("FILTER_OUT", static_cast<float>(output_filter)) == Gimbal_Protocol::SUCCESS &&
+            set_param("GYRO_LPF", static_cast<float>(gyro_filter)) == Gimbal_Protocol::SUCCESS)
+           ? Gimbal_Protocol::SUCCESS
+           : Gimbal_Protocol::ERROR;
 }
 
 /**
@@ -1018,69 +842,78 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_motor_control(const gimba
  *	HOLD STRENGTH 	TILT 	ROLL 	PAN
  *					40 		40 		40
  */
-Gimbal_Protocol::result_t Gimbal_Interface::get_gimbal_motor_control(gimbal_motor_control_t &tilt,
-        gimbal_motor_control_t &roll,
-        gimbal_motor_control_t &pan,
-        uint8_t &gyro_filter, uint8_t &output_filter)
+Gimbal_Protocol::result_t Gimbal_Interface::get_gimbal_motor_control(
+    gimbal_motor_control_t &tilt,
+    gimbal_motor_control_t &roll,
+    gimbal_motor_control_t &pan,
+    uint8_t &gyro_filter,
+    uint8_t &output_filter)
 {
-    int16_t value = 0;
+    auto value = get_param("STIFF_TILT");
+    if (value.has_value())
+        tilt.stiffness = static_cast<uint8_t>(value.value());
 
-    if (get_param(GMB_PARAM_STIFFNESS_PITCH, value) == Gimbal_Protocol::SUCCESS)
-        tilt.stiffness = (uint8_t)value;
+    value = get_param("PWR_TILT");
+    if (value.has_value())
+        tilt.holdstrength = static_cast<uint8_t>(value.value());
 
-    if (get_param(GMB_PARAM_HOLDSTRENGTH_PITCH, value) == Gimbal_Protocol::SUCCESS)
-        tilt.holdstrength = (uint8_t)value;
+    value = get_param("STIFF_ROLL");
+    if (value.has_value())
+        roll.stiffness = static_cast<uint8_t>(value.value());
 
-    if (get_param(GMB_PARAM_STIFFNESS_ROLL, value) == Gimbal_Protocol::SUCCESS)
-        roll.stiffness = (uint8_t)value;
+    value = get_param("PWR_ROLL");
+    if (value.has_value())
+        roll.holdstrength = static_cast<uint8_t>(value.value());
 
-    if (get_param(GMB_PARAM_HOLDSTRENGTH_ROLL, value) == Gimbal_Protocol::SUCCESS)
-        roll.holdstrength = (uint8_t)value;
+    value = get_param("STIFF_PAN");
+    if (value.has_value())
+        pan.stiffness = static_cast<uint8_t>(value.value());
 
-    if (get_param(GMB_PARAM_STIFFNESS_YAW, value) == Gimbal_Protocol::SUCCESS)
-        pan.stiffness = (uint8_t)value;
+    value = get_param("PWR_PAN");
+    if (value.has_value())
+        pan.holdstrength = static_cast<uint8_t>(value.value());
 
-    if (get_param(GMB_PARAM_HOLDSTRENGTH_YAW, value) == Gimbal_Protocol::SUCCESS)
-        pan.holdstrength = (uint8_t)value;
+    value = get_param("FILTER_OUT");
+    if (value.has_value())
+        output_filter = static_cast<uint8_t>(value.value());
 
-    if (get_param(GMB_PARAM_OUTPUT_FILTER, value) == Gimbal_Protocol::SUCCESS)
-        output_filter = (uint8_t)value;
-
-    if (get_param(GMB_PARAM_GYRO_FILTER, value) == Gimbal_Protocol::SUCCESS)
-        gyro_filter	= (uint8_t)value;
+    value = get_param("GYRO_LPF");
+    if (value.has_value())
+        gyro_filter = static_cast<uint8_t>(value.value());
 
     return Gimbal_Protocol::SUCCESS;
 }
 
 /**
  * @brief  This function shall configure on the tilt axis
- * @param: config see  gimbal_config_axis_t structure
- * @note: The smooth starts with a low value of 50
- *			Slowly increase this setting until you feel an oscillation in the pan axis,
- *			then reduce the setting until the oscillation subsides.
+ * @param: config see gimbal_config_axis_t structure
+ * @note: The smooth starts with a low value of 50.
+ *        Slowly increase this setting until you feel an oscillation in the pan axis,
+ *        then reduce the setting until the oscillation subsides.
  * @ret: result
  */
-Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_config_tilt_axis(const gimbal_config_axis_t &config)
+Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_config_tilt_axis(
+    const gimbal_config_axis_t &config)
 {
-    int16_t get_dir = 0;
-
-    if (get_param(GMB_PARAM_AXIS_DIR, get_dir) == Gimbal_Protocol::SUCCESS) {
-        if (config.dir == DIR_CCW) {
-            get_dir |= 0x01;
-
-        } else {
-            get_dir &= (~0x01);
-        }
-
-    } else {
+    auto get_dir = get_param("RC_REVERSE_AXIS");
+    if (!get_dir.has_value()) {
         return Gimbal_Protocol::ERROR;
     }
 
-    return (set_param(GMB_PARAM_SMOOTH_CONTROL_PITCH, (int16_t)config.smooth_control) == Gimbal_Protocol::SUCCESS &&
-            set_param(GMB_PARAM_SMOOTH_FOLLOW_PITCH, (int16_t)config.smooth_follow) == Gimbal_Protocol::SUCCESS &&
-            set_param(GMB_PARAM_WINDOW_FOLLOW_PITCH, (int16_t)config.window_follow) == Gimbal_Protocol::SUCCESS &&
-            set_param(GMB_PARAM_SPEED_CONTROL_PITCH, (int16_t)config.speed_control) == Gimbal_Protocol::SUCCESS &&
-            set_param(GMB_PARAM_AXIS_DIR, get_dir) == Gimbal_Protocol::SUCCESS) ? Gimbal_Protocol::SUCCESS : Gimbal_Protocol::ERROR;
+    int16_t dir = static_cast<int16_t>(get_dir.value());
+
+    if (config.dir == DIR_CCW)
+        dir |= 0x01;
+    else
+        dir &= ~0x01;
+
+    return (set_param("RC_LPF_TILT", static_cast<float>(config.smooth_control)) == Gimbal_Protocol::SUCCESS &&
+            set_param("FLW_LPF_TILT", static_cast<float>(config.smooth_follow)) == Gimbal_Protocol::SUCCESS &&
+            set_param("FLW_WD_TILT", static_cast<float>(config.window_follow)) == Gimbal_Protocol::SUCCESS &&
+            set_param("RC_SPD_TILT", static_cast<float>(config.speed_control)) == Gimbal_Protocol::SUCCESS &&
+            set_param("RC_REVERSE_AXIS", static_cast<float>(dir)) == Gimbal_Protocol::SUCCESS)
+           ? Gimbal_Protocol::SUCCESS
+           : Gimbal_Protocol::ERROR;
 }
 
 /**
@@ -1090,26 +923,31 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_config_tilt_axis(const gi
  */
 Gimbal_Interface::gimbal_config_axis_t Gimbal_Interface::get_gimbal_config_tilt_axis(void)
 {
-    gimbal_config_axis_t setting = { 0 };
-    int16_t ret = 0;
+    gimbal_config_axis_t setting = {0};
 
-    if (get_param(GMB_PARAM_SMOOTH_CONTROL_PITCH, ret) == Gimbal_Protocol::SUCCESS)
-        setting.smooth_control = (uint8_t)ret;
+    auto value = get_param("RC_LPF_TILT");
+    if (value.has_value())
+        setting.smooth_control = static_cast<uint8_t>(value.value());
 
-    if (get_param(GMB_PARAM_SMOOTH_FOLLOW_PITCH, ret) == Gimbal_Protocol::SUCCESS)
-        setting.smooth_follow = (uint8_t)ret;
+    value = get_param("FLW_LPF_TILT");
+    if (value.has_value())
+        setting.smooth_follow = static_cast<uint8_t>(value.value());
 
-    if (get_param(GMB_PARAM_WINDOW_FOLLOW_PITCH, ret) == Gimbal_Protocol::SUCCESS)
-        setting.window_follow = (uint8_t)ret;
+    value = get_param("FLW_WD_TILT");
+    if (value.has_value())
+        setting.window_follow = static_cast<uint8_t>(value.value());
 
-    if (get_param(GMB_PARAM_SPEED_CONTROL_PITCH, ret) == Gimbal_Protocol::SUCCESS)
-        setting.speed_control = (uint8_t)ret;
+    value = get_param("RC_SPD_TILT");
+    if (value.has_value())
+        setting.speed_control = static_cast<uint8_t>(value.value());
 
-    if (get_param(GMB_PARAM_AXIS_DIR, ret) == Gimbal_Protocol::SUCCESS) {
-        if (ret & 0x01) {
+    value = get_param("RC_REVERSE_AXIS");
+    if (value.has_value()) {
+        int16_t dir = static_cast<int16_t>(value.value());
+
+        if (dir & 0x01) {
             setting.dir = DIR_CCW;
-
-        } else if (!(ret & 0x01)) {
+        } else {
             setting.dir = DIR_CW;
         }
     }
@@ -1119,33 +957,34 @@ Gimbal_Interface::gimbal_config_axis_t Gimbal_Interface::get_gimbal_config_tilt_
 
 /**
  * @brief  This function shall configure on the pan axis
- * @param: config see  gimbal_config_axis_t structure
- * @note: The smooth starts with a low value of 50
- *			Slowly increase this setting until you feel an oscillation in the pan axis,
- *			then reduce the setting until the oscillation subsides.
+ * @param: config see gimbal_config_axis_t structure
+ * @note: The smooth starts with a low value of 50.
+ *        Slowly increase this setting until you feel an oscillation in the pan axis,
+ *        then reduce the setting until the oscillation subsides.
  * @ret: result
  */
-Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_config_pan_axis(const gimbal_config_axis_t &config)
+Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_config_pan_axis(
+    const gimbal_config_axis_t &config)
 {
-    int16_t get_dir = 0;
-
-    if (get_param(GMB_PARAM_AXIS_DIR, get_dir) == Gimbal_Protocol::SUCCESS) {
-        if (config.dir == DIR_CCW) {
-            get_dir |= 0x02;
-
-        } else {
-            get_dir &= (~0x02);
-        }
-
-    } else {
+    auto value = get_param("RC_REVERSE_AXIS");
+    if (!value.has_value()) {
         return Gimbal_Protocol::ERROR;
     }
 
-    return (set_param(GMB_PARAM_SMOOTH_CONTROL_YAW, (int16_t)config.smooth_control) == Gimbal_Protocol::SUCCESS &&
-            set_param(GMB_PARAM_SMOOTH_FOLLOW_YAW, (int16_t)config.smooth_follow) == Gimbal_Protocol::SUCCESS &&
-            set_param(GMB_PARAM_WINDOW_FOLLOW_YAW, (int16_t)config.window_follow) == Gimbal_Protocol::SUCCESS &&
-            set_param(GMB_PARAM_SPEED_CONTROL_YAW, (int16_t)config.speed_control) == Gimbal_Protocol::SUCCESS &&
-            set_param(GMB_PARAM_AXIS_DIR, get_dir) == Gimbal_Protocol::SUCCESS) ? Gimbal_Protocol::SUCCESS : Gimbal_Protocol::ERROR;
+    int16_t dir = static_cast<int16_t>(value.value());
+
+    if (config.dir == DIR_CCW)
+        dir |= 0x02;
+    else
+        dir &= ~0x02;
+
+    return (set_param("RC_LPF_PAN", static_cast<float>(config.smooth_control)) == Gimbal_Protocol::SUCCESS &&
+            set_param("FLW_LPF_PAN", static_cast<float>(config.smooth_follow)) == Gimbal_Protocol::SUCCESS &&
+            set_param("FLW_WD_PAN", static_cast<float>(config.window_follow)) == Gimbal_Protocol::SUCCESS &&
+            set_param("RC_SPD_PAN", static_cast<float>(config.speed_control)) == Gimbal_Protocol::SUCCESS &&
+            set_param("RC_REVERSE_AXIS", static_cast<float>(dir)) == Gimbal_Protocol::SUCCESS)
+           ? Gimbal_Protocol::SUCCESS
+           : Gimbal_Protocol::ERROR;
 }
 
 /**
@@ -1155,26 +994,31 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_config_pan_axis(const gim
  */
 Gimbal_Interface::gimbal_config_axis_t Gimbal_Interface::get_gimbal_config_pan_axis(void)
 {
-    gimbal_config_axis_t setting = { 0 };
-    int16_t ret = 0;
+    gimbal_config_axis_t setting = {0};
 
-    if (get_param(GMB_PARAM_SMOOTH_CONTROL_YAW, ret) == Gimbal_Protocol::SUCCESS)
-        setting.smooth_control = (uint8_t)ret;
+    auto value = get_param("RC_LPF_PAN");
+    if (value.has_value())
+        setting.smooth_control = static_cast<uint8_t>(value.value());
 
-    if (get_param(GMB_PARAM_SMOOTH_FOLLOW_YAW, ret) == Gimbal_Protocol::SUCCESS)
-        setting.smooth_follow = (uint8_t)ret;
+    value = get_param("FLW_LPF_PAN");
+    if (value.has_value())
+        setting.smooth_follow = static_cast<uint8_t>(value.value());
 
-    if (get_param(GMB_PARAM_WINDOW_FOLLOW_YAW, ret) == Gimbal_Protocol::SUCCESS)
-        setting.window_follow = (uint8_t)ret;
+    value = get_param("FLW_WD_PAN");
+    if (value.has_value())
+        setting.window_follow = static_cast<uint8_t>(value.value());
 
-    if (get_param(GMB_PARAM_SPEED_CONTROL_YAW, ret) == Gimbal_Protocol::SUCCESS)
-        setting.speed_control = (uint8_t)ret;
+    value = get_param("RC_SPD_PAN");
+    if (value.has_value())
+        setting.speed_control = static_cast<uint8_t>(value.value());
 
-    if (get_param(GMB_PARAM_AXIS_DIR, ret) == Gimbal_Protocol::SUCCESS) {
-        if (ret & 0x02) {
+    value = get_param("RC_REVERSE_AXIS");
+    if (value.has_value()) {
+        int16_t dir = static_cast<int16_t>(value.value());
+
+        if (dir & 0x02) {
             setting.dir = DIR_CCW;
-
-        } else if (!(ret & 0x02)) {
+        } else {
             setting.dir = DIR_CW;
         }
     }
@@ -1184,31 +1028,32 @@ Gimbal_Interface::gimbal_config_axis_t Gimbal_Interface::get_gimbal_config_pan_a
 
 /**
  * @brief  This function shall configure on the roll axis
- * @param: config see  gimbal_config_axis_t structure
- * @note: The smooth starts with a low value of 50
- *			Slowly increase this setting until you feel an oscillation in the pan axis,
- *			then reduce the setting until the oscillation subsides.
+ * @param: config see gimbal_config_axis_t structure
+ * @note: The smooth starts with a low value of 50.
+ *        Slowly increase this setting until you feel an oscillation in the pan axis,
+ *        then reduce the setting until the oscillation subsides.
  * @ret: result
  */
-Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_config_roll_axis(const gimbal_config_axis_t &config)
+Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_config_roll_axis(
+    const gimbal_config_axis_t &config)
 {
-    int16_t get_dir = 0;
-
-    if (get_param(GMB_PARAM_AXIS_DIR, get_dir) == Gimbal_Protocol::SUCCESS) {
-        if (config.dir == DIR_CCW) {
-            get_dir |= 0x04;
-
-        } else {
-            get_dir &= (~0x04);
-        }
-
-    } else {
+    auto value = get_param("RC_REVERSE_AXIS");
+    if (!value.has_value()) {
         return Gimbal_Protocol::ERROR;
     }
 
-    return (set_param(GMB_PARAM_SMOOTH_CONTROL_ROLL, (int16_t)config.smooth_control) == Gimbal_Protocol::SUCCESS &&
-            set_param(GMB_PARAM_SPEED_CONTROL_ROLL, (int16_t)config.speed_control) == Gimbal_Protocol::SUCCESS &&
-            set_param(GMB_PARAM_AXIS_DIR, get_dir) == Gimbal_Protocol::SUCCESS) ? Gimbal_Protocol::SUCCESS : Gimbal_Protocol::ERROR;
+    int16_t dir = static_cast<int16_t>(value.value());
+
+    if (config.dir == DIR_CCW)
+        dir |= 0x04;
+    else
+        dir &= ~0x04;
+
+    return (set_param("RC_LPF_ROLL", static_cast<float>(config.smooth_control)) == Gimbal_Protocol::SUCCESS &&
+            set_param("RC_SPD_ROLL", static_cast<float>(config.speed_control)) == Gimbal_Protocol::SUCCESS &&
+            set_param("RC_REVERSE_AXIS", static_cast<float>(dir)) == Gimbal_Protocol::SUCCESS)
+           ? Gimbal_Protocol::SUCCESS
+           : Gimbal_Protocol::ERROR;
 }
 
 /**
@@ -1218,20 +1063,23 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_config_roll_axis(const gi
  */
 Gimbal_Interface::gimbal_config_axis_t Gimbal_Interface::get_gimbal_config_roll_axis(void)
 {
-    gimbal_config_axis_t setting = { 0 };
-    int16_t ret = 0;
+    gimbal_config_axis_t setting = {0};
 
-    if (get_param(GMB_PARAM_SMOOTH_CONTROL_ROLL, ret) == Gimbal_Protocol::SUCCESS)
-        setting.smooth_control = (uint8_t)ret;
+    auto value = get_param("RC_LPF_ROLL");
+    if (value.has_value())
+        setting.smooth_control = static_cast<uint8_t>(value.value());
 
-    if (get_param(GMB_PARAM_SPEED_CONTROL_ROLL, ret) == Gimbal_Protocol::SUCCESS)
-        setting.speed_control = (uint8_t)ret;
+    value = get_param("RC_SPD_ROLL");
+    if (value.has_value())
+        setting.speed_control = static_cast<uint8_t>(value.value());
 
-    if (get_param(GMB_PARAM_AXIS_DIR, ret) == Gimbal_Protocol::SUCCESS) {
-        if (ret & 0x04) {
+    value = get_param("RC_REVERSE_AXIS");
+    if (value.has_value()) {
+        int16_t dir = static_cast<int16_t>(value.value());
+
+        if (dir & 0x04) {
             setting.dir = DIR_CCW;
-
-        } else if (!(ret & 0x04)) {
+        } else {
             setting.dir = DIR_CW;
         }
     }
@@ -1548,31 +1396,61 @@ Attitude_t<int16_t> Gimbal_Interface::get_gimbal_encoder(void)
  * @param: None
  * @ret: see fw_version_t structure
  */
-Gimbal_Interface::fw_version_t Gimbal_Interface::get_gimbal_version(void){
-    fw_version_t fw = { 0 };
-    char dev_num_str[4];
+Gimbal_Interface::fw_version_t Gimbal_Interface::get_gimbal_version(void)
+{
+    fw_version_t fw = {0};
+
     pthread_mutex_lock(&_messages.mutex);
     uint32_t firmware_version = _messages.gimbal_device_info.firmware_version;
     pthread_mutex_unlock(&_messages.mutex);
-    fw.x=firmware_version & 0x000000FF;
-    fw.y=(firmware_version & 0x0000FF00)>>8;
-    fw.z=(firmware_version & 0x00FF0000)>>16;
-    if ((fw.y==8 && fw.z > 8 )|| (fw.y>8)) {
-    fw.t=(firmware_version & 0xFF000000)>>24;}
-    else fw.t=_params_list[GMB_PARAM_VERSION_Z].value & 0xC0;
 
 
-    if ((fw.t) == FIRMWARE_VERSION_TYPE_ALPHA) {
-        fw.type = alpha;    
-    } else if ((fw.t) == FIRMWARE_VERSION_TYPE_BETA) {
-        fw.type = beta;    
-    } else if ((fw.t) == FIRMWARE_VERSION_TYPE_RC) {
-        fw.type = preview;    
-    } else if ((fw.t) == 00) {
-        fw.type = official;
+    fw.x = firmware_version & 0x000000FF;
+    fw.y = (firmware_version & 0x0000FF00) >> 8;
+    fw.z = (firmware_version & 0x00FF0000) >> 16;
+
+    const uint16_t version = fw.x * 100 + fw.y * 10 + fw.z;
+
+    if (version >= 789) {
+
+        fw.t = (firmware_version & 0xFF000000) >> 24;
+
     } else {
-        fw.type = std::to_string(fw.t); 
+
+        auto version_z = get_param("VERSION_Z");
+
+        if (version_z.has_value()) {
+            fw.t = static_cast<uint8_t>(
+                static_cast<int16_t>(version_z.value()) & 0xC0
+            );
+        } else {
+            fw.t = 0;
+        }
     }
+
+
+    if (fw.t == FIRMWARE_VERSION_TYPE_ALPHA) {
+
+        fw.type = alpha;
+
+    } else if (fw.t == FIRMWARE_VERSION_TYPE_BETA) {
+
+        fw.type = beta;
+
+    } else if (fw.t == FIRMWARE_VERSION_TYPE_RC) {
+
+        fw.type = preview;
+
+    } else if (fw.t == 0x00) {
+
+        fw.type = official;
+
+    } else {
+
+        fw.type = std::to_string(fw.t);
+    }
+
+
     return fw;
 }
 
@@ -1620,13 +1498,13 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_msg_raw_imu_rate(rate_action_t r
 
 /**
  * @brief Set the gimbal encoder type send
- * @param: true send raw encoder values
- *         false send encoder angle
+ * @param: true  Send raw encoder values
+ *         false Send encoder angle
  * @return result
  */
 Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_encoder_type_send(bool type)
 {
-    return set_param(GMB_PARAM_ENCODER_TYPE, (int16_t)type);
+    return set_param("MAV_TS_ENCNT", static_cast<float>(type));
 }
 
 /**
@@ -1649,79 +1527,89 @@ uint16_t Gimbal_Interface::get_gimbal_name(char *name)
 /**
  * @brief Get the gimbal encoder type send
  *
- * @return true send raw encoder values
- * @return false send encoder angle
+ * @return true  Send raw encoder values
+ * @return false Send encoder angle
  */
 bool Gimbal_Interface::get_gimbal_encoder_type_send(void)
 {
-    int16_t ret = 0;
-    get_param(GMB_PARAM_ENCODER_TYPE, ret);
-    return (bool)ret;
+    auto value = get_param("MAV_TS_ENCNT");
+
+    if (value.has_value()) {
+        return static_cast<bool>(value.value());
+    }
+
+    return false;
 }
 
 /**
- * @brief  This function set the enable or disable the reduce drift of the gimbal by using attitude of the aircarf
- * @details Only enable yaw drift if there is an autopilot mount on top the gimbal and send autopilot's attitude
- * to gimbal at rate 50 - 100Hz
- * @param: flag - enable/disable the recude drift of the gimbal by combining attitude from the aircraft
- * @ret: None
+ * @brief  This function enables or disables the reduce drift feature of the
+ *         gimbal by using the aircraft attitude.
+ * @details Only enable yaw drift if there is an autopilot mounted on top of
+ *          the gimbal and the autopilot attitude is sent to the gimbal at
+ *          50-100 Hz.
+ * @param: flag Enable/disable reduce drift.
+ * @ret: result
  */
 Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_combine_attitude(bool flag)
 {
-    int16_t param = 0;
-
-    if (get_param(GMB_PARAM_AXIS_DIR, param) == Gimbal_Protocol::SUCCESS) {
-        if (flag) {
-            param |= 0x10;
-
-        } else {
-            param &= (~0x10);
-        }
-
-        return set_param(GMB_PARAM_AXIS_DIR, param);
+    auto value = get_param("RC_REVERSE_AXIS");
+    if (!value.has_value()) {
+        return Gimbal_Protocol::ERROR;
     }
 
-    return Gimbal_Protocol::ERROR;
+    int16_t param = static_cast<int16_t>(value.value());
+
+    if (flag)
+        param |= 0x10;
+    else
+        param &= ~0x10;
+
+    return set_param("RC_REVERSE_AXIS", static_cast<float>(param));
 }
 
 /**
- * @brief  This function use set gimbal return home when change mode
- * @param: flag - enable/disable gimbal return home when change mode
+ * @brief  This function sets whether the gimbal returns home when changing mode.
+ * @param: flag Enable/disable gimbal return home when changing mode.
  * @ret: result
  */
 Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_return_home_when_change_mode(bool flag)
 {
-    int16_t param = 0;
-
-    if (get_param(GMB_PARAM_AXIS_DIR, param) == Gimbal_Protocol::SUCCESS) {
-        if (flag) {
-            param |= 0x08;
-
-        } else {
-            param &= (~0x08);
-        }
-
-        return set_param(GMB_PARAM_AXIS_DIR, param);
+    auto value = get_param("RC_REVERSE_AXIS");
+    if (!value.has_value()) {
+        return Gimbal_Protocol::ERROR;
     }
 
-    return Gimbal_Protocol::ERROR;
+    int16_t param = static_cast<int16_t>(value.value());
+
+    if (flag)
+        param |= 0x08;
+    else
+        param &= ~0x08;
+
+    return set_param("RC_REVERSE_AXIS", static_cast<float>(param));
 }
 
 /**
  * @brief Set limit angle for pitch.
  * @details Please refer to Gremsy site <gremsy.com> for
  * details about default limit angle of Gimbal.
- * @param limitAngle: limit angle.
- * @return None
+ * @param limit_angle: limit angle.
+ * @return result
  */
-Gimbal_Protocol::result_t Gimbal_Interface::set_limit_angle_pitch(limit_angle_t &limit_angle)
+Gimbal_Protocol::result_t Gimbal_Interface::set_limit_angle_pitch(
+    limit_angle_t &limit_angle)
 {
     int16_t temp_limit = limit_angle.angle_min;
-    limit_angle.angle_min = - limit_angle.angle_max;
-    limit_angle.angle_max = - temp_limit;
 
-    return (set_param(GMB_PARAM_MIN_LIMIT_ANGLE_PITCH, (int16_t)limit_angle.angle_min) == Gimbal_Protocol::SUCCESS &&
-            set_param(GMB_PARAM_MAX_LIMIT_ANGLE_PITCH, (int16_t)limit_angle.angle_max) == Gimbal_Protocol::SUCCESS) ? Gimbal_Protocol::SUCCESS : Gimbal_Protocol::ERROR;
+    limit_angle.angle_min = -limit_angle.angle_max;
+    limit_angle.angle_max = -temp_limit;
+
+    return (set_param("RC_LIM_MIN_TILT",
+                      static_cast<float>(limit_angle.angle_min)) == Gimbal_Protocol::SUCCESS &&
+            set_param("RC_LIM_MAX_TILT",
+                      static_cast<float>(limit_angle.angle_max)) == Gimbal_Protocol::SUCCESS)
+           ? Gimbal_Protocol::SUCCESS
+           : Gimbal_Protocol::ERROR;
 }
 
 /**
@@ -1733,14 +1621,15 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_limit_angle_pitch(limit_angle_t 
  */
 Gimbal_Interface::limit_angle_t Gimbal_Interface::get_limit_angle_pitch(void)
 {
-    limit_angle_t limit_angle = { 0 };
-    int16_t ret = 0;
+    limit_angle_t limit_angle = {0};
 
-    if (get_param(GMB_PARAM_MAX_LIMIT_ANGLE_PITCH, ret) == Gimbal_Protocol::SUCCESS)
-        limit_angle.angle_min = - ret;
+    auto value = get_param("RC_LIM_MAX_TILT");
+    if (value.has_value())
+        limit_angle.angle_min = -static_cast<int16_t>(value.value());
 
-    if (get_param(GMB_PARAM_MIN_LIMIT_ANGLE_PITCH, ret) == Gimbal_Protocol::SUCCESS)
-        limit_angle.angle_max = - ret;
+    value = get_param("RC_LIM_MIN_TILT");
+    if (value.has_value())
+        limit_angle.angle_max = -static_cast<int16_t>(value.value());
 
     return limit_angle;
 }
@@ -1749,13 +1638,18 @@ Gimbal_Interface::limit_angle_t Gimbal_Interface::get_limit_angle_pitch(void)
  * @brief Set limit angle for yaw.
  * @details Please refer to Gremsy site <gremsy.com> for
  * details about default limit angle of Gimbal.
- * @param limitAngle: limit angle.
- * @return None
+ * @param limit_angle: limit angle.
+ * @return result
  */
-Gimbal_Protocol::result_t Gimbal_Interface::set_limit_angle_yaw(const limit_angle_t &limit_angle)
+Gimbal_Protocol::result_t Gimbal_Interface::set_limit_angle_yaw(
+    const limit_angle_t &limit_angle)
 {
-    return (set_param(GMB_PARAM_MIN_LIMIT_ANGLE_YAW, (int16_t)limit_angle.angle_min) == Gimbal_Protocol::SUCCESS &&
-            set_param(GMB_PARAM_MAX_LIMIT_ANGLE_YAW, (int16_t)limit_angle.angle_max) == Gimbal_Protocol::SUCCESS) ? Gimbal_Protocol::SUCCESS : Gimbal_Protocol::ERROR;
+    return (set_param("RC_LIM_MIN_PAN",
+                      static_cast<float>(limit_angle.angle_min)) == Gimbal_Protocol::SUCCESS &&
+            set_param("RC_LIM_MAX_PAN",
+                      static_cast<float>(limit_angle.angle_max)) == Gimbal_Protocol::SUCCESS)
+           ? Gimbal_Protocol::SUCCESS
+           : Gimbal_Protocol::ERROR;
 }
 
 /**
@@ -1767,14 +1661,15 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_limit_angle_yaw(const limit_angl
  */
 Gimbal_Interface::limit_angle_t Gimbal_Interface::get_limit_angle_yaw(void)
 {
-    limit_angle_t limit_angle = { 0 };
-    int16_t ret = 0;
+    limit_angle_t limit_angle = {0};
 
-    if (get_param(GMB_PARAM_MIN_LIMIT_ANGLE_YAW, ret) == Gimbal_Protocol::SUCCESS)
-        limit_angle.angle_min = ret;
+    auto value = get_param("RC_LIM_MIN_PAN");
+    if (value.has_value())
+        limit_angle.angle_min = static_cast<int16_t>(value.value());
 
-    if (get_param(GMB_PARAM_MAX_LIMIT_ANGLE_YAW, ret) == Gimbal_Protocol::SUCCESS)
-        limit_angle.angle_max = ret;
+    value = get_param("RC_LIM_MAX_PAN");
+    if (value.has_value())
+        limit_angle.angle_max = static_cast<int16_t>(value.value());
 
     return limit_angle;
 }
@@ -1783,13 +1678,18 @@ Gimbal_Interface::limit_angle_t Gimbal_Interface::get_limit_angle_yaw(void)
  * @brief Set limit angle for roll.
  * @details Please refer to Gremsy site <gremsy.com> for
  * details about default limit angle of Gimbal.
- * @param limitAngle: limit angle.
- * @return None
+ * @param limit_angle: limit angle.
+ * @return result
  */
-Gimbal_Protocol::result_t Gimbal_Interface::set_limit_angle_roll(const limit_angle_t &limit_angle)
+Gimbal_Protocol::result_t Gimbal_Interface::set_limit_angle_roll(
+    const limit_angle_t &limit_angle)
 {
-    return (set_param(GMB_PARAM_MIN_LIMIT_ANGLE_ROLL, (int16_t)limit_angle.angle_min) == Gimbal_Protocol::SUCCESS &&
-            set_param(GMB_PARAM_MAX_LIMIT_ANGLE_ROLL, (int16_t)limit_angle.angle_max) == Gimbal_Protocol::SUCCESS) ? Gimbal_Protocol::SUCCESS : Gimbal_Protocol::ERROR;
+    return (set_param("RC_LIM_MIN_ROLL",
+                      static_cast<float>(limit_angle.angle_min)) == Gimbal_Protocol::SUCCESS &&
+            set_param("RC_LIM_MAX_ROLL",
+                      static_cast<float>(limit_angle.angle_max)) == Gimbal_Protocol::SUCCESS)
+           ? Gimbal_Protocol::SUCCESS
+           : Gimbal_Protocol::ERROR;
 }
 
 /**
@@ -1801,14 +1701,15 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_limit_angle_roll(const limit_ang
  */
 Gimbal_Interface::limit_angle_t Gimbal_Interface::get_limit_angle_roll(void)
 {
-    limit_angle_t limit_angle = { 0 };
-    int16_t ret = 0;
+    limit_angle_t limit_angle = {0};
 
-    if (get_param(GMB_PARAM_MIN_LIMIT_ANGLE_ROLL, ret) == Gimbal_Protocol::SUCCESS)
-        limit_angle.angle_min = ret;
+    auto value = get_param("RC_LIM_MIN_ROLL");
+    if (value.has_value())
+        limit_angle.angle_min = static_cast<int16_t>(value.value());
 
-    if (get_param(GMB_PARAM_MAX_LIMIT_ANGLE_ROLL, ret) == Gimbal_Protocol::SUCCESS)
-        limit_angle.angle_max = ret;
+    value = get_param("RC_LIM_MAX_ROLL");
+    if (value.has_value())
+        limit_angle.angle_max = static_cast<int16_t>(value.value());
 
     return limit_angle;
 }
@@ -1821,7 +1722,7 @@ Gimbal_Interface::limit_angle_t Gimbal_Interface::get_limit_angle_roll(void)
  */
 Gimbal_Protocol::result_t Gimbal_Interface::set_rc_type(rc_type_t type)
 {
-    return set_param(GMB_PARAM_RC_TYPE, (int16_t) type);
+    return set_param("RC_TYPE", static_cast<float>(type));
 }
 
 /**
@@ -1886,15 +1787,19 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_msg_rate(uint32_t msgid, rate_ac
  * @param angle_mode
  * @return Gimbal_Protocol::result_t
  */
-Gimbal_Protocol::result_t Gimbal_Interface::set_angle_ctrl_mode(Gimbal_Interface::gbl_ctrl_angle_mode_t angle_mode){
+Gimbal_Protocol::result_t Gimbal_Interface::set_angle_ctrl_mode(
+    Gimbal_Interface::gbl_ctrl_angle_mode_t angle_mode)
+{
     if (angle_mode == GBL_ANGLE_MODE_SHORTEST) {
-        return set_param(GMB_PARAM_ANGLE_CTRL_MODE, GBL_ANGLE_MODE_SHORTEST);
+        return set_param("CTRL_ANGLE_MODE",
+                         static_cast<float>(GBL_ANGLE_MODE_SHORTEST));
 
     } else if (angle_mode == GBL_ANGLE_MODE_DIRECT) {
-        return set_param(GMB_PARAM_ANGLE_CTRL_MODE, GBL_ANGLE_MODE_DIRECT);
+        return set_param("CTRL_ANGLE_MODE",
+                         static_cast<float>(GBL_ANGLE_MODE_DIRECT));
 
     } else {
-        GSDK_DebugError("ERROR: The angle control mode is invalid\n");
+        GSDK_DebugError("ERROR: The angle control mode is invalid");
         return Gimbal_Protocol::ERROR;
     }
 }
@@ -1902,51 +1807,56 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_angle_ctrl_mode(Gimbal_Interface
 /**
  * @brief Get the gimbal angle control mode
  *
- * @return  gbl_ctrl_angle_mode_t
+ * @return gbl_ctrl_angle_mode_t
  */
-Gimbal_Interface::gbl_ctrl_angle_mode_t Gimbal_Interface::get_angle_ctrl_mode(void){
-    int16_t ret = 0;
-    if (get_param(GMB_PARAM_ANGLE_CTRL_MODE, ret) == Gimbal_Protocol::SUCCESS) {
-        if (ret == GBL_ANGLE_MODE_SHORTEST) {
-            return GBL_ANGLE_MODE_SHORTEST;
+Gimbal_Interface::gbl_ctrl_angle_mode_t Gimbal_Interface::get_angle_ctrl_mode(void)
+{
+    auto value = get_param("CTRL_ANGLE_MODE");
 
-        } else if (ret == GBL_ANGLE_MODE_DIRECT) {
+    if (value.has_value()) {
+        int16_t mode = static_cast<int16_t>(value.value());
+
+        if (mode == GBL_ANGLE_MODE_SHORTEST) {
+            return GBL_ANGLE_MODE_SHORTEST;
+        } else if (mode == GBL_ANGLE_MODE_DIRECT) {
             return GBL_ANGLE_MODE_DIRECT;
         }
     }
 
-    GSDK_DebugError("ERROR: Failed to get angle control mode\n");
-    return (gbl_ctrl_angle_mode_t)-1;
+    GSDK_DebugError("ERROR: Failed to get angle control mode");
+    return static_cast<gbl_ctrl_angle_mode_t>(-1);
 }
 
 /**
  * @brief Set the motor electronic power
  *
- * @param percent percentage of the power, range [50 - 100]
+ * @param percent Percentage of the power, range [50 - 100]
  * @return Gimbal_Protocol::result_t
  */
-Gimbal_Protocol::result_t Gimbal_Interface::set_motor_electronic_power(float percent){
+Gimbal_Protocol::result_t Gimbal_Interface::set_motor_electronic_power(float percent)
+{
     if (percent < 50.0f || percent > 100.0f) {
-        GSDK_DebugError("ERROR: The power percentage is out of range [50 - 100]\n");
+        GSDK_DebugError("ERROR: The power percentage is out of range [50 - 100]");
         return Gimbal_Protocol::ERROR;
     }
 
-    return set_param(GMB_PARAM_MOTOR_ELEC_POWER, (int16_t)percent);
+    return set_param("MT_ELEC_PWR", percent);
 }
 
 /**
  * @brief Get the motor electronic power
  *
- * @return percentage of the power, range [50 - 100]
+ * @return Percentage of the power, range [50 - 100]
  */
 float Gimbal_Interface::get_motor_electronic_power(void)
 {
-    int16_t ret = 0;
-    if (get_param(GMB_PARAM_MOTOR_ELEC_POWER, ret) == Gimbal_Protocol::SUCCESS) {
-        return (float)ret;
+    auto value = get_param("MT_ELEC_PWR");
+
+    if (value.has_value()) {
+        return value.value();
     }
 
-    GSDK_DebugError("ERROR: Failed to get motor electronic power\n");
+    GSDK_DebugError("ERROR: Failed to get motor electronic power");
     return -1.0f;
 }
 
@@ -1974,53 +1884,8 @@ Gimbal_Protocol::result_t Gimbal_Interface::request_msg(uint32_t msgid)
     return _gimbal_proto->send_command_long_sync(MAV_CMD_REQUEST_MESSAGE, param);
 }
 
-Gimbal_Protocol::result_t Gimbal_Interface::request_param(param_index_t param)
-{
-    mavlink_param_request_read_t request = { 0 };
-    request.target_system    = _gimbal.sysid;
-    request.target_component = _gimbal.compid;
-    request.param_index      = _params_list[param].gmb_idx;
-    strncpy(request.param_id, _params_list[param].gmb_id, 16);
-    // --------------------------------------------------------------------------
-    //   ENCODE
-    // --------------------------------------------------------------------------
-    mavlink_message_t message = { 0 };
-    // mavlink_msg_param_request_read_encode(_system.sysid, _system.compid, &message, &request);
-    mavlink_msg_param_request_read_encode_chan(_system.sysid, _system.compid, _channel, &message, &request);
 
-    // --------------------------------------------------------------------------
-    //   WRITE
-    // --------------------------------------------------------------------------
-    if (write_message(message) <= 0) {
-        GSDK_DebugError("WARNING: could not send PARAM_REQUEST_READ\n");
-        return Gimbal_Protocol::ERROR;
-    }
 
-    return Gimbal_Protocol::SUCCESS;
-}
-
-Gimbal_Protocol::result_t Gimbal_Interface::request_param_list(void)
-{
-    mavlink_param_request_list_t request = { 0 };
-    request.target_system    = _gimbal.sysid;
-    request.target_component = _gimbal.compid;
-    // --------------------------------------------------------------------------
-    //   ENCODE
-    // --------------------------------------------------------------------------
-    mavlink_message_t message = { 0 };
-    // mavlink_msg_param_request_list_encode(_system.sysid, _system.compid, &message, &request);
-    mavlink_msg_param_request_list_encode_chan(_system.sysid, _system.compid, _channel, &message, &request);
-
-    // --------------------------------------------------------------------------
-    //   WRITE
-    // --------------------------------------------------------------------------
-    if (write_message(message) <= 0) {
-        GSDK_DebugError("WARNING: could not send PARAM_REQUEST_LIST\n");
-        return Gimbal_Protocol::ERROR;
-    }
-
-    return Gimbal_Protocol::SUCCESS;
-}
 
 // ------------------------------------------------------------------------------
 //   Write heartbeat Message
@@ -2216,10 +2081,6 @@ bool Gimbal_Interface::get_flag_exit(void)
 
 bool Gimbal_Interface::get_connection(void)
 {
-    pthread_mutex_lock(&_messages.mutex);
-    // uint64_t timeout = get_time_usec() - _messages.timestamps.heartbeat;
-    pthread_mutex_unlock(&_messages.mutex);
-
     // Check heartbeat from gimbal
     if (!has_detected && time_out > _TIME_LOST_CONNECT) {
         GSDK_DebugError(" Lost Connection!\n");
@@ -2232,10 +2093,6 @@ bool Gimbal_Interface::get_connection(void)
 
 bool Gimbal_Interface::present()
 {
-    pthread_mutex_lock(&_messages.mutex);
-    // uint64_t timeout = get_time_usec() - _messages.timestamps.heartbeat;
-    pthread_mutex_unlock(&_messages.mutex);
-
     // Check time out
     if (_state != GIMBAL_STATE_NOT_PRESENT && time_out > _TIME_LOST_CONNECT) {
         GSDK_DebugWarning(" Not Present!\n");
@@ -2275,7 +2132,7 @@ void Gimbal_Interface::read_thread(void)
 void Gimbal_Interface::write_thread(void)
 {
     uint64_t tnow_ms = 0;
-    uint64_t time_send_param_ms = 0, time_send_heartbeat_ms = 0;
+    uint64_t  time_send_heartbeat_ms = 0;
 
     // Blocking wait for new data
     while (!time_to_exit) {
@@ -2287,12 +2144,7 @@ void Gimbal_Interface::write_thread(void)
             // write a message and signal writing
             write_heartbeat();
 
-        } else if (tnow_ms - time_send_param_ms >= 500) {
-            time_send_param_ms = get_time_msec();
-            // Process check param
-            param_process();
-        }
-
+        } 
         writing_status = THREAD_IDLING;
 
         time_out = time_since_us(_messages.timestamps.heartbeat);

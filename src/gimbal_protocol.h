@@ -45,6 +45,9 @@
 
 #include <ardupilotmega/mavlink.h>
 
+#include "asio.hpp"
+#include "mavlink_parameter_client.hpp"
+
 #define DEBUG 1
 
 #if (DEBUG == 1)
@@ -296,6 +299,19 @@ public:
         return deg * DEG2RAD;
     }
 
+    //Param
+    bool has_param(const std::string& name);
+
+    void request_all_params();
+    void request_all_params(paramio::MavlinkParameterClient::GetAllParamsCallback callback);
+
+    paramio::MavlinkParameterClient::Result set_param_float(const std::string& name, float value);
+
+    std::optional<float> get_param_float(const std::string& name);
+
+    std::pair<paramio::MavlinkParameterClient::Result, float> request_param_float(const std::string& name);
+
+    void param_value_callback(const mavlink_message_t &message);
 protected:
 
     Generic_Port *_port;
@@ -334,6 +350,14 @@ protected:
         std::shared_ptr<PendingRequest>
     > _pending_requests;
 
+    asio::io_context _param_io_context;
+    paramio::TimeoutHandler _param_timeout_handler{_param_io_context};
+
+    std::optional<paramio::MavlinkParameterClient> _param_client;
+
+    asio::executor_work_guard<asio::io_context::executor_type> _param_work_guard
+        = asio::make_work_guard(_param_io_context);
+    std::thread _param_io_thread;
 };
 
 #endif // GIMBAL_PROTOCOL_H_

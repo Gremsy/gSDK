@@ -62,7 +62,22 @@ void Gimbal_Protocol::initialize(const mavlink_system_t &gimbal)
 {
     _gimbal.sysid  = gimbal.sysid;
     _gimbal.compid = gimbal.compid;
+
+    _param_client.emplace(
+        _param_io_context,
+        _param_timeout_handler,
+        [] { return 0.5; },   // time out in seconds
+        [this](const mavlink_message_t& msg) { return _port->write_message(msg) > 0; },
+        _system.sysid,        // own_system_id
+        _system.compid,       // own_component_id
+        _channel,              // channel
+        _gimbal.sysid,         // target_system_id
+        _gimbal.compid);       // target_component_id
+
+    _param_io_thread = std::thread([this] { _param_io_context.run(); });
+
     _is_init = true;
+
 }
 
 /**
@@ -241,4 +256,63 @@ void Gimbal_Protocol::get_attitude(float &pitch, float &roll, float &yaw){
     pitch = _attitude.pitch;
     roll = _attitude.roll;
     yaw = _attitude.yaw;
+}
+void Gimbal_Protocol::request_all_params()
+{
+    if (!_param_client.has_value()) return;
+    _param_client->get_all_params_async(
+        [this](paramio::MavlinkParameterClient::Result result,
+        std::map<std::string, paramio::ParamValue>) {
+            if (result == paramio::MavlinkParameterClient::Result::Success) {
+                GSDK_DebugSuccess("Fetched full gimbal param list");
+            } else {
+                GSDK_DebugError("Failed to fetch full gimbal param list");
+            }
+        },this);
+}
+void Gimbal_Protocol::request_all_params(paramio::MavlinkParameterClient::GetAllParamsCallback callback)
+{
+    if (!_param_client.has_value()) return;
+    _param_client->get_all_params_async(std::move(callback),this);
+}
+
+paramio::MavlinkParameterClient::Result
+Gimbal_Protocol::set_param_float(const std::string& name, float value)
+{
+    if (!_param_client.has_value()) {
+        return paramio::MavlinkParameterClient::Result::ConnectionError;
+    }
+
+    return _param_client->set_param_float(name, value);
+}
+
+std::optional<float> Gimbal_Protocol::get_param_float(const std::string& name) 
+{
+    if (!_param_client.has_value()) return std::nullopt;
+    return _param_client->get_cached_param_float(name);
+}
+
+bool Gimbal_Protocol::has_param(const std::string& name) 
+{
+    if (!_param_client.has_value()) return false;
+    return _param_client->has_cached_param(name);
+}
+
+std::pair<paramio::MavlinkParameterClient::Result, float>
+Gimbal_Protocol::request_param_float(const std::string& name)
+{
+    if (!_param_client.has_value()) {
+        return {paramio::MavlinkParameterClient::Result::ConnectionError, 0.0f};
+    }
+    // Blocking - sends PARAM_REQUEST_READ, waits for response/timeout.
+    // The cache is updated internally by the module regardless of whether
+    // the value is used here or not.
+    return _param_client->get_param_float(name);
+}
+
+void Gimbal_Protocol::param_value_callback(const mavlink_message_t &message)
+{
+    if (_param_client.has_value()) {
+        _param_client->handle_message(message);
+    }
 }

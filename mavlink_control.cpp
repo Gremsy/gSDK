@@ -194,10 +194,11 @@ int gGimbal_sample(int argc, char **argv)
 
     /// Process data
     while (!gimbal_interface->get_flag_exit()) {
+        usleep(1000);   // Run at 1kHz
+        if (!gimbal_interface->present()) { continue;}
+
         if(sdk.state == STATE_IDLE){
-            if (gimbal_interface->present()) {
                 sdk.state = STATE_CONNECTED;
-            }
         } else if(sdk.state == STATE_CONNECTED) {
             setting_sample_gimbal_setup_param_startup(gimbal_interface);
 
@@ -206,8 +207,6 @@ int gGimbal_sample(int argc, char **argv)
             control_sample_gimbal_process(gimbal_interface, port);
 
         }
-
-        usleep(1000);   // Run at 1kHz
     }
 
     // --------------------------------------------------------------------------

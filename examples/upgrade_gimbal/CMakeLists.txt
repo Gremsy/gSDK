@@ -20,6 +20,8 @@ set(UPGRADE_GIMBAL_SRC
     ${MAVLINK_SRC}/gimbal_protocol_v1.cpp
     ${MAVLINK_SRC}/gimbal_protocol_v2.cpp
     ${MAVLINK_SRC}/serial_port.cpp
+    ${MAVLINK_SRC}/param_handler/mavlink_parameter_cache.cpp
+    ${MAVLINK_SRC}/param_handler/mavlink_parameter_client.cpp
 )
 add_executable(upgrade_gimbal ${UPGRADE_GIMBAL_SRC})
 

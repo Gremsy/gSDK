@@ -48,6 +48,7 @@
 // Max rotation rate in deg/s
 #define MAX_ROTATION_RATE       30
 
+using namespace paramio;
 // ------------------------------------------------------------------------------
 //   Prototypes
 // ------------------------------------------------------------------------------
@@ -273,64 +274,7 @@ public:
         imu_t(const vector3<int16_t> &_a, const vector3<int16_t> &_g) :
             accel(_a), gyro(_g) {};
     };
-    /**
-     * @brief param_index_t
-     * Gimbal opens some parameters for setting. Please refer to user manual to learn more how to set
-     * that parameters
-     */
-    enum param_index_t {
-        GMB_PARAM_VERSION_X = 0,
-        GMB_PARAM_VERSION_Y,
-        GMB_PARAM_VERSION_Z,
 
-        GMB_PARAM_STIFFNESS_PITCH,
-        GMB_PARAM_STIFFNESS_ROLL,
-        GMB_PARAM_STIFFNESS_YAW,
-
-        GMB_PARAM_HOLDSTRENGTH_PITCH,
-        GMB_PARAM_HOLDSTRENGTH_ROLL,
-        GMB_PARAM_HOLDSTRENGTH_YAW,
-
-        GMB_PARAM_OUTPUT_FILTER,
-        GMB_PARAM_GYRO_FILTER,
-
-        GMB_PARAM_SPEED_FOLLOW_PITCH,
-        GMB_PARAM_SPEED_FOLLOW_YAW,
-
-        GMB_PARAM_SMOOTH_FOLLOW_PITCH,
-        GMB_PARAM_SMOOTH_FOLLOW_YAW,
-
-        GMB_PARAM_WINDOW_FOLLOW_PITCH,
-        GMB_PARAM_WINDOW_FOLLOW_YAW,
-
-        GMB_PARAM_SPEED_CONTROL_PITCH,
-        GMB_PARAM_SPEED_CONTROL_ROLL,
-        GMB_PARAM_SPEED_CONTROL_YAW,
-
-        GMB_PARAM_SMOOTH_CONTROL_PITCH,
-        GMB_PARAM_SMOOTH_CONTROL_ROLL,
-        GMB_PARAM_SMOOTH_CONTROL_YAW,
-
-        GMB_PARAM_AXIS_DIR,
-
-        GMB_PARAM_ENCODER_TYPE,
-
-        GMB_PARAM_MIN_LIMIT_ANGLE_PITCH,
-        GMB_PARAM_MAX_LIMIT_ANGLE_PITCH,
-        GMB_PARAM_MIN_LIMIT_ANGLE_ROLL,
-        GMB_PARAM_MAX_LIMIT_ANGLE_ROLL,
-        GMB_PARAM_MIN_LIMIT_ANGLE_YAW,
-        GMB_PARAM_MAX_LIMIT_ANGLE_YAW,
-
-        GMB_PARAM_RC_TYPE,
-
-        GMB_PARAM_ENABLE_ADRC,
-        
-        GMB_PARAM_ANGLE_CTRL_MODE,
-        GMB_PARAM_MOTOR_ELEC_POWER,
-
-        GIMBAL_NUM_TRACKED_PARAMS
-    };
     /**
      * @brief Gimbal remote controller type
      * 
@@ -742,23 +686,52 @@ public:
      */
     uint32_t get_gimbal_attitude_flag(void);
     /**
-     * @brief  This function for user to get gimbal param
+     * @brief Get a parameter value from the local cache.
      *
-     * @param: param - param name to get, follow param_index_t
-     * @param: value - reference to value
-     * @ret: None
+     * @details This function does not send any MAVLink request to the gimbal.
+     * It returns the latest cached value, which is updated after
+     * get_all_params(), request_param(), or when a PARAM_VALUE message is
+     * received from the gimbal.
+     *
+     * @param name Parameter ID (e.g. "RC_SPD_TILT").
+     * @return Cached parameter value if available, otherwise std::nullopt.
      */
-    Gimbal_Protocol::result_t get_param(param_index_t param, int16_t &value);
+    std::optional<float> get_param(const std::string& name);
 
     /**
-     * @brief  This function for user to set gimbal param. Some parameters are not writable by gSDK. If you cannot set the parameters, please try again using gTune.
+     * @brief Set a gimbal parameter.
      *
-     * @param: param - param name to set, follow param_index_t
-     * @param: value - value to set
-     * @ret: None
+     * @details Sends a PARAM_SET message to the gimbal and waits for the
+     * acknowledgement. Some parameters are read-only or protected and cannot
+     * be modified through gSDK. In such cases, use gTune if supported.
+     *
+     * @param name Parameter ID (e.g. "RC_SPD_TILT").
+     * @param value New parameter value.
+     * @return Result of the set operation.
      */
-    Gimbal_Protocol::result_t set_param(param_index_t param, int16_t value);  
-    
+    Gimbal_Protocol::result_t set_param(const std::string& name, float value);
+
+    /**
+     * @brief Request a parameter value from the gimbal.
+     *
+     * @details Sends a PARAM_REQUEST_READ message and waits for the response.
+     * If successful, the received value is returned and the local parameter
+     * cache is updated automatically.
+     *
+     * @param name Parameter ID (e.g. "RC_SPD_TILT").
+     * @return A pair containing the request result and the parameter value.
+     *         The value is valid only when the result is SUCCESS.
+     */
+    std::pair<Gimbal_Protocol::result_t, float> request_param(const std::string& name);
+
+    /**
+     * @brief Request all parameters from the gimbal asynchronously.
+     *
+     * @details Sends a PARAM_REQUEST_LIST message and updates the local
+     * parameter cache as PARAM_VALUE messages are received. This function
+     * returns immediately without waiting for completion.
+     */
+    void request_all_params();
     /**
      * @brief Set the msg rate
      *
@@ -964,103 +937,12 @@ public:
      */
     constexpr float hz_to_period_us(uint8_t hz) { return 1000000 / hz; }
     
-    // Gimbal params
-    void reset_params();        
-    bool params_initialized();
-    bool params_received_all();
-    void fetch_params();
-
-    void param_update();
-    virtual void param_process(void);
-
-    const char *get_param_name(param_index_t param)
-    {
-        return _params_list[param].gmb_id;
-    }
-    const uint8_t get_gmb_index(param_index_t param)
-    {
-        return _params_list[param].gmb_idx;
-    }
-
-    Gimbal_Protocol::result_t request_param(param_index_t param);
-    Gimbal_Protocol::result_t request_param(const char* param_id);
-    Gimbal_Protocol::result_t request_param_list(void);
 
 
     static constexpr uint32_t _TIME_LOST_CONNECT = 6000000;   // 60s
     static constexpr uint32_t _RETRY_PERIOD      = 100;       // 100ms
     static constexpr uint8_t _MAX_FETCH_TIME     = 5;         // times
 
-    struct {
-        uint8_t       gmb_idx;   // Update in run time
-        const char   *gmb_id;
-        int16_t       value;
-
-        volatile param_state_t state;
-        uint8_t                fetch_attempts;
-        bool                   seen;
-        int16_t                set_value;
-    } _params_list[GIMBAL_NUM_TRACKED_PARAMS] = {
-
-        // Gimbal version
-        {0, "VERSION_X", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {0, "VERSION_Y", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {0, "VERSION_Z", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-
-        // Gimbal stiffness
-        {0, "STIFF_TILT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {0, "STIFF_ROLL", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {0, "STIFF_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-
-        // Gimbal hold strength
-        {0, "PWR_TILT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {0, "PWR_ROLL", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {0, "PWR_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-
-        {0, "FILTER_OUT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {0, "GYRO_LPF", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-
-        // Gimbal follow speed
-        {0, "FLW_SP_TILT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {0, "FLW_SP_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-
-        // Gimbal follow filter
-        {0, "FLW_LPF_TILT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {0, "FLW_LPF_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-
-        // Gimbal follow windown
-        {0, "FLW_WD_TILT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {0, "FLW_WD_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-
-        // Gimbal speed control
-        {0, "RC_SPD_TILT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {0, "RC_SPD_ROLL", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {0, "RC_SPD_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-
-        // Gimbal smooth control
-        {0, "RC_LPF_TILT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {0, "RC_LPF_ROLL", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {0, "RC_LPF_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-
-        // Direction
-        {0, "RC_REVERSE_AXIS", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-
-        {0, "MAV_TS_ENCNT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-
-        {0, "RC_LIM_MIN_TILT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {0, "RC_LIM_MAX_TILT", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {0, "RC_LIM_MIN_ROLL", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {0, "RC_LIM_MAX_ROLL", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {0, "RC_LIM_MIN_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {0, "RC_LIM_MAX_PAN", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-
-        {0, "RC_TYPE", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-
-        {0, "ENABLE_ADRC", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-
-        {0, "CTRL_ANGLE_MODE", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-        {0, "MT_ELEC_PWR", 0, PARAM_STATE_NOT_YET_READ, 0, false},
-    };
 
     uint64_t _last_request_ms;
     uint64_t _last_set_ms;
