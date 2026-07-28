@@ -745,7 +745,7 @@ public:
      * @return Result of the set operation.
      */
     Gimbal_Protocol::result_t set_param(const std::string& name, float value);
-
+    void set_param_async(const std::string& name, float value,  const MavlinkParameterClient::SetParamCallback& callback);
     /**
      * @brief Request a parameter value from the gimbal.
      *
@@ -758,7 +758,7 @@ public:
      *         The value is valid only when the result is SUCCESS.
      */
     std::pair<Gimbal_Protocol::result_t, float> request_param(const std::string& name);
-
+    void request_param_async(const std::string& name, const std::function<void(paramio::MavlinkParameterClient::Result, float)>& callback);
     /**
      * @brief Request all parameters from the gimbal asynchronously.
      *

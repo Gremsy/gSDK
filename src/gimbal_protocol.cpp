@@ -257,6 +257,13 @@ void Gimbal_Protocol::get_attitude(float &pitch, float &roll, float &yaw){
     roll = _attitude.roll;
     yaw = _attitude.yaw;
 }
+
+bool Gimbal_Protocol::has_param(const std::string& name) 
+{
+    if (!_param_client.has_value()) return false;
+    return _param_client->has_cached_param(name);
+}
+
 void Gimbal_Protocol::request_all_params()
 {
     if (!_param_client.has_value()) return;
@@ -286,16 +293,23 @@ Gimbal_Protocol::set_param_float(const std::string& name, float value)
     return _param_client->set_param_float(name, value);
 }
 
+void Gimbal_Protocol::set_param_float_async(const std::string& name, float value, const paramio::MavlinkParameterClient::SetParamCallback& callback)
+{
+    if (!_param_client.has_value()) return;
+    _param_client->set_param_float_async(name, value, callback, this);
+}
+
 std::optional<float> Gimbal_Protocol::get_param_float(const std::string& name) 
 {
     if (!_param_client.has_value()) return std::nullopt;
     return _param_client->get_cached_param_float(name);
 }
 
-bool Gimbal_Protocol::has_param(const std::string& name) 
+void Gimbal_Protocol::request_param_float_async(
+        const std::string& name, const std::function<void(paramio::MavlinkParameterClient::Result, float)>& callback)
 {
-    if (!_param_client.has_value()) return false;
-    return _param_client->has_cached_param(name);
+    if (!_param_client.has_value()) return;
+    _param_client->get_param_float_async(name, callback, this);
 }
 
 std::pair<paramio::MavlinkParameterClient::Result, float>
@@ -315,4 +329,11 @@ void Gimbal_Protocol::param_value_callback(const mavlink_message_t &message)
     if (_param_client.has_value()) {
         _param_client->handle_message(message);
     }
+}
+
+paramio::MavlinkParameterClient::ParamListState Gimbal_Protocol::get_param_list_state() const
+{
+    return _param_client.has_value()
+        ? _param_client->get_param_list_state()
+        : paramio::MavlinkParameterClient::ParamListState::NotRequested;
 }

@@ -471,15 +471,27 @@ MavlinkParameterClient::get_all_params()
 
 void MavlinkParameterClient::get_all_params_async(GetAllParamsCallback callback, const void* cookie)
 {
+    _param_list_state = ParamListState::Requesting;
+ 
+    // Wrap the user's callback so _param_list_state is kept up to date no
+    // matter which code path ends up calling it (send failure in do_work(),
+    // success in process_param_value(), or timeout in receive_timeout()) -
+    // they all funnel through this single WorkItemGetAll::callback.
+    GetAllParamsCallback wrapped_callback =
+        [this, callback](Result result, std::map<std::string, ParamValue> all_params) {
+            _param_list_state =
+                (result == Result::Success) ? ParamListState::Received : ParamListState::Failed;
+            if (callback) callback(result, std::move(all_params));
+        };
+ 
     auto work =
-        std::make_shared<WorkItem>(WorkItemGetAll{std::move(callback), 0, false}, cookie);
+        std::make_shared<WorkItem>(WorkItemGetAll{std::move(wrapped_callback), 0, false}, cookie);
     asio::post(_io_context, [this, work]() {
         const bool was_empty = _work_queue.empty();
         _work_queue.push_back(work);
         if (was_empty) do_work();
     });
 }
-
 // ---------------------------------------------------------------------------
 // Direct cache reads (no network)
 // ---------------------------------------------------------------------------
@@ -666,13 +678,6 @@ void MavlinkParameterClient::do_work()
             [&](WorkItemSet& item) {
 
 
-                GSDK_DebugInfo(
-                    "[PARAM_WORK][SET] param=%s value=%s",
-                    item.param_name.c_str(),
-                    item.param_value.get_string().c_str()
-                );
-
-
 
                 if (!send_set_param_message(item)) {
 
@@ -721,13 +726,6 @@ void MavlinkParameterClient::do_work()
                 if (std::holds_alternative<std::string>(
                         item.param_identifier)) {
 
-
-                    GSDK_DebugInfo(
-                        "[PARAM_WORK][GET] name=%s",
-                        std::get<std::string>(
-                            item.param_identifier
-                        ).c_str()
-                    );
 
                 } else {
 
@@ -787,12 +785,6 @@ void MavlinkParameterClient::do_work()
 
 
             [&](WorkItemGetAll& item) {
-
-
-                GSDK_DebugInfo(
-                    "[PARAM_WORK][GET_ALL] Start request all params"
-                );
-
 
 
                 clear_cache();
@@ -1625,7 +1617,6 @@ void MavlinkParameterClient::receive_timeout()
 
 
 
-                // Đã nhận được một phần parameter
                 GSDK_DebugWarning(
                     "[PARAM_TIMEOUT][GET_ALL] Partial received=%d, request missing",
                     item.count

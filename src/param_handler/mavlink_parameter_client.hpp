@@ -35,6 +35,13 @@ public:
         UnknownError
     };
 
+    enum class ParamListState {
+        NotRequested,
+        Requesting,
+        Received,
+        Failed
+    };
+
     using SetParamCallback = std::function<void(Result)>;
     using GetParamAnyCallback = std::function<void(Result, ParamValue)>;
     using GetAllParamsCallback = std::function<void(Result, std::map<std::string, ParamValue>)>;
@@ -106,6 +113,7 @@ public:
         const void* cookie);
 
     // --- Get all ---
+    ParamListState get_param_list_state() const { return _param_list_state.load(); }
     std::pair<Result, std::map<std::string, ParamValue>> get_all_params();
     void get_all_params_async(GetAllParamsCallback callback, const void* cookie);
 
@@ -188,6 +196,7 @@ private:
     // integral type.
     static bool extract_int32(const ParamValue& value, int32_t& out);
 
+    std::atomic<ParamListState> _param_list_state{ParamListState::NotRequested};
     TimeoutHandler& _timeout_handler;
     TimeoutSCallback _timeout_s_callback;
     SendMessageCallback _send_message_callback;

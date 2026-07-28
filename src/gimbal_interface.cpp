@@ -355,6 +355,15 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_param(const std::string& name, f
         return Gimbal_Protocol::ERROR;
     }
 }
+void Gimbal_Interface::set_param_async(const std::string& name, float value, const paramio::MavlinkParameterClient::SetParamCallback& callback)
+{
+    _gimbal_proto->set_param_float_async(name, value, callback);
+}
+
+void Gimbal_Interface::request_param_async(const std::string& name, const std::function<void(paramio::MavlinkParameterClient::Result, float)>& callback)
+{
+    _gimbal_proto->request_param_float_async(name, callback);
+}
 
 std::pair<Gimbal_Protocol::result_t, float>
 Gimbal_Interface::request_param(const std::string& name)

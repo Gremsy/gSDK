@@ -307,11 +307,18 @@ public:
 
     paramio::MavlinkParameterClient::Result set_param_float(const std::string& name, float value);
 
+    void set_param_float_async(const std::string& name, float value, const paramio::MavlinkParameterClient::SetParamCallback& callback);
+
     std::optional<float> get_param_float(const std::string& name);
+
+    void request_param_float_async(
+        const std::string& name, const std::function<void(paramio::MavlinkParameterClient::Result, float)>& callback);
 
     std::pair<paramio::MavlinkParameterClient::Result, float> request_param_float(const std::string& name);
 
     void param_value_callback(const mavlink_message_t &message);
+
+    paramio::MavlinkParameterClient::ParamListState get_param_list_state() const;
 protected:
 
     Generic_Port *_port;
