@@ -824,6 +824,7 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_motor_control(
     uint8_t gyro_filter,
     uint8_t output_filter)
 {
+
     return (set_param("STIFF_TILT", static_cast<float>(tilt.stiffness)) == Gimbal_Protocol::SUCCESS &&
             set_param("PWR_TILT", static_cast<float>(tilt.holdstrength)) == Gimbal_Protocol::SUCCESS &&
             set_param("STIFF_ROLL", static_cast<float>(roll.stiffness)) == Gimbal_Protocol::SUCCESS &&
@@ -1621,7 +1622,39 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_limit_angle_pitch(
            ? Gimbal_Protocol::SUCCESS
            : Gimbal_Protocol::ERROR;
 }
+void Gimbal_Interface::set_limit_angle_pitch_async(limit_angle_t limit_angle)
+{
+    int16_t temp_limit = limit_angle.angle_min;
 
+    limit_angle.angle_min = -limit_angle.angle_max;
+    limit_angle.angle_max = -temp_limit;
+
+    set_param_async(
+        "RC_LIM_MIN_TILT",
+        static_cast<float>(limit_angle.angle_min),
+        [](paramio::MavlinkParameterClient::Result result)
+        {
+            if (result == paramio::MavlinkParameterClient::Result::Success) {
+                GSDK_DebugSuccess("Set RC_LIM_MIN_TILT success");
+            } else {
+                GSDK_DebugError("Set RC_LIM_MIN_TILT failed (%d)",
+                                static_cast<int>(result));
+            }
+        });
+
+    set_param_async(
+        "RC_LIM_MAX_TILT",
+        static_cast<float>(limit_angle.angle_max),
+        [](paramio::MavlinkParameterClient::Result result)
+        {
+            if (result == paramio::MavlinkParameterClient::Result::Success) {
+                GSDK_DebugSuccess("Set RC_LIM_MAX_TILT success");
+            } else {
+                GSDK_DebugError("Set RC_LIM_MAX_TILT failed (%d)",
+                                static_cast<int>(result));
+            }
+        });
+}
 /**
  * @brief Get limit angle for pitch.
  * @details Please refer to Gremsy site <gremsy.com> for
@@ -1663,6 +1696,44 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_limit_angle_yaw(
 }
 
 /**
+ * @brief Set limit angle for yaw asynchronously.
+ * @details Please refer to Gremsy site <gremsy.com> for
+ * details about default limit angle of Gimbal.
+ * This function sends the minimum and maximum yaw limit angles
+ * asynchronously.
+ *
+ * @param limit_angle Limit angle.
+ * @return None
+ */
+void Gimbal_Interface::set_limit_angle_yaw_async(const limit_angle_t& limit_angle)
+{
+    set_param_async(
+        "RC_LIM_MIN_PAN",
+        static_cast<float>(limit_angle.angle_min),
+        [](paramio::MavlinkParameterClient::Result result)
+        {
+            if (result == paramio::MavlinkParameterClient::Result::Success) {
+                GSDK_DebugSuccess("Set RC_LIM_MIN_PAN success");
+            } else {
+                GSDK_DebugError("Set RC_LIM_MIN_PAN failed (%d)",
+                                static_cast<int>(result));
+            }
+        });
+
+    set_param_async(
+        "RC_LIM_MAX_PAN",
+        static_cast<float>(limit_angle.angle_max),
+        [](paramio::MavlinkParameterClient::Result result)
+        {
+            if (result == paramio::MavlinkParameterClient::Result::Success) {
+                GSDK_DebugSuccess("Set RC_LIM_MAX_PAN success");
+            } else {
+                GSDK_DebugError("Set RC_LIM_MAX_PAN failed (%d)",
+                                static_cast<int>(result));
+            }
+        });
+}
+/**
  * @brief Get limit angle for yaw.
  * @details Please refer to Gremsy site <gremsy.com> for
  * details about default limit angle of Gimbal.
@@ -1700,6 +1771,36 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_limit_angle_roll(
                       static_cast<float>(limit_angle.angle_max)) == Gimbal_Protocol::SUCCESS)
            ? Gimbal_Protocol::SUCCESS
            : Gimbal_Protocol::ERROR;
+}
+
+
+void Gimbal_Interface::set_limit_angle_roll_async(const limit_angle_t& limit_angle)
+{
+    set_param_async(
+        "RC_LIM_MIN_ROLL",
+        static_cast<float>(limit_angle.angle_min),
+        [](paramio::MavlinkParameterClient::Result result)
+        {
+            if (result == paramio::MavlinkParameterClient::Result::Success) {
+                GSDK_DebugSuccess("Set RC_LIM_MIN_ROLL success");
+            } else {
+                GSDK_DebugError("Set RC_LIM_MIN_ROLL failed (%d)",
+                                static_cast<int>(result));
+            }
+        });
+
+    set_param_async(
+        "RC_LIM_MAX_ROLL",
+        static_cast<float>(limit_angle.angle_max),
+        [](paramio::MavlinkParameterClient::Result result)
+        {
+            if (result == paramio::MavlinkParameterClient::Result::Success) {
+                GSDK_DebugSuccess("Set RC_LIM_MAX_ROLL success");
+            } else {
+                GSDK_DebugError("Set RC_LIM_MAX_ROLL failed (%d)",
+                                static_cast<int>(result));
+            }
+        });
 }
 
 /**
@@ -1815,6 +1916,34 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_angle_ctrl_mode(
 }
 
 /**
+ * @brief Set the gimbal angle control mode asynchronously.
+ *
+ * @param angle_mode Angle control mode.
+ * @return None
+ */
+void Gimbal_Interface::set_angle_ctrl_mode_async(
+    Gimbal_Interface::gbl_ctrl_angle_mode_t angle_mode)
+{
+    if (angle_mode != GBL_ANGLE_MODE_SHORTEST &&
+        angle_mode != GBL_ANGLE_MODE_DIRECT) {
+        GSDK_DebugError("ERROR: The angle control mode is invalid");
+        return;
+    }
+
+    set_param_async(
+        "CTRL_ANGLE_MODE",
+        static_cast<float>(angle_mode),
+        [](paramio::MavlinkParameterClient::Result result)
+        {
+            if (result == paramio::MavlinkParameterClient::Result::Success) {
+                GSDK_DebugSuccess("Set CTRL_ANGLE_MODE success");
+            } else {
+                GSDK_DebugError("Set CTRL_ANGLE_MODE failed (%d)",
+                                static_cast<int>(result));
+            }
+        });
+}
+/**
  * @brief Get the gimbal angle control mode
  *
  * @return gbl_ctrl_angle_mode_t
@@ -1851,6 +1980,33 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_motor_electronic_power(float per
     }
 
     return set_param("MT_ELEC_PWR", percent);
+}
+
+/**
+ * @brief Set the motor electronic power asynchronously.
+ *
+ * @param percent Percentage of the power, range [50 - 100].
+ * @return None
+ */
+void Gimbal_Interface::set_motor_electronic_power_async(float percent)
+{
+    if (percent < 50.0f || percent > 100.0f) {
+        GSDK_DebugError("ERROR: The power percentage is out of range [50 - 100]");
+        return;
+    }
+
+    set_param_async(
+        "MT_ELEC_PWR",
+        percent,
+        [](paramio::MavlinkParameterClient::Result result)
+        {
+            if (result == paramio::MavlinkParameterClient::Result::Success) {
+                GSDK_DebugSuccess("Set MT_ELEC_PWR success");
+            } else {
+                GSDK_DebugError("Set MT_ELEC_PWR failed (%d)",
+                                static_cast<int>(result));
+            }
+        });
 }
 
 /**

@@ -106,7 +106,7 @@ public:
     {
         REBOOT_ACTION_REBOOT   = 0x01,
         REBOOT_ACTION_SHUTDOWN = 0x02,
-
+        
         MAX_REBOOT_ACTION     
     };
 
@@ -662,6 +662,18 @@ public:
     Gimbal_Protocol::result_t set_limit_angle_pitch(limit_angle_t &limit_angle);
 
     /**
+     * @brief Set limit angle for pitch asynchronously.
+     * @details This function converts the user pitch limit angle to the internal
+     * firmware format, then sends the minimum and maximum pitch limit angles
+     * asynchronously. The result of each parameter update is returned through
+     * its callback.
+     *
+     * @param limit_angle Pitch limit angle.
+     * @return None
+     */
+    void set_limit_angle_pitch_async(limit_angle_t limit_angle);
+
+    /**
      * @brief Get limit angle for pitch.
      * @details Please refer to Gremsy site <gremsy.com> for
      * details about default limit angle of Gimbal.
@@ -678,7 +690,17 @@ public:
      * @return None
      */
     Gimbal_Protocol::result_t set_limit_angle_yaw(const limit_angle_t &limit_angle);
-
+    /**
+     * @brief Set limit angle for yaw asynchronously.
+     * @details Please refer to Gremsy site <gremsy.com> for
+     * details about default limit angle of Gimbal.
+     * This function sends the minimum and maximum yaw limit angles
+     * asynchronously.
+     *
+     * @param limit_angle Limit angle.
+     * @return None
+     */
+    void set_limit_angle_yaw_async(const limit_angle_t& limit_angle);
     /**
      * @brief Get limit angle for yaw.
      * @details Please refer to Gremsy site <gremsy.com> for
@@ -697,6 +719,16 @@ public:
      */
     Gimbal_Protocol::result_t set_limit_angle_roll(const limit_angle_t &limit_angle);
 
+    /**
+     * @brief Set limit angle for roll asynchronously.
+     * @details This function sends the minimum and maximum roll limit angles
+     * asynchronously. The result of each parameter update is returned through
+     * its callback.
+     *
+     * @param limit_angle Roll limit angle.
+     * @return None
+     */
+    void set_limit_angle_roll_async(const limit_angle_t& limit_angle);
     /**
      * @brief Get limit angle for roll.
      * @details Please refer to Gremsy site <gremsy.com> for
@@ -785,6 +817,14 @@ public:
     Gimbal_Protocol::result_t set_angle_ctrl_mode(gbl_ctrl_angle_mode_t angle_mode);
 
     /**
+     * @brief Set the gimbal angle control mode asynchronously.
+     *
+     * @param angle_mode Angle control mode.
+     * @return None
+     */
+    void set_angle_ctrl_mode_async(gbl_ctrl_angle_mode_t angle_mode);
+
+    /**
      * @brief Get the gimbal angle control mode
      *
      * @return  gbl_ctrl_angle_mode_t
@@ -798,6 +838,14 @@ public:
      * @return Gimbal_Protocol::result_t
      */
     Gimbal_Protocol::result_t set_motor_electronic_power(float percent);
+
+    /**
+     * @brief Set the motor electronic power asynchronously.
+     *
+     * @param percent Percentage of the power, range [50 - 100].
+     * @return None
+     */
+    void set_motor_electronic_power_async(float percent);
 
     /**
      * @brief Get the motor electronic power
