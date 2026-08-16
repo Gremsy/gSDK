@@ -518,6 +518,15 @@ Gimbal_Protocol::result_t Gimbal_Interface::set_gimbal_motor(control_motor_t typ
     return _gimbal_proto->send_command_long_sync(MAV_CMD_USER_1, param);
 }
 
+bool Gimbal_Interface::is_gimbal_has_mav_bootloader()
+{
+    if (_gimbal_proto == nullptr) {
+        return false;
+    }
+
+    return _messages.sys_status.errors_count2 & 0x8000;
+}
+
 /**
  * @brief  This function get gimbal mode
  * @param: type see gimbal_mode_t

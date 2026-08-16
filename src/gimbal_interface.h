@@ -349,6 +349,7 @@ public:
 
     bool present();
 
+    bool is_gimbal_has_mav_bootloader();
     /**
      * @brief  This function reboot the gimbal
      * @param: NONE
