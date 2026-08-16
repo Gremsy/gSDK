@@ -523,7 +523,7 @@ bool Gimbal_Interface::is_gimbal_has_mav_bootloader()
     if (_gimbal_proto == nullptr) {
         return false;
     }
-
+    if (!_messages.timestamps.sys_status) return false; 
     return _messages.sys_status.errors_count2 & 0x8000;
 }
 
